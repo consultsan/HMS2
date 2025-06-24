@@ -1,0 +1,85 @@
+import { Router } from "express";
+import { AppointmentController } from "../controllers/Appointment.controller";
+import { upload } from "../services/upload.service";
+
+const router = Router();
+
+const appointmentController: AppointmentController =
+	new AppointmentController();
+router.get(
+	"/history",
+	appointmentController.getPatientHistory.bind(appointmentController)
+);
+router.post(
+	"/book",
+	appointmentController.bookAppointment.bind(appointmentController)
+);
+
+router.post(
+	"/upload-attachment",
+	upload.single("file"),
+	appointmentController.uploadAttachment.bind(appointmentController)
+);
+router.get(
+	"/get-attachments/:id",
+	appointmentController.getAttachments.bind(appointmentController)
+);
+router.delete(
+	"/delete-attachment/:id",
+	appointmentController.deleteAttachment.bind(appointmentController)
+);
+router.patch(
+	"/update-status/:id",
+	appointmentController.updateAppointmentStatus.bind(appointmentController)
+);
+
+router.get(
+	"/get-by-date-and-doctor",
+	appointmentController.getAppointmentByDateAndDoctor.bind(
+		appointmentController
+	)
+);
+router.get(
+	"/get-by-hospital",
+	appointmentController.getAppointmentsByHospital.bind(
+		appointmentController
+	)
+);
+router.get(
+	"/get-by-date-and-patient",
+	appointmentController.getAppointmentsByDateAndPatient.bind(
+		appointmentController
+	)
+);
+router.get(
+	"/get-surgery-by-appointment-id",
+	appointmentController.getSurgeyByAppointmentId.bind(
+		appointmentController
+	)
+);
+router.post(
+	"/add-surgery",
+	appointmentController.addSurgery.bind(appointmentController)
+);
+router.patch(
+	"/update-surgery-status/:surgeryId",
+	appointmentController.updateSurgeryStatus.bind(
+		appointmentController
+	)
+);
+router.get(
+	"/get-surgery-by-hospital-id",
+	appointmentController.getSurgeryByHospitalId.bind(
+		appointmentController
+	)
+);
+
+router.patch(
+	"/update-appointment-schedule/:id",
+	appointmentController.updateAppointmentSchedule.bind(
+		appointmentController
+	)
+);
+
+
+export default router;

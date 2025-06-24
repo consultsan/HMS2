@@ -1,0 +1,353 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Search, Loader2 } from "lucide-react";
+import { toast } from 'sonner';
+import DoctorSlots from "@/components/DoctorSlots";
+
+interface Doctor {
+    id: string;
+    name: string;
+    specialisation: string;
+    role: 'DOCTOR';
+    status: 'ACTIVE' | 'INACTIVE';
+}
+
+interface Patient {
+    id: string;
+    name: string;
+    patientUniqueId: string;
+    phone: string;
+}
+
+export default function AddAppointment({ patientId }: { patientId: string }) {
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [selectedPatientId, setSelectedPatientId] = useState(patientId || "");
+    const [selectedDoctorId, setSelectedDoctorId] = useState("");
+    const [patientSearchQuery, setPatientSearchQuery] = useState("");
+    const [visitType, setVisitType] = useState<'OPD' | 'IPD' | 'EMERGENCY'>('OPD');
+    const [selectedDate, setSelectedDate] = useState("");
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
+    const [selectedSlotId, setSelectedSlotId] = useState<string>("");
+    const [partiallyBooked, setPartiallyBooked] = useState(false);
+
+    useEffect(() => {
+        if (patientId) {
+            setSelectedPatientId(patientId);
+        }
+    }, [patientId]);
+
+    const queryClient = useQueryClient();
+
+    const { data: doctors } = useQuery<Doctor[]>({
+        queryKey: ["doctors"],
+        queryFn: async () => {
+            const response = await api.get('/api/doctor/get-by-hospital');
+            return response.data?.data ?? [];
+        },
+    });
+
+    const { data: patients } = useQuery<Patient[]>({
+        queryKey: ["patients"],
+        queryFn: async () => {
+            const response = await api.get('/api/patient/');
+            return response.data?.data ?? [];
+        },
+    });
+
+    const createAppointmentMutation = useMutation({
+        mutationFn: async (data: {
+            patientId: string;
+            doctorId: string;
+            visitType: 'OPD' | 'IPD' | 'EMERGENCY';
+            scheduledAt: string;
+            selectedSlotId: string;
+            partiallyBooked: boolean;
+        }) => {
+            const appointmentResponse = await api.post('/api/appointment/book', {
+                patientId: data.patientId,
+                doctorId: data.doctorId,
+                visitType: data.visitType,
+                scheduledAt: data.scheduledAt
+            });
+
+            // Handle slot booking
+            if (data.partiallyBooked === true) {
+                await api.patch(`/api/doctor/update-slot/${data.selectedSlotId}`, {
+                    appointment2Id: appointmentResponse.data.data.id,
+                    timeSlot: data.scheduledAt
+                });
+            } else {
+                await api.post(`/api/doctor/add-slot/${data.doctorId}`, {
+                    appointment1Id: appointmentResponse.data.data.id,
+                    timeSlot: data.scheduledAt
+                });
+            }
+
+            return appointmentResponse.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['appointments'] });
+            toast.success('Appointment created successfully');
+            setIsAddDialogOpen(false);
+            resetFormFields();
+        },
+        onError: (error: any) => {
+            console.error('Error creating appointment:', error);
+            toast.error(error.response?.data?.message || 'Failed to create appointment');
+        },
+    });
+
+    const filteredPatients = patients?.filter(patient =>
+        patient.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+        patient.patientUniqueId.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+        patient.phone.includes(patientSearchQuery)
+    );
+
+    const handleDoctorChange = (doctorId: string) => {
+        setSelectedDoctorId(doctorId);
+    };
+
+    const handleDateChange = (date: string) => {
+        setSelectedDate(date);
+    };
+
+    const handleSlotSelect = (time: string, slotId: string, isPartiallyBooked: boolean) => {
+        setSelectedTimeSlot(time);
+        setSelectedSlotId(slotId);
+        setPartiallyBooked(isPartiallyBooked);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        const appointmentDateTime = new Date(selectedDate);
+
+        // Check if appointment date is today or in the future
+        const now = new Date();
+        const appointmentDateOnly = new Date(appointmentDateTime.getFullYear(), appointmentDateTime.getMonth(), appointmentDateTime.getDate());
+        const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (appointmentDateOnly < nowDateOnly) {
+            toast.error('Appointment date must be today or in the future');
+            return;
+        }
+
+        const [hours, minutes] = selectedTimeSlot.split(':');
+        appointmentDateTime.setUTCHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+        createAppointmentMutation.mutate({
+            patientId: selectedPatientId,
+            doctorId: selectedDoctorId,
+            visitType,
+            scheduledAt: appointmentDateTime.toISOString(),
+            selectedSlotId,
+            partiallyBooked
+        });
+    };
+
+    const resetFormFields = () => {
+        if (!patientId) {
+            setSelectedPatientId("");
+        }
+        setSelectedDoctorId("");
+        setPatientSearchQuery("");
+        setVisitType('OPD');
+        setSelectedDate("");
+        setSelectedTimeSlot("");
+        setSelectedSlotId("");
+        setPartiallyBooked(false);
+    };
+
+    const handleAddDialogOpen = (open: boolean) => {
+        if (open) {
+            resetFormFields();
+        }
+        setIsAddDialogOpen(open);
+    };
+
+    return (
+        <>
+            <Button
+                className="text-white bg-blue-800 hover:bg-blue-700"
+                onClick={() => handleAddDialogOpen(true)}
+            >
+                Add New Appointment
+            </Button>
+
+            <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpen}>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto space-y-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-semibold">Add New Appointment</DialogTitle>
+                    </DialogHeader>
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Patient Section */}
+                        <div className="space-y-2">
+                            <Label className="text-base font-semibold">Search Patient</Label>
+                            <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                                <Input
+                                    placeholder="Search patients by name, ID or phone..."
+                                    value={patientSearchQuery}
+                                    onChange={(e) => setPatientSearchQuery(e.target.value)}
+                                    className="pl-8"
+                                    disabled={createAppointmentMutation.isPending}
+                                />
+                            </div>
+                            {patientSearchQuery && (
+                                <div className="rounded-md border bg-white shadow-sm max-h-48 overflow-y-auto">
+                                    {filteredPatients?.map((patient) => (
+                                        <div
+                                            key={patient.id}
+                                            className="cursor-pointer p-2 hover:bg-gray-100 transition"
+                                            onClick={() => {
+                                                if (!createAppointmentMutation.isPending) {
+                                                    setSelectedPatientId(patient.id);
+                                                    setPatientSearchQuery("");
+                                                }
+                                            }}
+                                        >
+                                            <div className="font-medium">{patient.name}</div>
+                                            <div className="text-sm text-gray-500">
+                                                {patient.phone}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {selectedPatientId && (
+                                <div className="text-sm text-green-700 mt-5 p-4 pl-0">
+                                    {(() => {
+                                        const selectedPatient = patients?.find(p => p.id === selectedPatientId);
+                                        return selectedPatient ? (
+                                            <>Selected: <strong>{selectedPatient.name}</strong> • <span className="text-gray-600">{selectedPatient.phone}</span></>
+                                        ) : null;
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Doctor + Visit Type */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-base font-semibold">Doctor</Label>
+                                <Select
+                                    value={selectedDoctorId}
+                                    onValueChange={handleDoctorChange}
+                                    disabled={createAppointmentMutation.isPending}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a doctor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {doctors?.map((doctor) => (
+                                            <SelectItem key={doctor.id} value={doctor.id}>
+                                                {doctor.name} ({doctor.specialisation})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-base font-semibold">Visit Type</Label>
+                                <Select
+                                    value={visitType}
+                                    onValueChange={(val) => setVisitType(val as typeof visitType)}
+                                    disabled={createAppointmentMutation.isPending}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select visit type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="OPD">OPD</SelectItem>
+                                        <SelectItem value="IPD">IPD</SelectItem>
+                                        <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        {/* Appointment Date */}
+                        <div className="space-y-2">
+                            <Label className="text-base font-semibold">Appointment Date</Label>
+                            <Input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => handleDateChange(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                disabled={createAppointmentMutation.isPending}
+                                required
+                            />
+                        </div>
+
+                        {/* Slots */}
+                        {selectedDoctorId && selectedDate && (
+                            <div className="space-y-2">
+                                <Label className="text-base font-semibold">Select Time Slot</Label>
+                                <DoctorSlots
+                                    doctorId={selectedDoctorId}
+                                    selectedDate={selectedDate}
+                                    onSlotSelect={handleSlotSelect}
+                                />
+                                {selectedTimeSlot && (
+                                    <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md border border-green-200">
+                                        Selected Slot: <span className="font-semibold">{selectedTimeSlot}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsAddDialogOpen(false)}
+                                disabled={createAppointmentMutation.isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="bg-blue-800 text-white hover:bg-blue-700 disabled:opacity-50"
+                                disabled={
+                                    !selectedPatientId ||
+                                    !selectedDoctorId ||
+                                    !selectedDate ||
+                                    !selectedTimeSlot ||
+                                    createAppointmentMutation.isPending
+                                }
+                            >
+                                {createAppointmentMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    'Create Appointment'
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}

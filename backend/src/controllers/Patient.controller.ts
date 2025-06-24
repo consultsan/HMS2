@@ -1,0 +1,392 @@
+import { Request, Response } from "express";
+import { PatientRepository } from "../repositories/Patient.repository";
+import fs from "fs";
+import prisma from "../utils/dbConfig";
+import s3client from "../services/s3client";
+import { Patient, Vital, PatientDoc, PatientFamilyLink, UserRole } from "@prisma/client";
+import ApiResponse from "../utils/ApiResponse";
+import AppError from "../utils/AppError";
+
+interface Document {
+	type: PatientDoc;
+}
+
+const roles: string[] = [
+	UserRole.HOSPITAL_ADMIN,
+	UserRole.RECEPTIONIST,
+	UserRole.SALES_PERSON
+]
+
+export class PatientController {
+	private patientRepository: PatientRepository;
+
+	constructor() {
+		this.patientRepository = new PatientRepository();
+	}
+
+	async getAllPatients(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { hospitalId } = req.user as { hospitalId: string };
+				if (!hospitalId) throw new AppError("User ain't linked to any hospital", 400);
+				const patients = await prisma.patient.findMany({
+					where: {
+						hospitalId
+					}
+				});
+
+				res.json(new ApiResponse("Patients fetched successfully", patients));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getPatientById(req: Request, res: Response) {
+		if (
+			req.user &&
+			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST" || req.user.role == "DOCTOR")
+		) {
+			try {
+				const { id } = req.params as Pick<Patient, "id">;
+				const patient = await this.patientRepository.findById(id);
+				if (!patient) {
+					return res.status(404).json({ message: "Patient not found" });
+				}
+				res.json(new ApiResponse("Patient fetched successfully", patient));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getPatientByName(req: Request, res: Response) {
+		if (
+			req.user &&
+			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST")
+		) {
+			try {
+				const { name } = req.query as Pick<Patient, "name">;
+				if (!name) return res.status(401).json({ message: "Name is missing" });
+
+				const hospitalId = req.user.hospitalId;
+				if (!hospitalId)
+					throw new AppError("User ain't linked to any hospital", 400);
+
+				const patient = await this.patientRepository.findByName(
+					{
+						name,
+						hospitalId
+					}
+				);
+				res.json(new ApiResponse("Patient fetched successfully", patient));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getPatientByPhone(req: Request, res: Response) {
+		if (
+			req.user &&
+			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST")
+		) {
+			try {
+				const { phone } = req.query as Pick<Patient, "phone">;
+				if (!phone)
+
+					return res.status(400).json({ message: "Phone is required" });
+
+				const hospitalId = req.user.hospitalId;
+				if (!hospitalId)
+					throw new AppError("User ain't linked to any hospital", 400);
+
+				const patient = await this.patientRepository.findByPhone(
+					{
+						phone,
+						hospitalId
+					}
+				);
+				if (!patient)
+					res
+						.status(200)
+						.json(new ApiResponse("No patient found with this phone number"));
+
+				res
+					.status(200)
+					.json(new ApiResponse("Patient fetched successfully", patient));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getPatientByUniqueId(req: Request, res: Response) {
+		try {
+			const { patientUniqueId } = req.query;
+			if (!patientUniqueId)
+				return res.status(400).json({ message: "PatientUniqueId is required" });
+			const patient = await this.patientRepository.findByUniqueId(
+				patientUniqueId as string
+			);
+			if (!patient)
+				return res.status(404).json({ message: "Patient not found" });
+			res.json(patient);
+		} catch (error: any) {
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+
+	async createPatient(req: Request, res: Response) {
+		if (
+			req.user &&
+			(req.user.role == "SALES_PERSON" || req.user.role == "RECEPTIONIST")
+		) {
+			try {
+				const {
+					name,
+					dob,
+					gender,
+					phone,
+					email,
+					registrationMode,
+					registrationSource,
+					registrationSourceDetails
+				} = req.body as Pick<
+					Patient,
+					| "name"
+					| "dob"
+					| "gender"
+					| "phone"
+					| "email"
+					| "registrationMode"
+					| "registrationSource"
+					| "registrationSourceDetails"
+				>;
+				const hospitalId = req.user.hospitalId;
+				if (!hospitalId)
+					throw new AppError("User ain't linked to any hospital", 400);
+
+				const patient = await this.patientRepository.create({
+					name,
+					dob,
+					gender,
+					phone,
+					email,
+					registrationMode,
+					registrationSource,
+					registrationSourceDetails,
+					hospitalId
+				});
+
+				res
+					.status(201)
+					.json(new ApiResponse("Patient created successfully", patient));
+			} catch (error: any) {
+				console.error("Error creating patient:", error);
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async updatePatientDetails(req: Request, res: Response) {
+		if (req.user && req.user.role == "RECEPTIONIST") {
+			try {
+				const { id } = req.params as Pick<Patient, "id">;
+				const body = req.body as Omit<Patient, "id" | "createdAt" | "updatedAt" | "hospitalId" | "patientUniqueId" | "documents">;
+				const patient = await this.patientRepository.update(id, body);
+				res
+					.status(200)
+					.json(new ApiResponse("Patient updated successfully", patient));
+			} catch (error: any) {
+				console.error(error);
+
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async deletePatient(req: Request, res: Response) {
+		try {
+			await this.patientRepository.delete(req.params.id);
+			res.status(204).send();
+		} catch (error: any) {
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+
+	// Upload patient document
+	async uploadDocument(req: Request, res: Response) {
+		if (req.user && req.user.role == "RECEPTIONIST") {
+			try {
+				const { patientId } = req.query as { patientId: string };
+				if (!patientId) throw new AppError("Patient ID is required", 400);
+
+				const { type } = req.body as Document;
+
+				if (!req.file) throw new AppError("File is missing", 400);
+
+				const url = await s3client.uploadStream(req.file.stream, req.file.originalname, req.file.mimetype);
+
+				if (!url) throw new AppError("Unable to upload file", 500);
+				fs.unlinkSync(req.file.path);
+
+				const doc = await prisma.patientDocument.create({
+					data: {
+						patientId,
+						type,
+						url
+					}
+				});
+				res
+					.status(201)
+					.json(new ApiResponse("Document uploaded successfully", doc));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async addVitals(req: Request, res: Response) {
+		if (req.user && req.user.role !== "NURSE") {
+			try {
+				const { appointmentId } = req.params;
+				const { type, value, unit, notes } = req.body as Omit<
+					Vital,
+					"appointment"
+				>;
+				if (!type || !value)
+					throw new AppError("Type and Value of vital are required", 401);
+
+				const appointment = await prisma.appointment.findUnique({
+					where: { id: appointmentId }
+				});
+				if (!appointment) throw new AppError("Invalid Appointment ID", 401);
+				const vital = await prisma.vital.create({
+					data: {
+						type,
+						value,
+						unit,
+						notes,
+						appointmentId
+					}
+				});
+				res
+					.status(200)
+					.json(new ApiResponse("Vitals added successfully", vital));
+			} catch (error: any) {
+				console.error("Add visit error:", error);
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	// List patient documents
+	async listDocuments(req: Request, res: Response) {
+		try {
+			const { id } = req.params;
+			const docs = await prisma.patientDocument.findMany({
+				where: { patientId: id },
+				orderBy: { uploadedAt: "desc" }
+			});
+			res.json(docs);
+		} catch (error: any) {
+			console.error("Error listing documents:", error);
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+
+	// Add family link
+	async addFamilyLink(req: Request, res: Response) {
+		try {
+			const { patientId, relativeId, relationship } = req.body as Pick<
+				PatientFamilyLink,
+				"relativeId" | "relationship" | "patientId"
+			>;
+			if (!relativeId || !relationship)
+				return res
+					.status(400)
+					.json({ message: "relatedId and relationType are required" });
+			const link = await prisma.patientFamilyLink.create({
+				data: {
+					patientId,
+					relativeId,
+					relationship
+				}
+			});
+			res.status(201).json(link);
+		} catch (error: any) {
+			console.error("Error adding family link:", error);
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+
+	// List family links
+	async listFamilyLinks(req: Request, res: Response) {
+		try {
+			const { patientId } = req.query as { patientId: string };
+			const links_from = await prisma.patientFamilyLink.findMany({
+				where: { patientId },
+				select: {
+					relative: true,
+					relationship: true
+				}
+			});
+			const links_to = await prisma.patientFamilyLink.findMany({
+				where: { relativeId: patientId },
+				select: {
+					patient: true,
+					relationship: true
+				}
+			});
+			res.json(
+				new ApiResponse("Family links fetched successfully", [...links_from, ...links_to])
+			);
+		} catch (error: any) {
+			console.error("Error listing family links:", error);
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+}
