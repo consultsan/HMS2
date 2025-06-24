@@ -5,7 +5,6 @@ import { Patient } from './interfaces/PatinetInterface'
 import PatientBasicDetails from './PatientBasicDetails';
 import PrescriptionSection from './PrescriptionSection';
 import FollowUpSection from './FollowUpSection';
-import Notes from './Notes';
 import Diagnosis from './Diagnosis';
 import DiagnosisView from './DiagnosisRecord';
 import { api } from '@/lib/api';
@@ -30,6 +29,7 @@ interface DiagnosisFormData {
 interface PrescriptionData {
     medicines: { name: string; frequency: string; duration: string }[];
     tests: { name: string; id: string }[];
+    clinicalNotes: { note: string; category?: string }[];
 }
 
 type FollowUpData = {
@@ -43,7 +43,8 @@ type FollowUpData = {
 
 const initialPrescriptionData: PrescriptionData = {
     medicines: [],
-    tests: []
+    tests: [],
+    clinicalNotes: []
 };
 
 const initialFollowUpData: FollowUpData = {
@@ -197,9 +198,14 @@ function ConsultationPage() {
     const handleSubmit = useCallback(() => {
         if (!validateForm()) return;
 
+        // Combine clinical notes from templates into a single notes string
+        const combinedNotes = prescriptionData.clinicalNotes
+            .map(note => note.category ? `${note.category}: ${note.note}` : note.note)
+            .join('\n');
+
         const diagnosisData: DiagnosisFormData = {
             diagnosis: diagnosisText,
-            notes: notesText || null,
+            notes: combinedNotes || notesText || null,
             medicines: prescriptionData.medicines,
             labTests: prescriptionData.tests.map(test => ({ id: test.id })),
             followUpAppointmentId: followUpData.followUpAppointmentId,
@@ -356,25 +362,6 @@ function ConsultationPage() {
                                         doctorId={doctorId || ''}
                                         doctorDept={doctorDept || ''}
                                         onFollowUpChange={handleFollowUpChange}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Notes Section */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                                    <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center">
-                                        <FileText className="w-4 h-4 text-amber-600" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-medium text-gray-900">Clinical Notes</h3>
-                                        <p className="text-sm text-gray-500">Additional observations and remarks</p>
-                                    </div>
-                                </div>
-                                <div className="pl-11">
-                                    <Notes
-                                        value={notesText}
-                                        onChange={setNotesText}
                                     />
                                 </div>
                             </div>

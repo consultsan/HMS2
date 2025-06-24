@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { TempShift } from '@/types/types';
 
 export interface Department {
     id: string;
@@ -93,4 +94,11 @@ export const hospitalAdminApi = {
         api.patch<ApiResponse<Shift>>(`/api/hospital-admin/shift/update/${id}`, data).then(res => res.data.data),
     deleteShift: (id: string) =>
         api.delete<ApiResponse<void>>(`/api/hospital-admin/shift/delete/${id}`).then(res => res.data.data),
+
+    // Temp Shifts
+    getTempShifts: (staffId: string) => api.get<ApiResponse<Shift[]>>(`/api/hospital-admin/shift/temp-shift/${staffId}`).then(res => res.data.data),
+    createTempShift: (data: TempShift) =>
+        api.post<ApiResponse<TempShift>>('/api/hospital-admin/shift/create-temp', data).then(res => res.data.data),
+    deleteTempShift: (id: string) =>
+        api.delete<ApiResponse<void>>(`/api/hospital-admin/shift/temp-shift/${id}`).then(res => res.data.data),
 };

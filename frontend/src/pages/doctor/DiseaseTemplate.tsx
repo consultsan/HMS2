@@ -32,6 +32,11 @@ interface Medicine {
     notes?: string;
 }
 
+interface ClinicalNote {
+    note: string;
+    category?: string;
+}
+
 interface LabTest {
     id: string;
     name: string;
@@ -42,6 +47,7 @@ interface Template {
     id: string;
     name: string;
     medicines: Medicine[];
+    clinicalNotes: ClinicalNote[];
     labTests: LabTest[];
     doctorId: string;
     createdAt: string;
@@ -53,9 +59,10 @@ interface TemplateFormProps {
     initialData?: {
         name: string;
         medicines: Medicine[];
+        clinicalNotes: ClinicalNote[];
         labTests: LabTest[];
     };
-    onSubmit: (data: { name: string; medicines: Medicine[]; labTests: LabTest[] }) => void;
+    onSubmit: (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) => void;
     onCancel: () => void;
     isSubmitting?: boolean;
 }
@@ -64,6 +71,7 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
     const [formData, setFormData] = useState({
         name: initialData?.name || '',
         medicines: initialData?.medicines || [],
+        clinicalNotes: initialData?.clinicalNotes || [],
         labTests: initialData?.labTests || [],
     });
 
@@ -104,6 +112,29 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
             ...prev,
             medicines: prev.medicines.map((m, i) =>
                 i === index ? { ...m, [field]: value } : m
+            )
+        }));
+    };
+
+    const addClinicalNote = () => {
+        setFormData(prev => ({
+            ...prev,
+            clinicalNotes: [...prev.clinicalNotes, { note: '', category: '' }]
+        }));
+    };
+
+    const removeClinicalNote = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            clinicalNotes: prev.clinicalNotes.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateClinicalNote = (index: number, field: keyof ClinicalNote, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            clinicalNotes: prev.clinicalNotes.map((note, i) =>
+                i === index ? { ...note, [field]: value } : note
             )
         }));
     };
@@ -177,6 +208,40 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
                                 size="icon"
                                 className="text-gray-500 hover:text-red-500"
                                 onClick={() => removeMedicine(index)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Clinical Notes Section */}
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <label className="block text-sm font-medium">Clinical Notes</label>
+                    <Button type="button" variant="outline" size="sm" onClick={addClinicalNote}>
+                        Add Clinical Note
+                    </Button>
+                </div>
+                <div className="space-y-2">
+                    {formData.clinicalNotes.map((clinicalNote, index) => (
+                        <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 bg-gray-50 p-4 rounded-lg items-start">
+                            <Input
+                                placeholder="Clinical note"
+                                value={clinicalNote.note}
+                                onChange={(e) => updateClinicalNote(index, 'note', e.target.value)}
+                            />
+                            <Input
+                                placeholder="Category (e.g., Observation, Plan)"
+                                value={clinicalNote.category || ''}
+                                onChange={(e) => updateClinicalNote(index, 'category', e.target.value)}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-500 hover:text-red-500"
+                                onClick={() => removeClinicalNote(index)}
                             >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
@@ -275,13 +340,17 @@ export default function DiseaseTemplate() {
     const doctorId = user?.id;
 
     const createMutation = useMutation({
-        mutationFn: (data: { name: string; medicines: Medicine[]; labTests: LabTest[] }) =>
+        mutationFn: (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) =>
             api.post('/api/doctor/add-prescription-template', {
                 name: data.name,
                 medicines: data.medicines.map(med => ({
                     name: med.name,
                     frequency: med.frequency,
                     duration: med.duration
+                })),
+                clinicalNotes: data.clinicalNotes.map(note => ({
+                    note: note.note,
+                    category: note.category
                 })),
                 labTests: data.labTests.map(test => ({
                     id: test.id
@@ -298,13 +367,17 @@ export default function DiseaseTemplate() {
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: { name: string; medicines: Medicine[]; labTests: LabTest[] } }) =>
+        mutationFn: ({ id, data }: { id: string; data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] } }) =>
             api.patch(`/api/doctor/update-prescription-template/${id}`, {
                 name: data.name,
                 medicines: data.medicines.map(med => ({
                     name: med.name,
                     frequency: med.frequency,
                     duration: med.duration
+                })),
+                clinicalNotes: data.clinicalNotes.map(note => ({
+                    note: note.note,
+                    category: note.category
                 })),
                 labTests: data.labTests.map(test => ({
                     id: test.id
@@ -336,11 +409,11 @@ export default function DiseaseTemplate() {
 
     const allTemplates = templates || [];
 
-    const handleCreate = async (data: { name: string; medicines: Medicine[]; labTests: LabTest[] }) => {
+    const handleCreate = async (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) => {
         createMutation.mutate(data);
     };
 
-    const handleUpdate = async (data: { name: string; medicines: Medicine[]; labTests: LabTest[] }) => {
+    const handleUpdate = async (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) => {
         if (!editingTemplate?.id) {
             toast.error('Template ID is missing');
             return;
@@ -386,6 +459,24 @@ export default function DiseaseTemplate() {
             </div>
 
             <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Clinical Notes</h3>
+                <div className="space-y-2">
+                    {template.clinicalNotes && template.clinicalNotes.length > 0 ? (
+                        template.clinicalNotes.map((note, index) => (
+                            <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                                <p className="font-medium">{note.note}</p>
+                                {note.category && (
+                                    <p className="text-sm text-gray-500 mt-1">Category: {note.category}</p>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-gray-500">No clinical notes added</div>
+                    )}
+                </div>
+            </div>
+
+            <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Lab Tests</h3>
                 <div className="space-y-2">
                     {template.labTests && template.labTests.length > 0 ? (
@@ -411,6 +502,7 @@ export default function DiseaseTemplate() {
                     <TableRow>
                         <TableHead>Template Name</TableHead>
                         <TableHead>Medicines</TableHead>
+                        <TableHead>Clinical Notes</TableHead>
                         <TableHead>Lab Tests</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
@@ -419,7 +511,7 @@ export default function DiseaseTemplate() {
                     {!data || data.length === 0 ? (
 
                         <TableRow>
-                            <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                                 No templates found
                             </TableCell>
                         </TableRow>
@@ -429,6 +521,7 @@ export default function DiseaseTemplate() {
                             <TableRow key={template.id}>
                                 <TableCell className="font-medium">{template.name}</TableCell>
                                 <TableCell>{template.medicines?.length || 0} medicines</TableCell>
+                                <TableCell>{template.clinicalNotes?.length || 0} notes</TableCell>
                                 <TableCell>{template.labTests?.length || 0} tests</TableCell>
                                 <TableCell className="space-x-2">
                                     <Button variant="ghost" size="sm" onClick={() => handleView(template)}>
@@ -519,6 +612,7 @@ export default function DiseaseTemplate() {
                                 initialData={{
                                     name: editingTemplate.name,
                                     medicines: editingTemplate.medicines,
+                                    clinicalNotes: editingTemplate.clinicalNotes || [],
                                     labTests: editingTemplate.labTests
                                 }}
                                 onSubmit={handleUpdate}

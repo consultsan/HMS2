@@ -117,13 +117,13 @@ export const addDiseaseTemplate = async (req: Request, res: Response) => {
 	if (req.user && req.user.role == "DOCTOR") {
 		try {
 			const doctorId = req.user.id;
-			const { medicines, labTests, name } = req.body as {
+			const { medicines, labTests, name, clinicalNotes } = req.body as {
 				medicines: Pick<DiseaseTemplate, "medicines">[];
 				labTests: { id: string }[];
 				name: string;
+				clinicalNotes: Pick<DiseaseTemplate, "clinicalNotes">[];
 			};
-			console.log(labTests);
-
+			
 			if (
 				!Array.isArray(medicines) ||
 				medicines.length == 0 ||
@@ -136,6 +136,7 @@ export const addDiseaseTemplate = async (req: Request, res: Response) => {
 			const template = await prisma.diseaseTemplate.create({
 				data: {
 					medicines: medicines as Prisma.InputJsonValue,
+					clinicalNotes:clinicalNotes as Prisma.InputJsonValue,
 					labTests: {
 						connect: labTests
 					},
