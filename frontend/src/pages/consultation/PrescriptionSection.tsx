@@ -11,11 +11,16 @@ interface Medicine {
     notes?: string;
 }
 
+interface ClinicalNote {
+    note: string;
+}
+
 interface Test {
     id: string;
     name: string;
     code?: string;
     instructions?: string;
+    status?: boolean;
 }
 
 // Backend template interface
@@ -23,6 +28,7 @@ interface DiseaseTemplate {
     id: string;
     name: string;
     medicines: Medicine[];
+    clinicalNotes: ClinicalNote[];
     labTests: Test[];
     doctorId: string;
     createdAt: string;
@@ -36,6 +42,7 @@ interface FrontendTemplate extends Omit<DiseaseTemplate, 'labTests'> {
 
 interface SelectedPrescription {
     medicines: Medicine[];
+    clinicalNotes: ClinicalNote[];
     tests: Test[];
 }
 
@@ -43,6 +50,7 @@ interface PrescriptionSectionProps {
     onPrescriptionChange: (data: {
         medicines: { name: string; frequency: string; duration: string }[];
         tests: { name: string; id: string }[];
+        clinicalNotes: { note: string }[];
     }) => void;
 }
 
@@ -54,6 +62,7 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
     const [selectedTemplate, setSelectedTemplate] = useState<FrontendTemplate | null>(null);
     const [selectedPrescription, setSelectedPrescription] = useState<SelectedPrescription>({
         medicines: [],
+        clinicalNotes: [],
         tests: []
     });
 
@@ -72,6 +81,11 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
         name: '',
         id: '',
         instructions: ''
+    });
+
+    // New state for custom clinical note input
+    const [customClinicalNote, setCustomClinicalNote] = useState<ClinicalNote>({
+        note: ''
     });
 
     // Fetch templates from backend
@@ -114,7 +128,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
         } else {
             const updatedPrescription = {
@@ -124,7 +139,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id, code: t.code, instructions: t.instructions, status: false }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id, code: t.code, instructions: t.instructions, status: false })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
         }
     };
@@ -138,7 +154,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
         } else {
             const updatedPrescription = {
@@ -148,7 +165,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
         }
     };
@@ -161,7 +179,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
         setSelectedPrescription(updatedPrescription);
         onPrescriptionChange({
             medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
         });
     };
 
@@ -173,7 +192,21 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
         setSelectedPrescription(updatedPrescription);
         onPrescriptionChange({
             medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
+        });
+    };
+
+    const handleRemoveClinicalNote = (index: number) => {
+        const updatedPrescription = {
+            ...selectedPrescription,
+            clinicalNotes: selectedPrescription.clinicalNotes.filter((_, i) => i !== index)
+        };
+        setSelectedPrescription(updatedPrescription);
+        onPrescriptionChange({
+            medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
+            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
         });
     };
 
@@ -185,6 +218,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
         };
         setSelectedTemplate(frontendTemplate);
         setEditingTemplate(frontendTemplate); // Initialize editing template
+
+        // Don't auto-select items - user must click "+" for each item they want
         setSearchQuery('');
         setShowDropdown(false);
     };
@@ -235,7 +270,8 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
             setCustomMedicine({
                 name: '',
@@ -256,12 +292,33 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
             setSelectedPrescription(updatedPrescription);
             onPrescriptionChange({
                 medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id }))
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
             });
             setCustomTest({
                 name: '',
                 id: '',
                 instructions: ''
+            });
+        }
+    };
+
+    // Handler for custom clinical note submission
+    const handleCustomClinicalNoteSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (customClinicalNote.note) {
+            const updatedPrescription = {
+                ...selectedPrescription,
+                clinicalNotes: [...selectedPrescription.clinicalNotes, customClinicalNote]
+            };
+            setSelectedPrescription(updatedPrescription);
+            onPrescriptionChange({
+                medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
+                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
+            });
+            setCustomClinicalNote({
+                note: ''
             });
         }
     };
@@ -508,6 +565,75 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                                     )}
                                 </div>
                             </div>
+
+                            {/* Clinical Notes Section */}
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">Clinical Notes</h4>
+
+                                {editingTemplate.clinicalNotes?.map((note, index) => (
+                                    <div key={index} className="grid grid-cols-12 gap-2 mb-2 p-2 bg-gray-50 rounded">
+                                        <div className="col-span-10 p-1 border border-gray-300 rounded text-sm bg-white">
+                                            {note.note}
+                                        </div>
+                                        <div className="col-span-2 flex justify-center">
+                                            <button
+                                                onClick={() => {
+                                                    const isSelected = selectedPrescription.clinicalNotes.some(n => n.note === note.note);
+                                                    if (isSelected) {
+                                                        const updatedPrescription = {
+                                                            ...selectedPrescription,
+                                                            clinicalNotes: selectedPrescription.clinicalNotes.filter(n => n.note !== note.note)
+                                                        };
+                                                        setSelectedPrescription(updatedPrescription);
+                                                        onPrescriptionChange({
+                                                            medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
+                                                            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                                                            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
+                                                        });
+                                                    } else {
+                                                        const updatedPrescription = {
+                                                            ...selectedPrescription,
+                                                            clinicalNotes: [...selectedPrescription.clinicalNotes, { note: note.note }]
+                                                        };
+                                                        setSelectedPrescription(updatedPrescription);
+                                                        onPrescriptionChange({
+                                                            medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
+                                                            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+                                                            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
+                                                        });
+                                                    }
+                                                }}
+                                                className={`px-2 py-1 rounded text-xs ${selectedPrescription.clinicalNotes.some(n => n.note === note.note)
+                                                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    }`}
+                                            >
+                                                {selectedPrescription.clinicalNotes.some(n => n.note === note.note) ? '−' : '+'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )) || <div className="text-gray-500 text-sm">No clinical notes in this template</div>}
+
+                                {/* Custom Clinical Note Form */}
+                                <div className="mt-3 p-3 bg-gray-50 rounded border">
+                                    <div className="text-xs text-gray-600 mb-2">Add Custom Clinical Note</div>
+                                    <form onSubmit={handleCustomClinicalNoteSubmit} className="grid grid-cols-12 gap-2">
+                                        <textarea
+                                            placeholder="Enter clinical note..."
+                                            className="col-span-12 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none h-20"
+                                            value={customClinicalNote.note}
+                                            onChange={(e) => setCustomClinicalNote(prev => ({ ...prev, note: e.target.value }))}
+                                        />
+
+                                        <button
+                                            type="submit"
+                                            className="col-span-2 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 h-fit"
+                                        >
+                                            Add Note
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -589,6 +715,39 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                                     ))}
                                 </div>
                             )}
+
+                            {/* Selected Clinical Notes */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-sm font-medium text-gray-700">Clinical Notes</h3>
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                        {selectedPrescription.clinicalNotes.length}
+                                    </span>
+                                </div>
+
+                                {selectedPrescription.clinicalNotes.length === 0 ? (
+                                    <div className="text-center py-6 text-gray-400">
+                                        <FileText className="h-8 w-8 mx-auto mb-2" />
+                                        <p className="text-xs">No clinical notes selected</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {selectedPrescription.clinicalNotes.map((note, index) => (
+                                            <div key={index} className="flex items-center justify-between p-2 bg-amber-50 rounded text-sm border border-amber-200">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-gray-800 text-xs">{note.note}</div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleRemoveClinicalNote(index)}
+                                                    className="p-1 text-gray-400 hover:text-red-500 ml-2"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

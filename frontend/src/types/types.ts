@@ -332,14 +332,14 @@ export interface Shift {
 
 
 export interface TempShift {
-    id: string;
+    id?: string;
+    staffId: string;
     startTime: Date;
     endTime: Date;
-    status: Status;
-    hospitalId: string;
-    staffId: string;
-    createdAt: Date;
-    updatedAt: Date;
+    status?: Status;
+    createdAt?: Date;
+    updatedAt?: Date;
+    hospitalId?: string;
 }
 
 export interface Slot {
@@ -385,6 +385,7 @@ export interface DiseaseTemplate {
     id: string;
     name: string;
     medicines: any; // JSON type
+    clinicalNotes?: any; // JSON type
     doctorId: string;
     labTests?: LabTest[];
 }
