@@ -42,7 +42,7 @@ export default function Login() {
           navigate('/receptionist/dashboard');
           break;
         case 'SALES_PERSON':
-          navigate('/sales/dashboard');
+          navigate('/sales-person/dashboard');
           break;
         case 'DOCTOR':
           navigate('/doctor/dashboard');

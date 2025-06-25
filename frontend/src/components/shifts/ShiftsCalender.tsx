@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
 
+
 const DAYS_OF_WEEK = Object.values(WeekDay);
 
 interface ShiftsCalendarProps {
@@ -38,21 +39,33 @@ interface EditingShift {
     endTime: string;
 }
 
-interface EditingTempShift {
-    id?: string;
-    startTime: string;
-    endTime: string;
-    date: string;
-}
+
+// Helper function to format datetime for datetime-local input
+const formatDateTimeLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [editingDay, setEditingDay] = useState<WeekDay | null>(null);
     const [isAddingTemp, setIsAddingTemp] = useState(false);
-    const [newTempShift, setNewTempShift] = useState<EditingTempShift>({
-        startTime: "09:00",
-        endTime: "17:00",
-        date: new Date().toISOString().split('T')[0]
+    const [newTempShift, setNewTempShift] = useState<TempShift>(() => {
+        const now = new Date();
+        const startTime = new Date(now);
+        startTime.setHours(9, 0, 0, 0); // Default to 9:00 AM
+        const endTime = new Date(now);
+        endTime.setHours(17, 0, 0, 0); // Default to 5:00 PM
+
+        return {
+            staffId: userId,
+            startTime,
+            endTime,
+        };
     });
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -74,20 +87,34 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
             try {
                 const response = await shiftApi.getTempShiftByStaff(userId);
                 console.log('Temp shifts response:', response);
-                if (response.data.success) {
-                    toast({
-                        title: "Success",
-                        description: "Temp shifts fetched successfully",
-                    });
+                console.log('Response data:', response.data);
+                console.log('Response data.data:', response.data?.data);
+
+                // Extract temp shifts data with more flexible parsing
+                let tempShiftsData = [];
+
+                if (response.data) {
+                    // Try different possible response structures
+                    if (response.data.data) {
+                        tempShiftsData = response.data.data.tempShifts ||
+                            response.data.data.shifts ||
+                            response.data.data || [];
+                    } else if (Array.isArray(response.data)) {
+                        tempShiftsData = response.data;
+                    } else if (response.data.tempShifts) {
+                        tempShiftsData = response.data.tempShifts;
+                    } else if (response.data.shifts) {
+                        tempShiftsData = response.data.shifts;
+                    }
                 }
-                return response.data.data.shifts || [];
+
+                console.log('Extracted temp shifts data:', tempShiftsData);
+                console.log('Is array?', Array.isArray(tempShiftsData));
+                console.log('Length:', tempShiftsData.length);
+
+                return Array.isArray(tempShiftsData) ? tempShiftsData : [];
             } catch (error) {
                 console.error('Error fetching temp shifts:', error);
-                toast({
-                    title: "Error",
-                    description: "Failed to fetch temp shifts",
-                    variant: "destructive",
-                });
                 return [];
             }
         },
@@ -95,6 +122,7 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
         refetchOnWindowFocus: false,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
+
 
     // Regular shift mutations
     const createShiftMutation = useMutation({
@@ -132,10 +160,16 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                 description: "Temporary shift created successfully",
             });
             setIsAddingTemp(false);
+            const now = new Date();
+            const startTime = new Date(now);
+            startTime.setHours(9, 0, 0, 0);
+            const endTime = new Date(now);
+            endTime.setHours(17, 0, 0, 0);
+
             setNewTempShift({
-                startTime: "09:00",
-                endTime: "17:00",
-                date: new Date().toISOString().split('T')[0]
+                startTime,
+                endTime,
+                staffId: userId
             });
         },
         onError: (error) => {
@@ -186,6 +220,25 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
         }
     });
 
+    const deleteTempShiftMutation = useMutation({
+        mutationFn: (tempShiftId: string) => shiftApi.deleteTempShift(tempShiftId),
+        onSuccess: async () => {
+            await refetchTempShifts();
+            toast({
+                title: "Success",
+                description: "Temporary shift deleted successfully",
+            });
+        },
+        onError: (error) => {
+            console.error('Error deleting temp shift:', error);
+            toast({
+                title: "Error",
+                description: "Failed to delete temporary shift",
+                variant: "destructive",
+            });
+        }
+    });
+
     const handleSaveShift = async (day: WeekDay, startTime: string, endTime: string) => {
         const existingShift = getShiftForDay(day);
         const shiftData = {
@@ -217,9 +270,9 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
     };
 
     const handleSaveTempShift = () => {
-        const { date, startTime, endTime } = newTempShift;
-        const startDateTime = new Date(`${date}T${startTime}`);
-        const endDateTime = new Date(`${date}T${endTime}`);
+        const { startTime, endTime } = newTempShift;
+        const startDateTime = new Date(startTime);
+        const endDateTime = new Date(endTime);
 
         console.log('Saving temp shift:', { startDateTime, endDateTime });
 
@@ -251,7 +304,7 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
     };
 
     const isLoading = createShiftMutation.isPending || updateShiftMutation.isPending ||
-        deleteShiftMutation.isPending || createTempShiftMutation.isPending;
+        deleteShiftMutation.isPending || createTempShiftMutation.isPending || deleteTempShiftMutation.isPending;
 
     return (
         <>
@@ -404,43 +457,29 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                                     <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
-                                                <Label htmlFor="temp-date">Date</Label>
-                                                <Input
-                                                    id="temp-date"
-                                                    type="date"
-                                                    value={newTempShift.date}
-                                                    min={new Date().toISOString().split('T')[0]}
-                                                    onChange={(e) => setNewTempShift(prev => ({
-                                                        ...prev,
-                                                        date: e.target.value
-                                                    }))}
-                                                    disabled={isLoading}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="temp-start">Start Time</Label>
+                                                <Label htmlFor="temp-start">Start Date & Time</Label>
                                                 <Input
                                                     id="temp-start"
-                                                    type="time"
-                                                    value={newTempShift.startTime}
+                                                    type="datetime-local"
+                                                    value={formatDateTimeLocal(newTempShift.startTime)}
+                                                    min={formatDateTimeLocal(new Date())}
                                                     onChange={(e) => setNewTempShift(prev => ({
                                                         ...prev,
-                                                        startTime: e.target.value
+                                                        startTime: new Date(e.target.value)
                                                     }))}
                                                     disabled={isLoading}
                                                     className="w-full"
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="temp-end">End Time</Label>
+                                                <Label htmlFor="temp-end">End Date & Time</Label>
                                                 <Input
                                                     id="temp-end"
-                                                    type="time"
-                                                    value={newTempShift.endTime}
+                                                    type="datetime-local"
+                                                    value={formatDateTimeLocal(newTempShift.endTime)}
                                                     onChange={(e) => setNewTempShift(prev => ({
                                                         ...prev,
-                                                        endTime: e.target.value
+                                                        endTime: new Date(e.target.value)
                                                     }))}
                                                     disabled={isLoading}
                                                     className="w-full"
@@ -486,22 +525,45 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                                                     <TableHead>Date</TableHead>
                                                     <TableHead>Start Time</TableHead>
                                                     <TableHead>End Time</TableHead>
+                                                    <TableHead>Actions</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {tempShifts.map((shift: TempShift) => (
-                                                    <TableRow key={shift.id}>
-                                                        <TableCell>
-                                                            {new Date(shift.startTime).toLocaleDateString()}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {new Date(shift.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {new Date(shift.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
+                                                {tempShifts.map((shift: TempShift, index: number) => {
+                                                    const startDate = shift.startTime ? new Date(shift.startTime) : null;
+                                                    const endDate = shift.endTime ? new Date(shift.endTime) : null;
+
+                                                    return (
+                                                        <TableRow key={shift.id || `temp-shift-${index}`}>
+                                                            <TableCell>
+                                                                {startDate ? startDate.toLocaleDateString() : '-'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {startDate ? startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {endDate ? endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        if (shift.id) {
+                                                                            deleteTempShiftMutation.mutate(shift.id);
+                                                                        }
+                                                                    }}
+                                                                    disabled={isLoading || !shift.id}
+                                                                >
+                                                                    {deleteTempShiftMutation.isPending ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                                    ) : null}
+                                                                    Delete
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
                                             </TableBody>
                                         </Table>
                                     </div>

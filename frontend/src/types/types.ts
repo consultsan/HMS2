@@ -412,3 +412,53 @@ export interface AppointmentAttachment {
     appointmentId: string;
 }
 
+export interface PatientUpdateData {
+    name?: string;
+    email?: string;
+    phoneNumber?: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    address?: string;
+    emergencyContact?: string;
+    medicalHistory?: string;
+}
+
+export interface VitalsData {
+    temperature?: number;
+    bloodPressureSystolic?: number;
+    bloodPressureDiastolic?: number;
+    heartRate?: number;
+    respiratoryRate?: number;
+    oxygenSaturation?: number;
+    weight?: number;
+    height?: number;
+    bmi?: number;
+    notes?: string;
+}
+export interface FamilyLink {
+    id: string;
+    patientId: string;
+    linkedPatientId: string;
+    relationship: string;
+    createdAt: string;
+    patient?: Patient;
+    linkedPatient?: Patient;
+}
+export interface FamilyLinkCreateData {
+    patientId: string;
+    linkedPatientId: string;
+    relationship: string;
+}
+export interface DocumentUploadData {
+    file: File;
+    patientId?: string;
+    documentType?: string;
+    description?: string;
+}
+export interface PatientCreateData {
+    name: string;
+    email?: string;
+    phoneNumber: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+}

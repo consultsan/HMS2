@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -19,28 +18,12 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useSearch } from '@/contexts/SearchContext';
 import AddAppointment from '@/components/appointment/AddAppointment';
-import { Patient, User } from '@/types/types';
+import { Patient, PatientCreateData, User } from '@/types/types';
 import { UserRole } from '@/types/types';
+import { calculateAge } from '@/utils/dateUtils';
+import { patientApi } from '@/api/patient';
 
 // Helper to format date as dd/mm/yyyy
-function formatDateDMY(dateStr: string) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-// Helper to calculate age from dob
-function calculateAge(dateStr: string) {
-  if (!dateStr) return '';
-  const dob = new Date(dateStr);
-  if (isNaN(dob.getTime())) return ''; // Return empty string if invalid date
-  const diffMs = Date.now() - dob.getTime();
-  const ageDt = new Date(diffMs);
-  return Math.abs(ageDt.getUTCFullYear() - 1970);
-}
 
 // Registration mode and source enums
 const REGISTRATION_MODES = [
@@ -88,8 +71,8 @@ export default function Patients() {
   const { data: patients, isLoading } = useQuery<Patient[]>({
     queryKey: ['hospital-patients'],
     queryFn: async () => {
-      const response = await api.get('/api/patient');
-      return response.data?.data;
+      const response = await patientApi.getAllPatients();
+      return response;
     },
   });
 
@@ -104,8 +87,8 @@ export default function Patients() {
       registrationSourceDetails?: string;
     }) => {
       console.log(data);
-      const response = await api.post('/api/patient/create', data);
-      return response.data;
+      const response = await patientApi.createPatient(data as unknown as PatientCreateData);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospital-patients'] });
@@ -130,9 +113,9 @@ export default function Patients() {
         return;
       }
       if (searchType === 'phone') {
-        res = await api.get(`/api/patient/get-by-phone`, { params: { phone: searchValue } });
-        if (res.data.data.length > 0) {
-          setSearchResults(res.data.data);
+        res = await patientApi.getPatientByPhone(searchValue);
+        if (res.length > 0) {
+          setSearchResults(res);
           setPatientExists(true);
           setSearchAttempted(true);
           setAddPhone(searchValue);
@@ -143,9 +126,9 @@ export default function Patients() {
           setAddPhone(searchValue);
         }
       } else {
-        res = await api.get(`/api/hospital-admin/patients/search/unique-id?patientUniqueId=${searchValue}`);
+        res = await patientApi.getPatientById(searchValue);
         setPatientExists(false);
-        setSearchResult(res.data.data);
+        setSearchResult(res);
         setSearchResults([]);
         setSearchAttempted(true);
       }

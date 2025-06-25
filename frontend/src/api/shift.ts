@@ -21,11 +21,13 @@ export const shiftApi = {
     // Delete a shift
     deleteShift: (shiftId: string) =>
         api.delete(`/api/hospital-admin/shift/delete/${shiftId}`),
-    
+
     createTempShift: (shift: Partial<TempShift>) =>
         api.post('/api/hospital-admin/shift/create-temp', shift),
-    getTempShiftByStaff: (staffId: string) =>
+    getTempShiftByStaff: (staffId: string ) =>
         api.get(`/api/hospital-admin/shift/temp-shift/${staffId}`),
     getTempShiftsByHospital: () =>
         api.get('/api/hospital-admin/shift/temp-shift'),
+    deleteTempShift: (tempShiftId: string) =>
+        api.delete(`/api/hospital-admin/shift/temp-shift/delete/${tempShiftId}`),
 }; 

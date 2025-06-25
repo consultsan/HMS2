@@ -172,7 +172,7 @@ export class ShiftController {
 		}
 	}
 	getTempShiftByStaff = async (req: Request, res: Response) => {
-		if (req.user && req.user.role == "HOSPITAL_ADMIN") {
+		if (req.user && (req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST" || req.user.role == "DOCTOR" || req.user.role == "SALES_PERSON")) {
 			try {
 				const { staffId } = req.params;
 				const shifts = await prisma.tempShift.findMany({
@@ -191,6 +191,23 @@ export class ShiftController {
 			res.status(403).json(new ApiResponse("Forbidden: Access denied"));
 		}
 	}
+	deleteTempShift = async (req: Request, res: Response) => {
+		if (req.user && req.user.role == "HOSPITAL_ADMIN") {
+			try {
+				const { id } = req.params;
+				await prisma.tempShift.delete({ where: { id } });
+				res.status(204).json(new ApiResponse("Temp shift deleted successfully"));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse("Failed to delete temp shift"));
+			}
+		}
+		else {
+			res.status(403).json(new ApiResponse("Forbidden: Access denied"));
+		}
+	}
+
 	getShiftsByStaff = async (req: Request, res: Response) => {
 		try {
 			const { staffId } = req.params;

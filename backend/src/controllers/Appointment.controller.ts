@@ -23,7 +23,8 @@ const roles: string[] = [
 	UserRole.DOCTOR,
 	UserRole.RECEPTIONIST,
 	UserRole.NURSE,
-	UserRole.LAB_TECHNICIAN
+	UserRole.LAB_TECHNICIAN,
+	UserRole.SALES_PERSON
 ];
 
 interface Status {

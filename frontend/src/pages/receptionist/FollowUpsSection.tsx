@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import { appointmentApi } from '@/api/appointment';
 import { AppointmentStatus, VisitType } from '@/types/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { Pencil } from 'lucide-react';
+import UpdateAppointment from '@/components/appointment/UpdateAppointment';
 
 interface Appointment {
     id: string;
@@ -31,8 +34,11 @@ interface Appointment {
 export default function FollowUpsSection() {
     const { searchQuery } = useSearch();
     const [activeTab, setActiveTab] = useState('pending');
+    const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
+    const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-    const { data: appointments, isLoading } = useQuery<Appointment[]>({
+    const { data: appointments, isLoading, refetch } = useQuery<Appointment[]>({
         queryKey: ['appointments'],
         queryFn: async () => {
             const response = await appointmentApi.getAppointmentsByHospitalAndVisitType(VisitType.FOLLOW_UP);
@@ -41,13 +47,29 @@ export default function FollowUpsSection() {
         },
     });
 
-    const handleConfirmFollowUp = (appointmentId: string) => {
-        appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.SCHEDULED).then((res) => {
-            console.log(res);
-        }).catch((err) => {
-            console.log(err);
-        });
+
+    const handleConfirmFollowUp = async (appointmentId: string) => {
+        setConfirmingIds(prev => new Set([...prev, appointmentId]));
+
+        try {
+            await appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.SCHEDULED);
+            toast.success('Follow-up appointment confirmed');
+            refetch(); // Refresh the data to update the UI
+        } catch (error) {
+            toast.error('Failed to confirm follow-up appointment');
+        } finally {
+            setConfirmingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(appointmentId);
+                return newSet;
+            });
+        }
     }
+
+    const handleEditAppointment = (appointment: Appointment) => {
+        setSelectedAppointment(appointment);
+        setIsUpdateDialogOpen(true);
+    };
 
     if (isLoading) {
         return <div>Loading follow-up appointments...</div>;
@@ -68,11 +90,11 @@ export default function FollowUpsSection() {
 
     // Separate appointments into confirmed and pending
     const confirmedFollowUps = filteredAppointments.filter(apt =>
-        apt.status === 'CONFIRMED' || apt.status === 'SCHEDULED'
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === 'CONFIRMED' || apt.status === 'SCHEDULED')
     );
 
     const pendingFollowUps = filteredAppointments.filter(apt =>
-        apt.status === 'DIAGNOSED' || apt.status === 'PENDING'
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === 'DIAGNOSED' || apt.status === 'PENDING')
     );
 
     const renderAppointmentTable = (appointments: Appointment[], showConfirmButton: boolean = false) => (
@@ -85,7 +107,7 @@ export default function FollowUpsSection() {
                     <TableHead>Visit Type</TableHead>
                     <TableHead>Scheduled At</TableHead>
                     <TableHead>Status</TableHead>
-                    {showConfirmButton && <TableHead>Action</TableHead>}
+                    <TableHead>Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -122,22 +144,32 @@ export default function FollowUpsSection() {
                                     {appointment.status}
                                 </span>
                             </TableCell>
-                            {showConfirmButton && (
-                                <TableCell>
-                                    <Button
-                                        onClick={() => handleConfirmFollowUp(appointment.id)}
-                                        size="sm"
-                                        variant="outline"
+                            <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleEditAppointment(appointment)}
+                                        className="p-1 hover:bg-gray-100 rounded-full"
+                                        title="Edit Appointment"
                                     >
-                                        Confirm Follow up
-                                    </Button>
-                                </TableCell>
-                            )}
+                                        <Pencil className="w-4 h-4 text-gray-500" />
+                                    </button>
+                                    {showConfirmButton && (
+                                        <Button
+                                            onClick={() => handleConfirmFollowUp(appointment.id)}
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={confirmingIds.has(appointment.id)}
+                                        >
+                                            {confirmingIds.has(appointment.id) ? 'Confirming...' : 'Confirm Follow up'}
+                                        </Button>
+                                    )}
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))
                 ) : (
                     <TableRow>
-                        <TableCell colSpan={showConfirmButton ? 7 : 6} className="text-center py-4 text-gray-500">
+                        <TableCell colSpan={7} className="text-center py-4 text-gray-500">
                             No follow-up appointments found
                         </TableCell>
                     </TableRow>
@@ -194,6 +226,23 @@ export default function FollowUpsSection() {
                     </div>
                 </TabsContent>
             </Tabs>
+
+            {selectedAppointment && (
+                <UpdateAppointment
+                    appointment={{
+                        ...selectedAppointment,
+                        patientId: selectedAppointment.patient.id,
+                        doctorId: selectedAppointment.doctor.id,
+                        visitType: selectedAppointment.visitType === 'FOLLOW_UP' ? 'OPD' : selectedAppointment.visitType as 'OPD' | 'IPD' | 'EMERGENCY',
+                    }}
+                    isOpen={isUpdateDialogOpen}
+                    onClose={() => {
+                        setIsUpdateDialogOpen(false);
+                        setSelectedAppointment(null);
+                        refetch(); // Refresh data when dialog closes
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -105,13 +105,21 @@ export default function App() {
 
           {/* Sales Person Routes */}
           <Route
-            path="/sales"
+            path="/sales-person/*"
             element={
               <ProtectedRoute allowedRoles={['SALES_PERSON']}>
-                <SalesDashboard />
+                <UnifiedLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="/sales-person/dashboard" replace />} />
+            <Route path="dashboard" element={<SalesDashboard />} />
+            <Route path="patients" element={<Patients />} />
+            <Route path="appointments" element={<AppointmentManagement />} />
+            <Route path="follow-ups" element={<FollowUpsSection />} />
+            <Route path="surgical-appointments" element={<SurgicalAppointments />} />
+            <Route path="create-test" element={<CreateLabTestAppointment />} />
+          </Route>
 
           {/* Doctor Routes */}
           <Route
