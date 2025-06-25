@@ -55,9 +55,15 @@ interface UpdateAppointmentProps {
 export default function UpdateAppointment({ appointment, isOpen, onClose }: UpdateAppointmentProps) {
     const [selectedDoctorId, setSelectedDoctorId] = useState(appointment.doctorId);
     const [selectedDate, setSelectedDate] = useState(new Date(appointment.scheduledAt).toISOString().split('T')[0]);
-    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(
-        new Date(appointment.scheduledAt).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-    );
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(() => {
+        // Display time in UTC format to match DoctorSlots component
+        return new Date(appointment.scheduledAt).toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'UTC'
+        });
+    });
     const [selectedSlotId, setSelectedSlotId] = useState<string>("");
     const [partiallyBooked, setPartiallyBooked] = useState(false);
 
@@ -110,6 +116,8 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
         e.preventDefault();
         const appointmentDateTime = new Date(selectedDate);
         const [hours, minutes] = selectedTimeSlot.split(':');
+
+        // Set the time directly as UTC since our backend expects UTC time
         appointmentDateTime.setUTCHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
         try {

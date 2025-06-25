@@ -8,7 +8,8 @@ const roles: string[] = [
     UserRole.SUPER_ADMIN,
     UserRole.HOSPITAL_ADMIN,
     UserRole.DOCTOR,
-    UserRole.RECEPTIONIST
+    UserRole.RECEPTIONIST,
+    UserRole.SALES_PERSON,
 ];
 
 export class SlotController {

@@ -23,7 +23,7 @@ export function FormDialog({
 }: FormDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-green-500 shadow-lg rounded-lg max-h-[90vh]">
+      <DialogContent className="sm:max-w-[600px] shadow-lg rounded-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900">{title}</DialogTitle>
         </DialogHeader>

@@ -2,11 +2,23 @@ import { useState, useEffect } from 'react';
 import { api } from "@/lib/api";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { shiftApi } from "@/api/shift";
 
 interface TimeSlot {
     time: string;
     status: 'AVAILABLE' | 'PARTIAL' | 'FULL';
     slotId?: string;
+}
+
+interface TempShift {
+    id: string;
+    startTime: string;
+    endTime: string;
+    staffId: string;
+    hospitalId: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 interface Doctor {
@@ -70,22 +82,99 @@ export default function DoctorSlots({ doctorId, selectedDate, onSlotSelect }: Do
         }
     };
 
-    const generateTimeSlots = async (doctor: Doctor, date: string) => {
-        const selectedDay = new Date(date).toLocaleString('en-US', { weekday: 'long', timeZone: 'UTC' }).toUpperCase();
-        const doctorShift = doctor.shifts.find(shift => shift.day === selectedDay);
-        console.log('doctorShift', doctorShift);
+    const fetchDoctorTempShifts = async (doctorId: string) => {
+        try {
+            const response = await shiftApi.getTempShiftByStaff(doctorId);
 
-        if (!doctorShift) {
+            if (response.data) {
+                let tempShiftsData = [];
+
+                if (response.data.data) {
+                    tempShiftsData = response.data.data.tempShifts ||
+                        response.data.data.shifts ||
+                        response.data.data || [];
+                } else if (Array.isArray(response.data)) {
+                    tempShiftsData = response.data;
+                } else if (response.data.tempShifts) {
+                    tempShiftsData = response.data.tempShifts;
+                } else if (response.data.shifts) {
+                    tempShiftsData = response.data.shifts;
+                }
+
+                console.log('Doctor temp shifts data:', tempShiftsData);
+                return Array.isArray(tempShiftsData) ? tempShiftsData : [];
+            }
+
+            return [];
+        } catch (error) {
+            console.error('Error fetching doctor temp shifts:', error);
+            return [];
+        }
+    };
+
+    const generateTimeSlots = async (doctor: Doctor, date: string) => {
+        // First check for temporary shifts for the selected date
+        const tempShifts = await fetchDoctorTempShifts(doctor.id);
+        console.log('Temp shifts for doctor:', tempShifts);
+
+        // Check if there's a temp shift for the selected date
+        const selectedDate = new Date(date);
+        const tempShiftForDate = tempShifts.find((tempShift: TempShift) => {
+            const tempShiftDate = new Date(tempShift.startTime);
+            return (
+                tempShiftDate.getFullYear() === selectedDate.getFullYear() &&
+                tempShiftDate.getMonth() === selectedDate.getMonth() &&
+                tempShiftDate.getDate() === selectedDate.getDate()
+            );
+        });
+
+        let shiftStartTime: string = '';
+        let shiftEndTime: string = '';
+        let shiftFound = false;
+
+        if (tempShiftForDate) {
+            // Use temporary shift timing
+            console.log('Using temp shift for date:', tempShiftForDate);
+            const tempStartTime = new Date(tempShiftForDate.startTime);
+            const tempEndTime = new Date(tempShiftForDate.endTime);
+
+            shiftStartTime = tempStartTime.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: 'UTC'
+            });
+            shiftEndTime = tempEndTime.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: 'UTC'
+            });
+            shiftFound = true;
+        } else {
+            // Use regular shift timing
+            const selectedDay = new Date(date).toLocaleString('en-US', { weekday: 'long', timeZone: 'UTC' }).toUpperCase();
+            const doctorShift = doctor.shifts.find(shift => shift.day === selectedDay);
+            console.log('doctorShift', doctorShift);
+
+            if (doctorShift) {
+                shiftStartTime = doctorShift.startTime;
+                shiftEndTime = doctorShift.endTime;
+                shiftFound = true;
+            }
+        }
+
+        if (!shiftFound) {
             setNoShiftFound(true);
             setAvailableTimeSlots([]);
             return;
         }
 
         try {
-            // Generate all possible time slots based on the doctor's shift
+            // Generate all possible time slots based on the determined shift timing
             const slots: TimeSlot[] = [];
-            const startParts = doctorShift.startTime.split(':');
-            const endParts = doctorShift.endTime.split(':');
+            const startParts = shiftStartTime.split(':');
+            const endParts = shiftEndTime.split(':');
 
             // Create dates in UTC
             const start = new Date(date);

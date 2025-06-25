@@ -46,6 +46,22 @@ const roleConfigs = {
             { name: 'Follow Ups', path: '/receptionist/follow-ups' },
             { name: 'Surgical Appointments', path: '/receptionist/surgical-appointments' },
             { name: 'Create Test', path: '/receptionist/create-test' },
+          ],
+          searchPlaceholders: {
+            appointments: 'Search appointments',
+            patients: 'Search patients',
+            default: 'Search...',
+          },
+        },
+        SALES_PERSON: {
+          basePath: '/sales-person',
+          sections: [
+            { name: 'Dashboard', path: '/sales-person/dashboard' },
+            { name: 'Patients', path: '/sales-person/patients' },
+            { name: 'Appointments', path: '/sales-person/appointments' },
+            { name: 'Follow Ups', path: '/sales-person/follow-ups' },
+            { name: 'Surgical Appointments', path: '/sales-person/surgical-appointments' },
+            { name: 'Create Test Order', path: '/sales-person/create-test' },
         ],
         searchPlaceholders: {
             appointments: 'Search appointments',
