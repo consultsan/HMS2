@@ -17,6 +17,10 @@ import cookieParser from "cookie-parser";
 import login from "./services/login.service";
 import diagnosisRoute from "./routes/diagnosis.route";
 import labRoute from "./routes/lab.route";
+import billingRoute from "./routes/billing.route";
+import paymentRoute from "./routes/payment.route";
+import insuranceRoute from "./routes/insurance.route";
+import discountRoute from "./routes/discount.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
@@ -26,24 +30,32 @@ const http_port = Number(process.env.HTTP_PORT);
 const allowedOrigins = [
 	frontendOrigin,
 	`http://localhost:${http_port}`,
-	'http://localhost:5173'  // Add Vite's default development server port
+	"http://localhost:5173" // Add Vite's default development server port
 ];
 
-app.use(cors({
-	origin: (origin, callback) => {
-		if (!origin || allowedOrigins.includes(origin)) {
-			callback(null, true);
-		} else {
-			callback(new Error('Not allowed by CORS'));
-		}
-	},
-	methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-	allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-	exposedHeaders: ['Set-Cookie', 'Access-Control-Allow-Origin'],
-	credentials: true,
-	preflightContinue: false,
-	optionsSuccessStatus: 204
-}));
+app.use(
+	cors({
+		origin: (origin, callback) => {
+			if (!origin || allowedOrigins.includes(origin)) {
+				callback(null, true);
+			} else {
+				callback(new Error("Not allowed by CORS"));
+			}
+		},
+		methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+		allowedHeaders: [
+			"Content-Type",
+			"Authorization",
+			"X-Requested-With",
+			"Accept",
+			"Origin"
+		],
+		exposedHeaders: ["Set-Cookie", "Access-Control-Allow-Origin"],
+		credentials: true,
+		preflightContinue: false,
+		optionsSuccessStatus: 204
+	})
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -105,8 +117,14 @@ app.use("/api/patient", authMiddleware, patientRouter);
 app.use("/api/doctor", authMiddleware, doctorRouter);
 app.use("/api/appointment", authMiddleware, appointmentRouter);
 app.use("/api/diagnosis", authMiddleware, diagnosisRoute);
-app.use("/api/lab", authMiddleware, labRoute
-);
+app.use("/api/lab", authMiddleware, labRoute);
+
+// Billing module routes
+app.use("/api/billing", authMiddleware, billingRoute);
+app.use("/api/payment", authMiddleware, paymentRoute);
+app.use("/api/insurance", authMiddleware, insuranceRoute);
+app.use("/api/discount", authMiddleware, discountRoute);
+
 app.post("/api/whatsapp", (req, res) => {
 	try {
 		const { to, message } = req.body;

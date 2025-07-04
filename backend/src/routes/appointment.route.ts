@@ -41,9 +41,7 @@ router.get(
 );
 router.get(
 	"/get-by-hospital",
-	appointmentController.getAppointmentsByHospital.bind(
-		appointmentController
-	)
+	appointmentController.getAppointmentsByHospital.bind(appointmentController)
 );
 router.get(
 	"/get-by-date-and-patient",
@@ -53,9 +51,7 @@ router.get(
 );
 router.get(
 	"/get-surgery-by-appointment-id",
-	appointmentController.getSurgeyByAppointmentId.bind(
-		appointmentController
-	)
+	appointmentController.getSurgeyByAppointmentId.bind(appointmentController)
 );
 router.post(
 	"/add-surgery",
@@ -63,23 +59,26 @@ router.post(
 );
 router.patch(
 	"/update-surgery-status/:surgeryId",
-	appointmentController.updateSurgeryStatus.bind(
-		appointmentController
-	)
+	appointmentController.updateSurgeryStatus.bind(appointmentController)
 );
 router.get(
 	"/get-surgery-by-hospital-id",
-	appointmentController.getSurgeryByHospitalId.bind(
-		appointmentController
-	)
+	appointmentController.getSurgeryByHospitalId.bind(appointmentController)
 );
 
 router.patch(
 	"/update-appointment-schedule/:id",
-	appointmentController.updateAppointmentSchedule.bind(
-		appointmentController
-	)
+	appointmentController.updateAppointmentSchedule.bind(appointmentController)
 );
 
+// Appointment billing routes
+router.post(
+	"/:appointmentId/generate-bill",
+	appointmentController.generateAppointmentBill.bind(appointmentController)
+);
+router.get(
+	"/:appointmentId/billing",
+	appointmentController.getAppointmentBilling.bind(appointmentController)
+);
 
 export default router;

@@ -34,7 +34,11 @@ import {
 
 	// Lab Test Attachment Controllers
 	uploadLabTestAttachment,
-	getLabTestAttachmentsByAppointmentLabTestId
+	getLabTestAttachmentsByAppointmentLabTestId,
+
+	// Lab Test Billing Controllers
+	generateLabTestBill,
+	getLabTestBilling
 } from "../controllers/lab.controller";
 import { upload } from "../services/upload.service";
 
@@ -54,7 +58,7 @@ router.get("/parameters/:id", getParameterById);
 router.patch("/parameters/:id", updateParameter);
 router.delete("/parameters/:id", deleteParameter);
 
-// Lab Test Order Routes 
+// Lab Test Order Routes
 router.post("/orders", orderLabTest);
 router.get("/appointments/:appointmentId/orders", getOrderedTestsByAppointment);
 router.get("/orders/:id", getOrderedTestById);
@@ -66,7 +70,11 @@ router.get("/patients/:patientId/orders", getOrderedTestsByPatient);
 router.get("/hospitals/orders", getOrderedTestByHospital);
 
 // Lab Test Attachment Routes
-router.post("/upload/attachment", upload.single("file"), uploadLabTestAttachment);
+router.post(
+	"/upload/attachment",
+	upload.single("file"),
+	uploadLabTestAttachment
+);
 router.get("/attachments/:id", getLabTestAttachmentsByAppointmentLabTestId);
 
 // Lab Test Result Routes
@@ -75,5 +83,9 @@ router.get("/orders/:appointmentLabTestId/results", getResultsByOrder);
 router.get("/results/:id", getResultById);
 router.patch("/results/:id", updateTestResult);
 router.delete("/results/:id", deleteTestResult);
+
+// Lab Test Billing Routes
+router.post("/orders/:appointmentLabTestId/generate-bill", generateLabTestBill);
+router.get("/orders/:appointmentLabTestId/billing", getLabTestBilling);
 
 export default router;

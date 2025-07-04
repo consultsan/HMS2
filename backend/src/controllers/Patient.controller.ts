@@ -3,7 +3,13 @@ import { PatientRepository } from "../repositories/Patient.repository";
 import fs from "fs";
 import prisma from "../utils/dbConfig";
 import s3client from "../services/s3client";
-import { Patient, Vital, PatientDoc, PatientFamilyLink, UserRole } from "@prisma/client";
+import {
+	Patient,
+	Vital,
+	PatientDoc,
+	PatientFamilyLink,
+	UserRole
+} from "@prisma/client";
 import ApiResponse from "../utils/ApiResponse";
 import AppError from "../utils/AppError";
 
@@ -15,7 +21,7 @@ const roles: string[] = [
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.RECEPTIONIST,
 	UserRole.SALES_PERSON
-]
+];
 
 export class PatientController {
 	private patientRepository: PatientRepository;
@@ -28,7 +34,8 @@ export class PatientController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { hospitalId } = req.user as { hospitalId: string };
-				if (!hospitalId) throw new AppError("User ain't linked to any hospital", 400);
+				if (!hospitalId)
+					throw new AppError("User ain't linked to any hospital", 400);
 				const patients = await prisma.patient.findMany({
 					where: {
 						hospitalId
@@ -49,7 +56,9 @@ export class PatientController {
 	async getPatientById(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST" || req.user.role == "DOCTOR")
+			(req.user.role == "HOSPITAL_ADMIN" ||
+				req.user.role == "RECEPTIONIST" ||
+				req.user.role == "DOCTOR")
 		) {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
@@ -81,12 +90,10 @@ export class PatientController {
 				if (!hospitalId)
 					throw new AppError("User ain't linked to any hospital", 400);
 
-				const patient = await this.patientRepository.findByName(
-					{
-						name,
-						hospitalId
-					}
-				);
+				const patient = await this.patientRepository.findByName({
+					name,
+					hospitalId
+				});
 				res.json(new ApiResponse("Patient fetched successfully", patient));
 			} catch (error: any) {
 				res
@@ -106,19 +113,16 @@ export class PatientController {
 			try {
 				const { phone } = req.query as Pick<Patient, "phone">;
 				if (!phone)
-
 					return res.status(400).json({ message: "Phone is required" });
 
 				const hospitalId = req.user.hospitalId;
 				if (!hospitalId)
 					throw new AppError("User ain't linked to any hospital", 400);
 
-				const patient = await this.patientRepository.findByPhone(
-					{
-						phone,
-						hospitalId
-					}
-				);
+				const patient = await this.patientRepository.findByPhone({
+					phone,
+					hospitalId
+				});
 				if (!patient)
 					res
 						.status(200)
@@ -215,7 +219,15 @@ export class PatientController {
 		if (req.user && req.user.role == "RECEPTIONIST") {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
-				const body = req.body as Omit<Patient, "id" | "createdAt" | "updatedAt" | "hospitalId" | "patientUniqueId" | "documents">;
+				const body = req.body as Omit<
+					Patient,
+					| "id"
+					| "createdAt"
+					| "updatedAt"
+					| "hospitalId"
+					| "patientUniqueId"
+					| "documents"
+				>;
 				const patient = await this.patientRepository.update(id, body);
 				res
 					.status(200)
@@ -254,7 +266,11 @@ export class PatientController {
 
 				if (!req.file) throw new AppError("File is missing", 400);
 
-				const url = await s3client.uploadStream(req.file.stream, req.file.originalname, req.file.mimetype);
+				const url = await s3client.uploadStream(
+					req.file.stream,
+					req.file.originalname,
+					req.file.mimetype
+				);
 
 				if (!url) throw new AppError("Unable to upload file", 500);
 				fs.unlinkSync(req.file.path);
@@ -380,13 +396,218 @@ export class PatientController {
 				}
 			});
 			res.json(
-				new ApiResponse("Family links fetched successfully", [...links_from, ...links_to])
+				new ApiResponse("Family links fetched successfully", [
+					...links_from,
+					...links_to
+				])
 			);
 		} catch (error: any) {
 			console.error("Error listing family links:", error);
 			res
 				.status(error.code || 500)
 				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+
+	// Get patient billing history
+	async getPatientBillingHistory(req: Request, res: Response) {
+		try {
+			const { patientId } = req.params;
+			const { status, page = 1, limit = 10 } = req.query;
+
+			const skip = (Number(page) - 1) * Number(limit);
+
+			const where: any = { patientId };
+			if (status) {
+				where.status = status;
+			}
+
+			const [bills, total] = await Promise.all([
+				prisma.bill.findMany({
+					where,
+					include: {
+						hospital: {
+							select: {
+								id: true,
+								name: true
+							}
+						},
+						billItems: true,
+						payments: {
+							select: {
+								amount: true,
+								status: true,
+								paymentDate: true
+							}
+						}
+					},
+					orderBy: {
+						billDate: "desc"
+					},
+					skip,
+					take: Number(limit)
+				}),
+				prisma.bill.count({ where })
+			]);
+
+			res.status(200).json(
+				new ApiResponse("Patient billing history retrieved successfully", {
+					bills,
+					pagination: {
+						page: Number(page),
+						limit: Number(limit),
+						total,
+						pages: Math.ceil(total / Number(limit))
+					}
+				})
+			);
+		} catch (error: any) {
+			console.error("Error getting patient billing history:", error);
+			res
+				.status(error.code || 500)
+				.json(
+					new ApiResponse(error.message || "Failed to retrieve billing history")
+				);
+		}
+	}
+
+	// Get patient outstanding bills
+	async getPatientOutstandingBills(req: Request, res: Response) {
+		try {
+			const { patientId } = req.params;
+
+			const bills = await prisma.bill.findMany({
+				where: {
+					patientId,
+					status: {
+						in: ["GENERATED", "SENT", "OVERDUE", "PARTIALLY_PAID"]
+					}
+				},
+				include: {
+					hospital: {
+						select: {
+							id: true,
+							name: true
+						}
+					},
+					billItems: true
+				},
+				orderBy: {
+					dueDate: "asc"
+				}
+			});
+
+			const totalOutstanding = bills.reduce(
+				(sum, bill) => sum + bill.dueAmount,
+				0
+			);
+
+			res.status(200).json(
+				new ApiResponse("Outstanding bills retrieved successfully", {
+					bills,
+					totalOutstanding
+				})
+			);
+		} catch (error: any) {
+			console.error("Error getting patient outstanding bills:", error);
+			res
+				.status(error.code || 500)
+				.json(
+					new ApiResponse(
+						error.message || "Failed to retrieve outstanding bills"
+					)
+				);
+		}
+	}
+
+	// Get patient payment history
+	async getPatientPaymentHistory(req: Request, res: Response) {
+		try {
+			const { patientId } = req.params;
+			const { page = 1, limit = 10 } = req.query;
+
+			const skip = (Number(page) - 1) * Number(limit);
+
+			const [payments, total] = await Promise.all([
+				prisma.payment.findMany({
+					where: {
+						bill: { patientId }
+					},
+					include: {
+						bill: {
+							select: {
+								id: true,
+								billNumber: true,
+								totalAmount: true
+							}
+						}
+					},
+					orderBy: {
+						paymentDate: "desc"
+					},
+					skip,
+					take: Number(limit)
+				}),
+				prisma.payment.count({
+					where: {
+						bill: { patientId }
+					}
+				})
+			]);
+
+			res.status(200).json(
+				new ApiResponse("Payment history retrieved successfully", {
+					payments,
+					pagination: {
+						page: Number(page),
+						limit: Number(limit),
+						total,
+						pages: Math.ceil(total / Number(limit))
+					}
+				})
+			);
+		} catch (error: any) {
+			console.error("Error getting patient payment history:", error);
+			res
+				.status(error.code || 500)
+				.json(
+					new ApiResponse(error.message || "Failed to retrieve payment history")
+				);
+		}
+	}
+
+	// Get patient insurance
+	async getPatientInsurance(req: Request, res: Response) {
+		try {
+			const { patientId } = req.params;
+			const { isActive } = req.query;
+
+			const where: any = { patientId };
+			if (isActive !== undefined) {
+				where.isActive = isActive === "true";
+			}
+
+			const insurance = await prisma.insurance.findMany({
+				where,
+				orderBy: {
+					validFrom: "desc"
+				}
+			});
+
+			res
+				.status(200)
+				.json(
+					new ApiResponse("Patient insurance retrieved successfully", insurance)
+				);
+		} catch (error: any) {
+			console.error("Error getting patient insurance:", error);
+			res
+				.status(error.code || 500)
+				.json(
+					new ApiResponse(
+						error.message || "Failed to retrieve patient insurance"
+					)
+				);
 		}
 	}
 }
