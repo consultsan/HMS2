@@ -37,7 +37,32 @@ router.patch(
 	patientController.updatePatientDetails.bind(patientController)
 );
 
-router.get("/family-links", patientController.listFamilyLinks.bind(patientController));
+router.get(
+	"/family-links",
+	patientController.listFamilyLinks.bind(patientController)
+);
 
-router.post("/add/family-link", patientController.addFamilyLink.bind(patientController));
+router.post(
+	"/add/family-link",
+	patientController.addFamilyLink.bind(patientController)
+);
+
+// Patient billing routes
+router.get(
+	"/:patientId/billing/history",
+	patientController.getPatientBillingHistory.bind(patientController)
+);
+router.get(
+	"/:patientId/billing/outstanding",
+	patientController.getPatientOutstandingBills.bind(patientController)
+);
+router.get(
+	"/:patientId/payment/history",
+	patientController.getPatientPaymentHistory.bind(patientController)
+);
+router.get(
+	"/:patientId/insurance",
+	patientController.getPatientInsurance.bind(patientController)
+);
+
 export default router;

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../utils/dbConfig";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
-import { AppointmentAttachment, AppointmentAttachType } from "@prisma/client";
+import AppError from "../utils/AppError";
 import s3 from "../services/s3client";
 
 // Lab Test Controllers
@@ -32,7 +32,7 @@ const getLabTests = async (req: Request, res: Response) => {
 				parameters: true
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -125,7 +125,7 @@ const getParametersByLabTest = async (req: Request, res: Response) => {
 		const parameters = await prisma.labTestParameter.findMany({
 			where: { labTestId },
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -191,14 +191,19 @@ const deleteParameter = async (req: Request, res: Response) => {
 // Lab Test Order Controllers
 const orderLabTest = async (req: Request, res: Response) => {
 	try {
-		const { appointmentId, labTestId, sampleType, referredFromOutside, patientId } =
-			req.body;
+		const {
+			appointmentId,
+			labTestId,
+			sampleType,
+			referredFromOutside,
+			patientId
+		} = req.body;
 		if (referredFromOutside) {
 			const order = await prisma.appointmentLabTest.create({
 				data: {
 					patientId,
 					labTestId,
-					referredFromOutside,
+					referredFromOutside
 				},
 				include: {
 					labTest: true
@@ -207,12 +212,11 @@ const orderLabTest = async (req: Request, res: Response) => {
 			res
 				.status(201)
 				.json(new ApiResponse("Lab test ordered successfully", order));
-		}
-		else {
+		} else {
 			const order = await prisma.appointmentLabTest.create({
 				data: {
 					appointmentId,
-					labTestId,
+					labTestId
 				},
 				include: {
 					labTest: true
@@ -241,7 +245,7 @@ const getOrderedTestsByAppointment = async (req: Request, res: Response) => {
 				}
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -266,7 +270,7 @@ const getOrderedTestsByPatient = async (req: Request, res: Response) => {
 				}
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -275,7 +279,7 @@ const getOrderedTestsByPatient = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
-}
+};
 
 const getOrderedTestById = async (req: Request, res: Response) => {
 	try {
@@ -309,9 +313,7 @@ const getOrderedTestByHospital = async (req: Request, res: Response) => {
 		const { hospitalId } = req.user as { hospitalId: string };
 		const orders = await prisma.appointmentLabTest.findMany({
 			where: {
-				OR: [{ appointment: { hospitalId } },
-				{ patient: { hospitalId } }
-				]
+				OR: [{ appointment: { hospitalId } }, { patient: { hospitalId } }]
 			},
 			include: {
 				appointment: {
@@ -320,10 +322,10 @@ const getOrderedTestByHospital = async (req: Request, res: Response) => {
 					}
 				},
 				patient: true,
-				labTest: true,
+				labTest: true
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -438,7 +440,7 @@ const getResultsByOrder = async (req: Request, res: Response) => {
 				parameter: true
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
@@ -505,7 +507,10 @@ const deleteTestResult = async (req: Request, res: Response) => {
 	}
 };
 
-const getLabTestAttachmentsByAppointmentLabTestId = async (req: Request, res: Response) => {
+const getLabTestAttachmentsByAppointmentLabTestId = async (
+	req: Request,
+	res: Response
+) => {
 	try {
 		const { id } = req.params;
 		const attachments = await prisma.appointmentLabTestAttachment.findMany({
@@ -514,12 +519,17 @@ const getLabTestAttachmentsByAppointmentLabTestId = async (req: Request, res: Re
 				url: true
 			},
 			orderBy: {
-				createdAt: 'desc'
+				createdAt: "desc"
 			}
 		});
 		res
 			.status(200)
-			.json(new ApiResponse("Lab test attachments fetched successfully", attachments));
+			.json(
+				new ApiResponse(
+					"Lab test attachments fetched successfully",
+					attachments
+				)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -527,7 +537,9 @@ const getLabTestAttachmentsByAppointmentLabTestId = async (req: Request, res: Re
 
 const uploadLabTestAttachment = async (req: Request, res: Response) => {
 	try {
-		const { appointmentLabTestId } = req.query as { appointmentLabTestId: string };
+		const { appointmentLabTestId } = req.query as {
+			appointmentLabTestId: string;
+		};
 		const file = req.file;
 
 		if (!file) {
@@ -552,11 +564,173 @@ const uploadLabTestAttachment = async (req: Request, res: Response) => {
 		});
 		res
 			.status(201)
-			.json(new ApiResponse("Lab test attachment uploaded successfully", attachment));
+			.json(
+				new ApiResponse("Lab test attachment uploaded successfully", attachment)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
-}
+};
+
+// Lab Test Billing Controllers
+const generateLabTestBill = async (req: Request, res: Response) => {
+	try {
+		const { appointmentLabTestId } = req.params;
+		const { dueDate, notes } = req.body;
+
+		// Get lab test order details
+		const labTestOrder = await prisma.appointmentLabTest.findUnique({
+			where: { id: appointmentLabTestId },
+			include: {
+				labTest: true,
+				appointment: {
+					include: {
+						patient: true,
+						hospital: true
+					}
+				}
+			}
+		});
+
+		if (!labTestOrder) {
+			throw new AppError("Lab test order not found", 404);
+		}
+
+		// Get lab charge for this test
+		const labCharge = await prisma.labCharge.findFirst({
+			where: {
+				test: labTestOrder.labTest.name,
+				hospitalId: labTestOrder.appointment?.hospitalId
+			}
+		});
+
+		if (!labCharge) {
+			throw new AppError("Lab charge not found for this test", 404);
+		}
+
+		// Check if bill already exists for this lab test
+		const existingBillItem = await prisma.billItem.findFirst({
+			where: { labTestId: appointmentLabTestId }
+		});
+
+		if (existingBillItem) {
+			throw new AppError("Bill already exists for this lab test", 400);
+		}
+
+		// Generate bill number
+		const timestamp = Date.now().toString();
+		const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+		const billNumber = `BILL-${timestamp}-${random}`;
+
+		// Create bill with lab test item
+		const bill = await prisma.bill.create({
+			data: {
+				billNumber,
+				patientId: labTestOrder.appointment?.patientId || "",
+				hospitalId: labTestOrder.appointment?.hospitalId || "",
+				appointmentId: labTestOrder.appointmentId,
+				totalAmount: labCharge.amount,
+				dueAmount: labCharge.amount,
+				dueDate: dueDate ? new Date(dueDate) : null,
+				notes,
+				billItems: {
+					create: {
+						itemType: "LAB_TEST",
+						description: labTestOrder.labTest.name,
+						quantity: 1,
+						unitPrice: labCharge.amount,
+						totalPrice: labCharge.amount,
+						notes: `Lab test: ${labTestOrder.labTest.name}`,
+						labTestId: appointmentLabTestId
+					}
+				}
+			},
+			include: {
+				patient: {
+					select: {
+						id: true,
+						name: true,
+						patientUniqueId: true
+					}
+				},
+				hospital: {
+					select: {
+						id: true,
+						name: true
+					}
+				},
+				billItems: {
+					include: {
+						labTest: {
+							include: {
+								labTest: true
+							}
+						}
+					}
+				}
+			}
+		});
+
+		res
+			.status(201)
+			.json(new ApiResponse("Lab test bill generated successfully", bill));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
+
+const getLabTestBilling = async (req: Request, res: Response) => {
+	try {
+		const { appointmentLabTestId } = req.params;
+
+		const billItem = await prisma.billItem.findFirst({
+			where: { labTestId: appointmentLabTestId },
+			include: {
+				bill: {
+					include: {
+						patient: {
+							select: {
+								id: true,
+								name: true,
+								patientUniqueId: true
+							}
+						},
+						hospital: {
+							select: {
+								id: true,
+								name: true
+							}
+						},
+						payments: {
+							orderBy: {
+								paymentDate: "desc"
+							}
+						}
+					}
+				},
+				labTest: {
+					include: {
+						labTest: true
+					}
+				}
+			}
+		});
+
+		if (!billItem) {
+			return res
+				.status(200)
+				.json(new ApiResponse("No bill found for this lab test", null));
+		}
+
+		res
+			.status(200)
+			.json(
+				new ApiResponse("Lab test billing retrieved successfully", billItem)
+			);
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
 
 export {
 	// Lab Test Controllers
@@ -593,5 +767,9 @@ export {
 
 	// Lab Test Attachment Controllers
 	uploadLabTestAttachment,
-	getLabTestAttachmentsByAppointmentLabTestId
+	getLabTestAttachmentsByAppointmentLabTestId,
+
+	// Lab Test Billing Controllers
+	generateLabTestBill,
+	getLabTestBilling
 };

@@ -1,0 +1,33 @@
+import { Router } from "express";
+import { BillingController } from "../controllers/Billing.controller";
+
+const router = Router();
+const billingController = new BillingController();
+
+// Bill management routes
+router.post("/create", billingController.createBill.bind(billingController));
+router.get("/:id", billingController.getBillById.bind(billingController));
+router.get(
+	"/patient/:patientId",
+	billingController.getBillsByPatient.bind(billingController)
+);
+router.get(
+	"/hospital/all",
+	billingController.getBillsByHospital.bind(billingController)
+);
+router.patch(
+	"/:id/status",
+	billingController.updateBillStatus.bind(billingController)
+);
+router.post(
+	"/:billId/items",
+	billingController.addBillItem.bind(billingController)
+);
+
+// Billing statistics
+router.get(
+	"/stats/overview",
+	billingController.getBillingStats.bind(billingController)
+);
+
+export default router;

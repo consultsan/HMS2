@@ -41,18 +41,28 @@ export class AppointmentController {
 					throw new AppError("User isn't linked to any hospital", 403);
 
 				const queryDate = new Date(date as string);
-				const startOfDay = new Date(Date.UTC(
-					queryDate.getUTCFullYear(),
-					queryDate.getUTCMonth(),
-					queryDate.getUTCDate(),
-					0, 0, 0, 0
-				));
-				const endOfDay = new Date(Date.UTC(
-					queryDate.getUTCFullYear(),
-					queryDate.getUTCMonth(),
-					queryDate.getUTCDate(),
-					23, 59, 59, 999
-				));
+				const startOfDay = new Date(
+					Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						0,
+						0,
+						0,
+						0
+					)
+				);
+				const endOfDay = new Date(
+					Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						23,
+						59,
+						59,
+						999
+					)
+				);
 
 				console.log(startOfDay, endOfDay);
 				const appointments = await prisma.appointment.findMany({
@@ -75,10 +85,16 @@ export class AppointmentController {
 				});
 
 				// Return 200 even if no appointments found
-				res.status(200).json(new ApiResponse(
-					appointments.length ? "Fetched appointments" : "No appointments found",
-					appointments
-				));
+				res
+					.status(200)
+					.json(
+						new ApiResponse(
+							appointments.length
+								? "Fetched appointments"
+								: "No appointments found",
+							appointments
+						)
+					);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -97,7 +113,8 @@ export class AppointmentController {
 						appointment: true
 					}
 				});
-				if (!surgery) res.status(200).json(new ApiResponse("Surgery not found", null));
+				if (!surgery)
+					res.status(200).json(new ApiResponse("Surgery not found", null));
 				res.status(200).json(new ApiResponse("Fetched surgery", surgery));
 			} catch (error: any) {
 				errorHandler(error, res);
@@ -230,7 +247,7 @@ export class AppointmentController {
 					data: {
 						patientId,
 						scheduledAt,
-						hospitalId,	
+						hospitalId,
 						visitType,
 						doctorId,
 						status: status || AppointmentStatus.SCHEDULED,
@@ -348,7 +365,9 @@ export class AppointmentController {
 					data: { scheduledAt }
 				});
 
-				res.status(200).json(new ApiResponse("Appointment schedule updated", appointment));
+				res
+					.status(200)
+					.json(new ApiResponse("Appointment schedule updated", appointment));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -432,7 +451,9 @@ export class AppointmentController {
 					}
 				});
 				if (!attachments) throw new AppError("Attachments not found", 404);
-				res.status(200).json(new ApiResponse("Attachments fetched", attachments));
+				res
+					.status(200)
+					.json(new ApiResponse("Attachments fetched", attachments));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -538,4 +559,161 @@ export class AppointmentController {
 		}
 	}
 	*/
+
+	// Generate bill for appointment
+	async generateAppointmentBill(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { appointmentId } = req.params;
+				const { items, dueDate, notes } = req.body;
+
+				// Get appointment details
+				const appointment = await prisma.appointment.findUnique({
+					where: { id: appointmentId },
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
+					}
+				});
+
+				if (!appointment) {
+					throw new AppError("Appointment not found", 404);
+				}
+
+				// Check if bill already exists
+				const existingBill = await prisma.bill.findFirst({
+					where: { appointmentId }
+				});
+
+				if (existingBill) {
+					throw new AppError("Bill already exists for this appointment", 400);
+				}
+
+				// Calculate totals
+				let totalAmount = 0;
+				const billItems = [];
+
+				for (const item of items) {
+					const itemTotal = item.unitPrice * item.quantity;
+					totalAmount += itemTotal;
+					billItems.push({
+						itemType: item.itemType,
+						description: item.description,
+						quantity: item.quantity,
+						unitPrice: item.unitPrice,
+						totalPrice: itemTotal,
+						notes: item.notes,
+						labTestId: item.labTestId,
+						surgeryId: item.surgeryId
+					});
+				}
+
+				// Generate bill number
+				const timestamp = Date.now().toString();
+				const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+				const billNumber = `BILL-${timestamp}-${random}`;
+
+				// Create bill
+				const bill = await prisma.bill.create({
+					data: {
+						billNumber,
+						patientId: appointment.patientId,
+						hospitalId: appointment.hospitalId,
+						appointmentId,
+						totalAmount,
+						dueAmount: totalAmount,
+						dueDate: dueDate ? new Date(dueDate) : null,
+						notes,
+						billItems: {
+							create: billItems
+						}
+					},
+					include: {
+						patient: {
+							select: {
+								id: true,
+								name: true,
+								patientUniqueId: true
+							}
+						},
+						hospital: {
+							select: {
+								id: true,
+								name: true
+							}
+						},
+						billItems: true
+					}
+				});
+
+				res
+					.status(201)
+					.json(new ApiResponse("Bill generated successfully", bill));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	// Get appointment billing information
+	async getAppointmentBilling(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { appointmentId } = req.params;
+
+				const bill = await prisma.bill.findFirst({
+					where: { appointmentId },
+					include: {
+						patient: {
+							select: {
+								id: true,
+								name: true,
+								patientUniqueId: true
+							}
+						},
+						hospital: {
+							select: {
+								id: true,
+								name: true
+							}
+						},
+						billItems: {
+							include: {
+								labTest: {
+									include: {
+										labTest: true
+									}
+								},
+								surgery: true
+							}
+						},
+						payments: {
+							orderBy: {
+								paymentDate: "desc"
+							}
+						}
+					}
+				});
+
+				if (!bill) {
+					return res
+						.status(200)
+						.json(new ApiResponse("No bill found for this appointment", null));
+				}
+
+				res
+					.status(200)
+					.json(
+						new ApiResponse("Appointment billing retrieved successfully", bill)
+					);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
 }
