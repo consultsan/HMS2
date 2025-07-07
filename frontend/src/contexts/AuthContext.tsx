@@ -77,6 +77,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initializeAuth();
+
+    // Listen for localStorage changes from other tabs/windows
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'accessToken' || event.key === 'user') {
+        const token = localStorage.getItem('accessToken');
+        const userData = localStorage.getItem('user');
+
+        if (!token || !userData) {
+          // Token or user was removed (logout)
+          setIsAuthenticated(false);
+          setUser(null);
+        } else if (event.key === 'user' && event.newValue) {
+          // User data changed (new user logged in)
+          try {
+            const newUser = JSON.parse(event.newValue);
+            const currentUser = user;
+
+            // If the new user is different from current user, redirect to login
+            if (currentUser && (newUser.id !== currentUser.id || newUser.role !== currentUser.role)) {
+              setIsAuthenticated(false);
+              setUser(null);
+            }
+          } catch (parseError) {
+            console.error('Error parsing new user data:', parseError);
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const login = (token: string, userData: User) => {
@@ -93,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     try {
-      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       setIsAuthenticated(false);
       setUser(null);

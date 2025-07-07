@@ -64,12 +64,11 @@ export const appointmentApi = {
 
     // Get surgery by appointment ID
     getSurgeryByAppointmentId: (appointmentId: string) => {
-        console.log('Getting surgery for appointmentId:', appointmentId);
         if (!appointmentId) {
             console.error('appointmentId is required but not provided');
             return Promise.reject(new Error('appointmentId is required'));
         }
-        return api.get(`/api/appointment/get-surgery-by-appointment-id?appointmentId=${appointmentId}`);
+        return api.get(`/api/appointment/get-surgery-by-appointment-id/${appointmentId}`);
     },
     
 

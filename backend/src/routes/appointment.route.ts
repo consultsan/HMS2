@@ -56,8 +56,8 @@ router.get(
 	)
 );
 router.get(
-	"/get-surgery-by-appointment-id",
-	appointmentController.getSurgeyByAppointmentId.bind(appointmentController)
+	"/get-surgery-by-appointment-id/:id",
+	appointmentController.getSurgeryByAppointmentId.bind(appointmentController)
 );
 router.post(
 	"/add-surgery",

@@ -50,7 +50,7 @@ export default function ViewAppointmentBill({
     const queryClient = useQueryClient();
 
     // Fetch bill details
-    const { data: bill, isLoading, error, refetch } = useQuery<any>({
+    const { data: bill, isLoading, isLoading: billLoading, refetch } = useQuery<any>({
         queryKey: ["appointment-bill", appointmentId],
         queryFn: async () => {
             const response = await billingApi.getAppointmentBilling(appointmentId);
@@ -333,7 +333,6 @@ export default function ViewAppointmentBill({
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
                             View Appointment Bill
                         </DialogTitle>
                     </DialogHeader>
@@ -346,20 +345,19 @@ export default function ViewAppointmentBill({
         );
     }
 
-    if (error || !bill) {
+    if (billLoading || !bill) {
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
                             View Appointment Bill
                         </DialogTitle>
                     </DialogHeader>
                     <div className="flex items-center justify-center py-8">
                         <div className="text-center">
                             <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <p className="text-gray-500">No bill found for this appointment</p>
+                            <p className="text-gray-500">No bill created for this appointment</p>
                         </div>
                     </div>
                 </DialogContent>
