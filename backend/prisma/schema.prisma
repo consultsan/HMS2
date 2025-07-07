@@ -383,6 +383,8 @@ model LabTest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   sampleType  String?
+  charge      Float @default(0)
+  
 
   diseaseTemplate DiseaseTemplate[]
   parameters      LabTestParameter[]
@@ -599,6 +601,7 @@ model BillItem {
   quantity    Int      @default(1)
   unitPrice   Float
   totalPrice  Float
+  discountAmount Float @default(0)
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -674,6 +677,7 @@ model Discount {
   usedCount   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
 
   @@index([isActive])
   @@index([validFrom, validTo])

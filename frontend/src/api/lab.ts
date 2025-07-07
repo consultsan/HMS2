@@ -5,12 +5,12 @@ export const labApi = {
     // Lab Test APIs
     getLabTests: () => api.get('/api/lab/tests'),
     getLabTestById: (id: string) => api.get(`/api/lab/tests/${id}`),
-    createLabTest: (test: LabTest) => api.post('/api/lab/tests', test),
+    createLabTest: (test: Partial<LabTest>) => api.post('/api/lab/tests', test),
     updateLabTest: (id: string, test: LabTest) => api.patch(`/api/lab/tests/${id}`, test),
     deleteLabTest: (id: string) => api.delete(`/api/lab/tests/${id}`),
 
     // Lab Test Parameter APIs
-    createParameter: (parameter: LabTestParameter) => api.post('/api/lab/parameters', parameter),
+    createParameter: (parameter: Partial<LabTestParameter>) => api.post('/api/lab/parameters', parameter),
     getParametersByLabTest: (labTestId: string) => api.get(`/api/lab/tests/${labTestId}/parameters`),
     getParameterById: (id: string) => api.get(`/api/lab/parameters/${id}`),
     updateParameter: (id: string, parameter: LabTestParameter) => api.patch(`/api/lab/parameters/${id}`, parameter),

@@ -20,14 +20,8 @@ import {
 import { Search, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
-
-interface Doctor {
-    id: string;
-    name: string;
-    specialisation: string;
-    role: 'DOCTOR';
-    status: 'ACTIVE' | 'INACTIVE';
-}
+import { billingApi } from "@/api/billing";
+import { HospitalStaff } from "@/types/types";
 
 interface Patient {
     id: string;
@@ -46,6 +40,7 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
     const [selectedSlotId, setSelectedSlotId] = useState<string>("");
     const [partiallyBooked, setPartiallyBooked] = useState(false);
+    const [doctorOpdCharge, setSlectedDoctorOpdCharge] = useState(0);
 
     useEffect(() => {
         if (patientId) {
@@ -55,7 +50,7 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
 
     const queryClient = useQueryClient();
 
-    const { data: doctors } = useQuery<Doctor[]>({
+    const { data: doctors } = useQuery<HospitalStaff[]>({
         queryKey: ["doctors"],
         queryFn: async () => {
             const response = await api.get('/api/doctor/get-by-hospital');
@@ -70,6 +65,12 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             return response.data?.data ?? [];
         },
     });
+
+    const filteredPatients = patients?.filter(patient =>
+        patient.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+        patient.patientUniqueId.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+        patient.phone.includes(patientSearchQuery)
+    );
 
     const createAppointmentMutation = useMutation({
         mutationFn: async (data: {
@@ -114,14 +115,11 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         },
     });
 
-    const filteredPatients = patients?.filter(patient =>
-        patient.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
-        patient.patientUniqueId.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
-        patient.phone.includes(patientSearchQuery)
-    );
 
     const handleDoctorChange = (doctorId: string) => {
         setSelectedDoctorId(doctorId);
+        const doctor = doctors?.find(d => d.id === doctorId);
+        setSlectedDoctorOpdCharge(doctor?.opdCharge?.amount || 0);
     };
 
     const handleDateChange = (date: string) => {
@@ -133,6 +131,8 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         setSelectedSlotId(slotId);
         setPartiallyBooked(isPartiallyBooked);
     };
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -148,6 +148,7 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             toast.error('Appointment date must be today or in the future');
             return;
         }
+
 
         const [hours, minutes] = selectedTimeSlot.split(':');
         appointmentDateTime.setUTCHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
@@ -283,6 +284,11 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
                                 </Select>
                             </div>
                         </div>
+
+                        {/* OPD Charge */}
+                        {doctorOpdCharge > 0 && (
+                            <p className="bg-green-50 text-green-700 p-2 rounded-md text-sm">OPD Charge: ₹{doctorOpdCharge}</p>
+                        )}
 
                         {/* Appointment Date */}
                         <div className="space-y-2">

@@ -30,4 +30,7 @@ router.get(
 	billingController.getBillingStats.bind(billingController)
 );
 
+// Export routes
+router.get("/:id/export/pdf", billingController.exportBillPDF.bind(billingController));
+
 export default router;

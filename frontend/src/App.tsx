@@ -22,7 +22,6 @@ import ConsultationPage from './pages/consultation/ConsultationPage';
 import DiseaseTemplate from './pages/doctor/DiseaseTemplate';
 import DiagnosisRecord from './pages/consultation/DiagnosisRecord';
 import LabDashboard from './pages/lab/LabDashboard';
-import Labtests from './pages/lab/Labtests';
 import AppointmentManagement from './pages/appointment/AppointmentManagement';
 import FollowUpsSection from './pages/receptionist/FollowUpsSection';
 import SurgicalAppointments from './pages/receptionist/SurgicalAppointments';
@@ -33,6 +32,7 @@ import TestFromDoctors from './pages/lab/TestFromDoctors';
 import Retests from './pages/lab/Retests';
 import CreateLabTest from './pages/lab/CreateLabTest';
 import CreateLabTestAppointment from './pages/receptionist/CreateLabTestAppointment';
+import PendingLabBills from './pages/receptionist/PendingLabBills';
 
 export default function App() {
   return (
@@ -101,6 +101,7 @@ export default function App() {
             <Route path="follow-ups" element={<FollowUpsSection />} />
             <Route path="surgical-appointments" element={<SurgicalAppointments />} />
             <Route path="create-test" element={<CreateLabTestAppointment />} />
+            <Route path="pending-lab-bills" element={<PendingLabBills />} />
           </Route>
 
           {/* Sales Person Routes */}

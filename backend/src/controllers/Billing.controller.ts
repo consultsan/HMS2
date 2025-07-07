@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { PrismaClient, BillStatus, BillType } from "@prisma/client";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
+import { PDFService } from "../services/pdf.service";
 
 const prisma = new PrismaClient();
 
@@ -16,7 +17,7 @@ export class BillingController {
 	// Create a new bill
 	createBill = async (req: Request, res: Response) => {
 		try {
-			const { patientId, hospitalId, appointmentId, items, dueDate, notes } =
+			const { patientId, hospitalId, appointmentId, items, dueDate, paidAmount, dueAmount, status, billDate, notes } =
 				req.body;
 
 			// Validate required fields
@@ -32,7 +33,7 @@ export class BillingController {
 			const billItems = [];
 
 			for (const item of items) {
-				const itemTotal = item.unitPrice * item.quantity;
+				const itemTotal = item.unitPrice * item.quantity - item.discountAmount;
 				totalAmount += itemTotal;
 				billItems.push({
 					itemType: item.itemType,
@@ -40,6 +41,7 @@ export class BillingController {
 					quantity: item.quantity,
 					unitPrice: item.unitPrice,
 					totalPrice: itemTotal,
+					discountAmount: item.discountAmount,
 					notes: item.notes,
 					labTestId: item.labTestId,
 					surgeryId: item.surgeryId
@@ -54,8 +56,11 @@ export class BillingController {
 					hospitalId,
 					appointmentId,
 					totalAmount,
-					dueAmount: totalAmount,
-					dueDate: dueDate ? new Date(dueDate) : null,
+					dueAmount: dueAmount,
+					paidAmount: paidAmount,
+					status: status,
+					billDate: billDate ? new Date(billDate) : new Date(),
+					dueDate: dueDate ? new Date(dueDate) : new Date(),
 					notes,
 					billItems: {
 						create: billItems
@@ -347,7 +352,8 @@ export class BillingController {
 				unitPrice,
 				notes,
 				labTestId,
-				surgeryId
+				surgeryId,
+				discountAmount
 			} = req.body;
 
 			// Validate required fields
@@ -358,7 +364,7 @@ export class BillingController {
 				);
 			}
 
-			const totalPrice = quantity * unitPrice;
+			const totalPrice = quantity * unitPrice - discountAmount;
 
 			// Create bill item
 			const billItem = await prisma.billItem.create({
@@ -371,7 +377,8 @@ export class BillingController {
 					totalPrice,
 					notes,
 					labTestId,
-					surgeryId
+					surgeryId,
+					discountAmount
 				}
 			});
 
@@ -416,6 +423,84 @@ export class BillingController {
 			res
 				.status(error.code || 500)
 				.json(new ApiResponse(error.message || "Failed to add bill item"));
+		}
+	};
+
+	exportBillPDF = async (req: Request, res: Response) => {
+		try {
+			const { id } = req.params;
+
+			// Get bill with all related data
+			const bill = await prisma.bill.findUnique({
+				where: { id },
+				include: {
+					patient: {
+						select: {
+							id: true,
+							name: true,
+							patientUniqueId: true,
+							phone: true,
+							email: true
+						}
+					},
+					hospital: {
+						select: {
+							id: true,
+							name: true,
+							address: true
+						}
+					},
+					billItems: {
+						include: {
+							labTest: {
+								include: {
+									labTest: true
+								}
+							},
+							surgery: true
+						}
+					},
+					payments: {
+						orderBy: {
+							paymentDate: "desc"
+						}
+					},
+					appointment: {
+						select: {
+							id: true,
+							scheduledAt: true,
+							visitType: true,
+							doctor: {
+								select: {
+									id: true,
+									name: true,
+									specialisation: true
+								}
+							}
+						}
+					}
+				}
+			});
+
+			if (!bill) {
+				throw new AppError("Bill not found", 404);
+			}
+
+			// Generate PDF
+			const pdfBuffer = await PDFService.generateBillPDF(bill as any);
+
+			// Set response headers for PDF download
+			res.setHeader("Content-Type", "application/pdf");
+			res.setHeader(
+				"Content-Disposition",
+				`attachment; filename=bill-${bill.billNumber}.pdf`
+			);
+			res.send(pdfBuffer);
+		} catch (error: any) {
+			console.error("Error in exportBillPDF:", error);
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Failed to export bill PDF"));
 		}
 	};
 

@@ -1,66 +1,12 @@
 import { api } from '@/lib/api';
-import { TempShift } from '@/types/types';
-
-export interface Department {
-    id: string;
-    name: string;
-    description: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface Doctor {
-    id: string;
-    name: string;
-    specialisation: string;
-    status: 'ACTIVE' | 'INACTIVE';
-    role: 'DOCTOR' | 'NURSE' | 'STAFF';
-}
-
-export interface OpdFee {
-    id: string;
-    amount: number;
-    doctor: Doctor;
-}
-
-export interface Staff {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    phoneNumber: string;
-    status: 'ACTIVE' | 'INACTIVE';
-    specialisation?: string;
-}
-
-export interface StaffFormData {
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-    specialisation: string;
-    deptId: string;
-    status?: 'ACTIVE' | 'INACTIVE';
-}
-
-export interface Shift {
-    id: string;
-    staffId: string;
-    staff?: Staff;
-    staffName?: string;
-    shiftName: 'GENERAL' | 'NIGHT';
-    day: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
-    startTime: string;
-    endTime: string;
-    status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-}
+import { Department, Doctor, OpdFee, Staff, StaffFormData, TempShift, HospitalStaff } from '@/types/types';
+import { Shift } from '@/types/types';
 
 interface ApiResponse<T> {
     data: T;
     message?: string;
     status?: string;
 }
-
 export const hospitalAdminApi = {
     // Departments
     getDepartments: () => api.get<ApiResponse<Department[]>>('/api/hospital-admin/departments').then(res => res.data.data),
@@ -78,6 +24,7 @@ export const hospitalAdminApi = {
         api.delete<ApiResponse<void>>(`/api/hospital-admin/opd-charge/delete/${id}`).then(res => res.data.data),
 
     // Staff Management
+    getStaffById: (id: string) => api.get<ApiResponse<HospitalStaff>>(`/api/hospital-admin/staff/fetch/${id}`).then(res => res.data.data),
     getStaff: () => api.get<ApiResponse<Staff[]>>('/api/hospital-admin/staff/fetch').then(res => res.data.data),
     createStaff: (data: StaffFormData) =>
         api.post<ApiResponse<Staff>>('/api/hospital-admin/staff/add', data).then(res => res.data.data),

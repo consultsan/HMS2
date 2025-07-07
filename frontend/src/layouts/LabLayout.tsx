@@ -11,8 +11,28 @@ const sidebarSections = [
         path: '/lab/dashboard',
     },
     {
-        name: 'Lab Tests',
-        path: '/lab/tests',
+        name: 'Pending Tests',
+        path: '/lab/pending-tests',
+    },
+    {
+        name: 'From Doctors',
+        path: '/lab/from-doctors',
+    },
+    {
+        name: 'From Receptionist',
+        path: '/lab/from-receptionist',
+    },
+    {
+        name: 'Completed Tests',
+        path: '/lab/completed-tests',
+    },
+    {
+        name: 'Retests',
+        path: '/lab/retests',
+    },
+    {
+        name: 'Create Test',
+        path: '/lab/create',
     },
 ];
 

@@ -28,6 +28,7 @@ import { fomratString } from '@/utils/stringUtils';
 import { surgeriesBySpecialisation } from '@/constants/doctorSpecialization';
 import ShiftsCalendar from '@/components/shifts/ShiftsCalender';
 export default function UserManagement() {
+  
   const allowedRoles = ['HOSPITAL_ADMIN', 'RECEPTIONIST', 'SALES_PERSON'];
   // if (!allowedRoles.includes(user?.role ?? '')) return <div>Not authorized</div>;
 

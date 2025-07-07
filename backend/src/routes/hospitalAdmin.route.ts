@@ -20,7 +20,7 @@ router.patch(
 router.delete(
 	"/staff/delete/:id",
 	staffController.deleteStaff.bind(staffController)
-);
+); 
 router.get("/staff/fetch", hospitalController.getStaffByHospital.bind(hospitalController));
 router.get("/staff/fetch/:id", shiftController.getStaffById.bind(shiftController));
 router.post("/shift/create", shiftController.createShift.bind(shiftController));

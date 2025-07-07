@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useSearch } from '@/contexts/SearchContext';
-import { hospitalAdminApi, Doctor, OpdFee } from '@/api/hospitalAdmin';
+import { hospitalAdminApi } from '@/api/hospitalAdmin';
+import { Doctor, OpdFee } from '@/types/types';
 
 export default function OpdFees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

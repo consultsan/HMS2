@@ -6,16 +6,14 @@ import PatientBasicDetails from './PatientBasicDetails';
 import PrescriptionSection from './PrescriptionSection';
 import FollowUpSection from './FollowUpSection';
 import Diagnosis from './Diagnosis';
-import DiagnosisView from './DiagnosisRecord';
 import { api } from '@/lib/api';
-import { labApi } from '@/api/lab';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import ViewDiagnosisRecordButton from './viewDiagnosisRecord';
-import { AppointmentStatus } from '@/types/types';
-import { Surgery } from '@/components/patient/types';
-import { LabTestStatus } from '@/types/types';
-import { CheckCircle, ArrowLeft, Clock, FileText, User, Stethoscope, Calendar, Save } from 'lucide-react';
+import { AppointmentStatus, BillType, BillStatus, Bill } from '@/types/types';
+import { CheckCircle, ArrowLeft, Clock, FileText, Stethoscope, Calendar, Save } from 'lucide-react';
+import { billingApi } from '@/api/billing';
+import { labApi } from '@/api/lab';
 
 interface DiagnosisFormData {
     diagnosis: string;
@@ -62,7 +60,6 @@ function ConsultationPage() {
     const doctorId = user?.id || '';
     const doctorDept = user?.specialisation || '';
     const navigate = useNavigate();
-
 
     // State management
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -153,8 +150,10 @@ function ConsultationPage() {
                 followUpAppointmentId: followUpAppointmentId
             };
 
-            console.log("updatedData", updatedData);
-            return api.post(`/api/diagnosis/add-diagnosis?appointmentId=${appointmentId}`, updatedData);
+            const diagnosisResponse = await api.post(`/api/diagnosis/add-diagnosis?appointmentId=${appointmentId}`, updatedData);
+
+            // After creating diagnosis and lab test orders, add lab tests to bill
+            return diagnosisResponse;
         },
         onSuccess: async () => {
             await updateAppointmentStatus();
@@ -163,7 +162,16 @@ function ConsultationPage() {
         },
         onError: (error: any) => {
             console.error('Error creating diagnosis record:', error);
-            toast.error(error.response?.data?.message || error.message || 'Failed to create diagnosis record');
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to create diagnosis record';
+
+            // Handle specific error cases
+            if (error.response?.data?.message?.includes('Unique constraint failed')) {
+                toast.error('Diagnosis record already exists for this appointment');
+            } else if (error.response?.data?.message?.includes('Foreign key constraint')) {
+                toast.error('Some lab tests are not available. Please check and try again.');
+            } else {
+                toast.error(errorMessage);
+            }
         }
     });
 
@@ -175,6 +183,23 @@ function ConsultationPage() {
             return response.data.data;
         },
         enabled: !!patientId,
+    });
+
+    // Check if diagnosis already exists
+    const { data: existingDiagnosis, isLoading: isDiagnosisLoading } = useQuery({
+        queryKey: ['diagnosis-record', appointmentId],
+        queryFn: async () => {
+            try {
+                const response = await api.get(`/api/diagnosis/get-diagnosis/${appointmentId}`);
+                return response.data.data;
+            } catch (error: any) {
+                if (error.response?.status === 404) {
+                    return null; // No diagnosis exists
+                }
+                throw error;
+            }
+        },
+        enabled: !!appointmentId,
     });
 
     // Form validation
@@ -226,12 +251,40 @@ function ConsultationPage() {
     }, []);
 
     // Loading state
-    if (isPatientLoading) {
+    if (isPatientLoading || isDiagnosisLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                     <p className="text-gray-600">Loading patient information...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Check if diagnosis already exists
+    if (existingDiagnosis) {
+        return (
+            <div className="min-h-[60vh] bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-6">
+                <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md w-full border border-blue-100">
+                    <div className="mb-6">
+                        <div className="mx-auto w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mb-4">
+                            <FileText className="w-8 h-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-blue-800 mb-2">Diagnosis Already Exists</h2>
+                        <p className="text-blue-600">A diagnosis record has already been created for this appointment</p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <button
+                            onClick={handleGoBack}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors font-medium"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Appointments
+                        </button>
+                        <ViewDiagnosisRecordButton appointmentId={appointmentId} />
+                    </div>
                 </div>
             </div>
         );

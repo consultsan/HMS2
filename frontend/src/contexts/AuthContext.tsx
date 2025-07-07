@@ -12,6 +12,7 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
+  isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
 }
@@ -20,6 +21,7 @@ interface AuthContextType {
 const defaultContextValue: AuthContextType = {
   isAuthenticated: false,
   user: null,
+  isLoading: true,
   login: () => {
     console.warn('AuthContext: login function called before provider was initialized');
   },
@@ -33,22 +35,48 @@ const AuthContext = createContext<AuthContextType>(defaultContextValue);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-      if (token && userData) {
-        const parsedUser = JSON.parse(userData);
-        setIsAuthenticated(true);
-        setUser(parsedUser);
+    const initializeAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const userData = localStorage.getItem('user');
+
+        if (token && userData) {
+          try {
+            // Parse user data and check if token is expired
+            const parsedUser = JSON.parse(userData);
+
+            // Simple token expiration check (if token contains expiration info)
+            // For JWT tokens, we could decode and check exp claim
+            // For now, we'll trust the token and let the API handle validation
+            setIsAuthenticated(true);
+            setUser(parsedUser);
+          } catch (parseError) {
+            console.error('Error parsing user data:', parseError);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error restoring auth state:', error);
+        // Clear potentially corrupted data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error restoring auth state:', error);
-      // Clear potentially corrupted data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = (token: string, userData: User) => {
@@ -80,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     isAuthenticated,
     user,
+    isLoading,
     login,
     logout,
   };

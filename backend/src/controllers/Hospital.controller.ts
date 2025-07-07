@@ -51,10 +51,7 @@ export class HospitalController {
 	}
 
 	async getHospitalById(req: Request, res: Response) {
-		if (
-			req.user &&
-			(req.user.role == "SUPER_ADMIN" || req.user.role == "HOSPITAL_ADMIN")
-		) {
+		
 			try {
 				const { id } = req.params as Pick<Hospital, "id">;
 				const hospital = await this.hospitalRepository.getHospitalById(id);
@@ -68,9 +65,7 @@ export class HospitalController {
 						new ApiResponse(error.message || "Failed to retrieve hospital")
 					);
 			}
-		} else {
-			res.status(403).json(new ApiResponse("Unauthorized access"));
-		}
+			
 	}
 
 	async createHospital(req: Request, res: Response) {

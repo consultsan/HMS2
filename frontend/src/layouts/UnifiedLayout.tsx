@@ -42,7 +42,8 @@ const roleConfigs = {
         sections: [
             { name: 'Dashboard', path: '/receptionist/dashboard' },
             { name: 'Patients', path: '/receptionist/patients' },
-            { name: 'Appointments', path: '/receptionist/appointments' },
+          { name: 'Appointments', path: '/receptionist/appointments' },
+            { name: 'Pending Lab Test Bills', path: '/receptionist/pending-lab-bills' },
             { name: 'Follow Ups', path: '/receptionist/follow-ups' },
             { name: 'Surgical Appointments', path: '/receptionist/surgical-appointments' },
             { name: 'Create Test', path: '/receptionist/create-test' },
@@ -75,7 +76,7 @@ const roleConfigs = {
             { name: 'Dashboard', path: '/lab/dashboard' },
             { name: 'From Doctors', path: '/lab/from-doctors' },
             { name: 'From Receptionist', path: '/lab/from-receptionist' },
-            { name: 'Completed Tests', path: '/lab/completed-tests' },
+          { name: 'Completed Tests', path: '/lab/completed-tests' },
             // { name: 'Retests', path: '/lab/retests' },
             { name: 'Create Test', path: '/lab/create' },
         ],

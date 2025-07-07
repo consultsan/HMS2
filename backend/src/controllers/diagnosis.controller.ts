@@ -29,7 +29,7 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 				DiagnosisRecord,
 				"diagnosis" | "medicines" | "notes" | "followUpAppointmentId"
 			> & { labTests: { id: string }[] };
- 
+
 			if (!diagnosis) throw new AppError("Diagnosis is required", 401);
 
 			const appointment = await prisma.appointment.findUnique({
@@ -112,6 +112,34 @@ export const getDiagnosisRecord = async (req: Request, res: Response) => {
 		res.status(403).json(new ApiResponse("Unauthorized access", null));
 	}
 }
+export const getDiagnosisByDate = async (req: Request, res: Response) => {
+	if (req.user && req.user.role == "DOCTOR") {
+		try {
+			const { date } = req.query;
+			const diagnosis = await prisma.diagnosisRecord.findMany({
+				where: {
+					appointment: {
+						scheduledAt: { gte: new Date(date as string) }
+					}
+				},
+				include: {
+					appointment: {
+						include: {
+							patient: true,
+							surgery: true,
+						}
+					}
+				}
+			});
+			res.status(200).json(new ApiResponse("Diagnosis records fetched successfully", diagnosis));
+		} catch (error: any) {
+			console.error("Get diagnosis by date error:", error);
+			res
+				.status(error.code || 500)
+				.json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	}
+}
 
 export const addDiseaseTemplate = async (req: Request, res: Response) => {
 	if (req.user && req.user.role == "DOCTOR") {
@@ -123,7 +151,7 @@ export const addDiseaseTemplate = async (req: Request, res: Response) => {
 				name: string;
 				clinicalNotes: Pick<DiseaseTemplate, "clinicalNotes">[];
 			};
-			
+
 			if (
 				!Array.isArray(medicines) ||
 				medicines.length == 0 ||
@@ -136,7 +164,7 @@ export const addDiseaseTemplate = async (req: Request, res: Response) => {
 			const template = await prisma.diseaseTemplate.create({
 				data: {
 					medicines: medicines as Prisma.InputJsonValue,
-					clinicalNotes:clinicalNotes as Prisma.InputJsonValue,
+					clinicalNotes: clinicalNotes as Prisma.InputJsonValue,
 					labTests: {
 						connect: labTests
 					},
@@ -272,12 +300,26 @@ export const downloadDiagnosisPDF = async (req: Request, res: Response) => {
 								gender: true,
 								bloodGroup: true,
 								address: true,
-								phone: true
+								phone: true,
+								patientUniqueId: true,
+								allergy: true,
+								chronicDisease: true,
+								preExistingCondition: true,
+								registrationMode: true,
+								registrationSource: true,
+								status: true
 							}
 						},
 						doctor: true,
 						vitals: true,
-						attachments: true
+						attachments: true,
+						hospital: {
+							select: {
+								name: true,
+								address: true,
+								contactNumber: true
+							}
+						}
 					}
 				}
 			}
@@ -287,17 +329,38 @@ export const downloadDiagnosisPDF = async (req: Request, res: Response) => {
 			throw new AppError("Diagnosis record not found", 404);
 		}
 
-		// const pdfBuffer = await PDFService.generateClinicalSummary(diagnosisRecord.appointment, diagnosisRecord);
+		// Get lab tests for this appointment
+		const labTests = await prisma.appointmentLabTest.findMany({
+			where: { appointmentId },
+			include: {
+				labTest: {
+					select: {
+						name: true
+					}
+				}
+			}
+		});
+
+		// Get surgical info for this appointment
+		const surgicalInfo = await prisma.surgery.findUnique({
+			where: { appointmentId }
+		});
+
+		const pdfBuffer = await PDFService.generateDiagnosisRecord(
+			diagnosisRecord,
+			labTests,
+			surgicalInfo
+		);
 
 		res.setHeader("Content-Type", "application/pdf");
 		res.setHeader(
 			"Content-Disposition",
 			`attachment; filename=diagnosis-record-${appointmentId}.pdf`
 		);
-		// res.send(pdfBuffer);
+		res.send(pdfBuffer);
 	} catch (error: any) {
 		console.error("Generate diagnosis PDF error:", error);
-		res.status(error.code || 500)
-			.json(new ApiResponse(error.message || "Failed to generate PDF"));
+		res.status(error.statusCode || 500)
+			.json(new ApiResponse(error.message || "Failed to generate PDF", null));
 	}
 };
