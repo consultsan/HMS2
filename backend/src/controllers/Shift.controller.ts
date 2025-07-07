@@ -182,7 +182,7 @@ export class ShiftController {
 				});
 				res.json(new ApiResponse("Temp shifts fetched successfully", shifts));
 			} catch (error: any) {
-				res	
+				res
 					.status(error.code || 500)
 					.json(new ApiResponse("Failed to create shift"));
 			}
@@ -227,7 +227,8 @@ export class ShiftController {
 					id
 				},
 				include: {
-					shifts: true
+					shifts: true,
+					opdCharge: true
 				}
 			});
 			res.json(

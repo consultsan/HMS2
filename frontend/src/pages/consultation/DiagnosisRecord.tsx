@@ -6,7 +6,7 @@ import PatientBasicDetails from './PatientBasicDetails';
 import { Patient } from './interfaces/PatinetInterface';
 import { labApi } from '@/api/lab';
 import { Button } from "@/components/ui/button";
-import { Eye, ArrowLeft, Clock, CheckCircle, AlertCircle, Download, FileText, ExternalLink } from "lucide-react";
+import { Eye, ArrowLeft, Clock, CheckCircle, AlertCircle, Download, FileText, ExternalLink, Handshake } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -16,20 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import ViewTestResult from "../lab/ViewTestResult";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { appointmentApi } from '@/api/appointment';
-
-const calculateAge = (dob: Date | string) => {
-    const dobDate = new Date(dob);
-    const today = new Date();
-    const age = today.getFullYear() - dobDate.getFullYear();
-    const monthDiff = today.getMonth() - dobDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
-        return age - 1;
-    }
-    return age;
-};
+import { calculateAge } from '@/utils/dateUtils';
+import { hospitalApi } from '@/api/hospital';
+import { Hospital } from '@/types/types';
 
 function DiagnosisRecord() {
     const { appointmentId } = useParams();
@@ -56,7 +47,6 @@ function DiagnosisRecord() {
         },
     });
 
-
     // Fetch surgical information
     const { data: surgicalInfo } = useQuery<any>({
         queryKey: ['surgical-info', appointmentId],
@@ -66,6 +56,19 @@ function DiagnosisRecord() {
             return response.data?.data;
         },
         enabled: !!appointmentId,
+    });
+
+    // Fetch hospital information
+    const { data: hospital, isLoading: isHospitalLoading } = useQuery<Hospital>({
+        queryKey: ['hospital', diagnosisRecord?.appointment?.hospitalId],
+        queryFn: async () => {
+            if (!diagnosisRecord?.appointment?.hospitalId) {
+                throw new Error('Hospital ID is required');
+            }
+            const response = await hospitalApi.getHospitalById(diagnosisRecord.appointment.hospitalId);
+            return response;
+        },
+        enabled: !!diagnosisRecord?.appointment?.hospitalId,
     });
 
     const handleDownloadPDF = async () => {
@@ -104,7 +107,7 @@ function DiagnosisRecord() {
         setIsViewTestResultDialogOpen(true);
     };
 
-    if (isLoading) {
+    if (isLoading || isHospitalLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
@@ -143,7 +146,7 @@ function DiagnosisRecord() {
         };
         return colors[status as keyof typeof colors] || colors.default;
     };
-    console.log(diagnosisRecord);
+
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -177,14 +180,15 @@ function DiagnosisRecord() {
                     <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-4">
-
-                                <img src="/True-Hospital-Logo(White).png" className='h-12' />
-
+                                <div className="flex items-center gap-3">
+                                    <img src="/True-Hospital-Logo(White).png" className='h-12' />
+                                    <Handshake className="h-6 w-6" />
+                                    <span className="text-white font-semibold text-3xl">{hospital?.name}</span>
+                                </div>
                             </div>
                             <div className="text-right text-sm">
-                                <p className="text-blue-100">209P Avise Hospital, Sector 38 Near</p>
-                                <p className="text-blue-100">Bakhtawar Chowk, Gurugram 122001</p>
-                                <p className="text-white font-medium">+91 9876543210</p>
+                                <p className="text-blue-100">{hospital?.address}</p>
+                                <p className="text-white font-medium">{hospital?.contactNumber}</p>
                             </div>
                         </div>
                     </div>
@@ -352,66 +356,28 @@ function DiagnosisRecord() {
 
                     {/* Follow-up Appointments Section */}
                     <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Follow-Up Status</h2>
-                        {diagnosisRecord.followUpAppointment? (
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                                <p className="text-blue-900 font-medium">
-                                    {format(new Date(diagnosisRecord.followUpAppointment.scheduledAt), 'dd MMMM yyyy, hh:mm a')}
-                                </p>
-                                <p className="text-blue-700 text-sm mt-1">
-                                    Status: {diagnosisRecord.followUpAppointment.status}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <p className="text-gray-700 font-medium">No Follow-Up Required</p>
-                                <p className="text-gray-600 text-sm mt-1">
-                                    No follow-up appointments have been scheduled for this consultation.
-                                </p>
-                            </div>
-                        )}
+                        <div className="flex">
+                            <span className="font-medium text-gray-700 w-32">FollowUps:</span>
+                            <span className="text-gray-900">
+                                {diagnosisRecord.followUpAppointment
+                                    ? format(new Date(diagnosisRecord.followUpAppointment.scheduledAt), 'dd MMMM yyyy, hh:mm a')
+                                    : 'No Follow-Up Required'
+                                }
+                            </span>
+                        </div>
                     </div>
 
                     {/* Surgical Information Section */}
                     <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Surgical Status</h2>
-                        {surgicalInfo && surgicalInfo.status !== 'NOT_REQUIRED' ? (
-                            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm font-medium text-green-700">Status</p>
-                                        <p className="text-green-900">
-                                            {surgicalInfo.status === 'CONFIRMED' ? 'Surgical - Confirmed' : 'Surgical - Pending Confirmation'}
-                                        </p>
-                                    </div>
-                                    {surgicalInfo.category && (
-                                        <div>
-                                            <p className="text-sm font-medium text-green-700">Category</p>
-                                            <p className="text-green-900">{surgicalInfo.category}</p>
-                                        </div>
-                                    )}
-                                </div>
-                                {surgicalInfo.scheduledAt && (
-                                    <div className="mt-3">
-                                        <p className="text-sm font-medium text-green-700">Scheduled Date</p>
-                                        <p className="text-green-900">{format(new Date(surgicalInfo.scheduledAt), 'dd MMMM yyyy')}</p>
-                                    </div>
-                                )}
-                                {surgicalInfo.description && (
-                                    <div className="mt-3">
-                                        <p className="text-sm font-medium text-green-700">Description</p>
-                                        <p className="text-green-800 text-sm">{surgicalInfo.description}</p>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <p className="text-gray-700 font-medium">Non-Surgical Treatment</p>
-                                <p className="text-gray-600 text-sm mt-1">
-                                    No surgical intervention required for this consultation.
-                                </p>
-                            </div>
-                        )}
+                        <div className="flex">
+                            <span className="font-medium text-gray-700 w-32">Surgical Status:</span>
+                            <span className="text-gray-900">
+                                {surgicalInfo && surgicalInfo.status !== 'NOT_REQUIRED'
+                                    ? `${surgicalInfo.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'} ${surgicalInfo.scheduledAt ? `- ${format(new Date(surgicalInfo.scheduledAt), 'dd MMM yyyy')}` : ''}`
+                                    : 'Non-Surgical Treatment'
+                                }
+                            </span>
+                        </div>
                     </div>
 
                     {/* Notes Section */}

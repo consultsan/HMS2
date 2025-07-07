@@ -47,6 +47,7 @@ const formatDateTimeLocal = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
+    console.log(hours, minutes);
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
@@ -274,9 +275,14 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
         const startDateTime = new Date(startTime);
         const endDateTime = new Date(endTime);
 
-        console.log('Saving temp shift:', { startDateTime, endDateTime });
+        // Convert to GMT/UTC by treating the input as local time and adjusting
+        const startDateTimeGMT = new Date(startDateTime.getTime() - startDateTime.getTimezoneOffset() * 60000);
+        const endDateTimeGMT = new Date(endDateTime.getTime() - endDateTime.getTimezoneOffset() * 60000);
 
-        if (startDateTime >= endDateTime) {
+        console.log('Original times:', { startDateTime, endDateTime });
+        console.log('GMT times:', { startDateTimeGMT, endDateTimeGMT });
+
+        if (startDateTimeGMT >= endDateTimeGMT) {
             toast({
                 title: "Error",
                 description: "End time must be after start time",
@@ -295,8 +301,8 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
         }
 
         createTempShiftMutation.mutate({
-            startTime: startDateTime,
-            endTime: endDateTime,
+            startTime: startDateTimeGMT,
+            endTime: endDateTimeGMT,
             status: Status.ACTIVE,
             hospitalId: user.hospitalId,
             staffId: userId
@@ -533,16 +539,27 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                                                     const startDate = shift.startTime ? new Date(shift.startTime) : null;
                                                     const endDate = shift.endTime ? new Date(shift.endTime) : null;
 
+                                                    // Convert GMT back to original local time for display
+                                                    const getOriginalTime = (date: Date) => {
+                                                        // Since we stored GMT, but user intended local time,
+                                                        // we need to add back the timezone offset
+                                                        const originalTime = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+                                                        return originalTime;
+                                                    };
+
+                                                    const displayStartDate = startDate ? getOriginalTime(startDate) : null;
+                                                    const displayEndDate = endDate ? getOriginalTime(endDate) : null;
+
                                                     return (
                                                         <TableRow key={shift.id || `temp-shift-${index}`}>
                                                             <TableCell>
-                                                                {startDate ? startDate.toLocaleDateString() : '-'}
+                                                                {displayStartDate ? displayStartDate.toLocaleDateString() : '-'}
                                                             </TableCell>
                                                             <TableCell>
-                                                                {startDate ? startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                                {displayStartDate ? displayStartDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                                             </TableCell>
                                                             <TableCell>
-                                                                {endDate ? endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                                {displayEndDate ? displayEndDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                                             </TableCell>
                                                             <TableCell>
                                                                 <Button

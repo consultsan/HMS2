@@ -216,6 +216,7 @@ export interface HospitalStaff {
     role: UserRole;
     specialisation?: string;
     status: Status;
+    opdCharge?: OpdCharge;
     hospitalId: string;
     deptId: string;
     createdAt: Date;
@@ -233,10 +234,12 @@ export interface Appointment {
     createdAt: Date;
     updatedAt: Date;
     patient?: Patient;
+    doctor?: HospitalStaff;
     vitals?: Vital[];
     attachments?: AppointmentAttachment[];
     diagnosisRecord?: DiagnosisRecord;
     surgery?: Surgery;
+    labTests?: AppointmentLabTest[];
 }
 
 export interface DiagnosisRecord {
@@ -274,6 +277,7 @@ export interface LabTest {
     name: string;
     description?: string;
     sampleType?: string;
+    charge: number;
     createdAt: Date;
     updatedAt: Date;
     parameters?: LabTestParameter[];
@@ -407,7 +411,7 @@ export interface AppointmentDateQuery {
     patientId?: string;
 }
 
-export interface AppointmentAttachment {
+export interface AppointmentAttachmentUpload {
     file: File;
     appointmentId: string;
 }
@@ -461,4 +465,251 @@ export interface PatientCreateData {
     phoneNumber: string;
     dateOfBirth?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
+}
+
+export interface Doctor {
+    id: string;
+    name: string;
+    specialisation: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    role: 'DOCTOR' | 'NURSE' | 'STAFF';
+    opdCharge?: number;
+}
+
+export interface OpdFee {
+    id: string;
+    amount: number;
+    doctor: Doctor;
+}
+
+export interface Staff {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    phoneNumber: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    specialisation?: string;
+}
+
+export interface StaffFormData {
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    specialisation: string;
+    deptId: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+}
+
+
+export interface ApiResponse<T> {
+    data: T;
+    message?: string;
+    status?: string;
+}
+
+// Billing Module Enums
+export enum BillStatus {
+    DRAFT = "DRAFT",
+    GENERATED = "GENERATED",
+    SENT = "SENT",
+    PAID = "PAID",
+    OVERDUE = "OVERDUE",
+    CANCELLED = "CANCELLED",
+    PARTIALLY_PAID = "PARTIALLY_PAID"
+}
+
+export enum PaymentMethod {
+    CASH = "CASH",
+    CARD = "CARD",
+    UPI = "UPI",
+    BANK_TRANSFER = "BANK_TRANSFER",
+    INSURANCE = "INSURANCE",
+    CHEQUE = "CHEQUE"
+}
+
+export enum PaymentStatus {
+    PENDING = "PENDING",
+    COMPLETED = "COMPLETED",
+    FAILED = "FAILED",
+    REFUNDED = "REFUNDED",
+    CANCELLED = "CANCELLED"
+}
+
+export enum BillType {
+    OPD_CONSULTATION = "OPD_CONSULTATION",
+    LAB_TEST = "LAB_TEST",
+    SURGERY = "SURGERY",
+    MEDICINE = "MEDICINE",
+    ROOM_CHARGE = "ROOM_CHARGE",
+    PROCEDURE = "PROCEDURE",
+    EMERGENCY = "EMERGENCY",
+    FOLLOW_UP = "FOLLOW_UP"
+}
+
+// Billing Module Interfaces
+export interface Bill {
+    id: string;
+    billNumber: string;
+    patientId: string;
+    hospitalId: string;
+    totalAmount: number;
+    paidAmount: number;
+    dueAmount: number;
+    status: BillStatus;
+    billDate: Date;
+    dueDate?: Date;
+    notes?: string;
+    appointmentId?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    patient?: Patient;
+    hospital?: Hospital;
+    billItems?: BillItem[];
+    payments?: Payment[];
+    appointment?: Appointment;
+}
+
+export interface BillItem {
+    id: string;
+    billId: string;
+    itemType: BillType;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    discountAmount: number;
+    notes?: string;
+    labTestId?: string;
+    surgeryId?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    bill?: Bill;
+    labTest?: AppointmentLabTest;
+    surgery?: Surgery;
+}
+
+export interface Payment {
+    id: string;
+    billId: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    status: PaymentStatus;
+    transactionId?: string;
+    paymentDate: Date;
+    notes?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    bill?: Bill;
+}
+
+export interface Insurance {
+    id: string;
+    patientId: string;
+    providerName: string;
+    policyNumber: string;
+    coverageType: string;
+    coverageAmount: number;
+    validFrom: Date;
+    validTo: Date;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    patient?: Patient;
+}
+
+export interface Discount {
+    id: string;
+    code: string;
+    description: string;
+    discountType: string; // PERCENTAGE or FIXED_AMOUNT
+    value: number;
+    maxDiscount?: number;
+    minAmount?: number;
+    validFrom: Date;
+    validTo: Date;
+    isActive: boolean;
+    usageLimit?: number;
+    usedCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Billing related data interfaces
+export interface BillCreateData {
+    patientId: string;
+    hospitalId: string;
+    appointmentId?: string;
+    items: BillItemCreateData[];
+    dueDate?: Date;
+    notes?: string;
+    totalAmount?: number;
+    paidAmount: number;
+    dueAmount: number;
+    status: BillStatus;
+    billDate: Date;
+}
+
+export interface BillItemCreateData {
+    itemType: BillType;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice?: number;
+    discountAmount?: number;
+    notes?: string;
+    labTestId?: string;
+    surgeryId?: string;
+}
+
+export interface PaymentCreateData {
+    billId: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+}
+
+export interface InsuranceCreateData {
+    patientId: string;
+    providerName: string;
+    policyNumber: string;
+    coverageType: string;
+    coverageAmount: number;
+    validFrom: Date;
+    validTo: Date;
+}
+
+export interface DiscountCreateData {
+    code: string;
+    description: string;
+    discountType: string;
+    value: number;
+    maxDiscount?: number;
+    minAmount?: number;
+    validFrom: Date;
+    validTo: Date;
+    usageLimit?: number;
+}
+
+export interface BillingStats {
+    totalBills: number;
+    paidBills: number;
+    pendingBills: number;
+    totalRevenue: number;
+    pendingAmount: number;
+    paymentRate: number;
+}
+
+export interface PaymentStats {
+    totalPayments: number;
+    completedPayments: number;
+    failedPayments: number;
+    totalAmount: number;
+    successRate: number;
+    amountByMethod: Array<{
+        method: PaymentMethod;
+        amount: number;
+        count: number;
+    }>;
 }

@@ -9,4 +9,5 @@ router.get(
 	hospitalController.getHospitalById.bind(hospitalController)
 );
 
+
 export default router;

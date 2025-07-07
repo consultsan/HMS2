@@ -44,6 +44,12 @@ router.get(
 	appointmentController.getAppointmentsByHospital.bind(appointmentController)
 );
 router.get(
+	"/get-by-date",
+	appointmentController.getAppointmentsByDate.bind(
+		appointmentController
+	)
+);
+router.get(
 	"/get-by-date-and-patient",
 	appointmentController.getAppointmentsByDateAndPatient.bind(
 		appointmentController
@@ -69,6 +75,12 @@ router.get(
 router.patch(
 	"/update-appointment-schedule/:id",
 	appointmentController.updateAppointmentSchedule.bind(appointmentController)
+);
+
+// Get appointment by ID
+router.get(
+	"/:id",
+	appointmentController.getAppointmentById.bind(appointmentController)
 );
 
 // Appointment billing routes

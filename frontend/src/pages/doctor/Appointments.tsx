@@ -13,12 +13,11 @@ import { useSearch } from '@/contexts/SearchContext';
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Appointment, AppointmentStatus } from '@/types/types';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { DatePicker } from "@/components/ui/date-filter";
+import { formatTime } from '@/utils/dateUtils';
 
 
 
@@ -39,75 +38,25 @@ import { toast } from 'sonner';
 //   doctorId    String
 //   hospital    Hospital      @relation(fields: [hospitalId], references: [id])
 //   hospitalId  String
-interface DiagnosisRecord {
-  diagnosis: string;
-  prescription: string;
-}
-
-interface Vital {
-  // Add vital fields as needed
-}
-
-interface AppointmentAttachment {
-  // Add attachment fields as needed  
-}
-
-interface Patient {
-  id: string;
-  patientUniqueId: string;
-  name: string;
-  dob: string;
-  gender: string;
-  // Add other patient fields as needed
-}
-
-interface Appointment {
-  id: string;
-  scheduledAt: string; // ISO string
-  visitType: 'OPD' | 'IPD' | 'EMERGENCY';
-  status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'DIAGNOSED';
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
-
-  attachments: AppointmentAttachment[];
-  vitals: Vital[];
-
-  patientId: string;
-  patient: Patient;
-  doctorId: string;
-  hospitalId: string;
-}
 
 
 function Appointments() {
   const { user } = useAuth();
   const { searchQuery } = useSearch();
   const [activeTab, setActiveTab] = useState('upcoming');
-  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'custom'>('today');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(),);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const getDateForFilter = () => {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    switch (dateFilter) {
-      case 'yesterday': {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        return yesterday.toISOString();
-      }
-      case 'custom':
-        return selectedDate.toISOString();
-      default: // today
-        return today.toISOString();
-    }
+    const date = new Date(selectedDate);
+    date.setUTCHours(0, 0, 0, 0);
+    return date.toISOString();
   };
 
   const { data: appointments, isLoading } = useQuery<any[]>({
 
-    queryKey: ['doctor-appointments', user?.id, dateFilter, selectedDate],
+    queryKey: ['doctor-appointments', user?.id, selectedDate],
     queryFn: async () => {
       const response = await api.get('/api/appointment/get-by-date-and-doctor', {
         params: {
@@ -131,29 +80,14 @@ function Appointments() {
   // useEffect(() => {
   //   setSearchQuery('');
   // }, [setActiveTab]);
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'UTC'
-    });
-  };
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    });
-  };
+  
 
   const filteredAppointments = appointments?.filter((appointment) => {
-    const searchLower = searchQuery.toLowerCase();
-    if (!searchQuery || searchQuery === '') { return true; }
+    if (searchQuery === '') { return true; }
     return (
-      appointment.patientName.toLowerCase().includes(searchLower) ||
-      appointment.status.toLowerCase().includes(searchLower) ||
-      appointment.visitType.toLowerCase().includes(searchLower)
+      appointment?.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment?.status?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment?.visitType?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -174,7 +108,7 @@ function Appointments() {
 
       // Invalidate and refetch the appointments query with all its dependencies
       queryClient.invalidateQueries({
-        queryKey: ['doctor-appointments', user?.id, dateFilter, selectedDate]
+        queryKey: ['doctor-appointments', user?.id, selectedDate]
       });
       toast.success('Appointment marked as diagnosed');
     } catch (error: any) {
@@ -208,17 +142,17 @@ function Appointments() {
               appointments.map((appointment) => (
                 <TableRow key={appointment.id} className="border-b border-gray-50 bg-gray-50">
                   <TableCell className="font-medium">
-                    <Link to={`/doctor/consultation/${appointment.patient.id}/${appointment.id}`} className="underline" target="_blank" rel="noopener noreferrer">
-                      {appointment.patient.name}
+                    <Link to={`/doctor/consultation/${appointment?.patient?.id}/${appointment.id}`} className="underline" target="_blank" rel="noopener noreferrer">
+                      {appointment?.patient?.name}
                     </Link>
                   </TableCell>
                   <TableCell>{formatTime(new Date(appointment.scheduledAt))}</TableCell>
                   <TableCell>{appointment.visitType}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${appointment.status === 'COMPLETED' || appointment.status === 'DIAGNOSED'
+                      className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${appointment?.status === 'DIAGNOSED'
                         ? 'bg-green-50 text-green-600'
-                        : appointment.status === 'CANCELLED'
+                        : appointment?.status === 'CANCELLED'
                           ? 'bg-red-50 text-red-600'
                           : 'bg-yellow-50 text-yellow-600'
                         }`}
@@ -229,7 +163,7 @@ function Appointments() {
                   <TableCell>
                     {appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED' && (
                       <Link
-                        to={`/doctor/consultation/${appointment.patient.id}/${appointment.id}`}
+                        to={`/doctor/consultation/${appointment?.patient?.id}/${appointment?.id}`}
                         className="inline-flex"
                         target="_blank"
                         rel="noopener noreferrer"
@@ -269,24 +203,18 @@ function Appointments() {
 
   const DateFilterSection = () => (
     <div className="flex items-center gap-4 mb-6">
-      <Select value={dateFilter} onValueChange={(value: 'today' | 'yesterday' | 'custom') => setDateFilter(value)}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select date filter" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="today">Today's Appointments</SelectItem>
-          <SelectItem value="yesterday">Yesterday's Appointments</SelectItem>
-          <SelectItem value="custom">Choose Date</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {dateFilter === 'custom' && (
-        <input
-          type="date"
-          value={selectedDate.toISOString().split('T')[0]}
-          onChange={(e) => setSelectedDate(new Date(e.target.value))}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">Select Date:</span>
+        <DatePicker
+          date={selectedDate}
+          onDateChange={(date) => {
+            if (date) {
+              setSelectedDate(date);
+            }
+          }}
+          className="w-[240px]"
         />
-      )}
+      </div>
     </div>
   );
 

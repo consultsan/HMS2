@@ -9,6 +9,9 @@ interface UploadAttachmentData {
 }
 
 export const appointmentApi = {
+    // Get appointment by ID
+    getAppointmentById: (id: string) => api.get(`/api/appointment/${id}`),
+
     // Get patient appointment history
     getPatientHistory: () => api.get('/api/appointments/history'),
 
@@ -55,6 +58,10 @@ export const appointmentApi = {
     getAppointmentsByDateAndPatient: (query: AppointmentDateQuery) =>
         api.get('/api/appointment/get-by-date-and-patient', { params: query }),
 
+    // Get appointments by date
+    getAppointmentsByDate: (query: AppointmentDateQuery) =>
+        api.get('/api/appointment/get-by-date', { params: query }),
+
     // Get surgery by appointment ID
     getSurgeryByAppointmentId: (appointmentId: string) => {
         console.log('Getting surgery for appointmentId:', appointmentId);
@@ -64,6 +71,7 @@ export const appointmentApi = {
         }
         return api.get(`/api/appointment/get-surgery-by-appointment-id?appointmentId=${appointmentId}`);
     },
+    
 
 
     // Add surgery to appointment

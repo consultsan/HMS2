@@ -17,37 +17,16 @@ import { useSearch } from "@/contexts/SearchContext";
 import UpdateAppointment from "@/components/appointment/UpdateAppointment";
 import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";
 import { useAuth } from "@/contexts/AuthContext";
+import { appointmentApi } from "@/api/appointment";
+import { Button } from "@/components/ui/button";
+import { LabTestStatus } from "@/types/types";
+import { Appointment } from "@/types/types";
 
-interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  visitType: 'OPD' | 'IPD' | 'EMERGENCY';
-  scheduledAt: string;
-  status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
-  patient: {
-    name: string;
-    id: string;
-    phone: string;
-  };
-  doctor: {
-    name: string;
-    id: string;
-  };
-}
 
-export default function AppointmentManagement() {
+export default function PendingLabBills() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [viewBillAppointmentId, setViewBillAppointmentId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
   const { searchQuery } = useSearch();
-  const { user } = useAuth();
-
-  // Check if user can view bills (receptionist or hospital admin)
-  const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
-
   // Check if two dates are the same day
   const isSameDay = (date1: Date | string, date2: Date | string) => {
     const d1 = new Date(date1);
@@ -59,29 +38,30 @@ export default function AppointmentManagement() {
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
     queryKey: ["appointments"],
     queryFn: async () => {
-      const response = await api.get('/api/appointment/get-by-hospital');
+      const response = await appointmentApi.getAppointmentsByDate({
+        date: filterDate.toISOString().split('T')[0]
+      });
       return response.data?.data ?? [];
     },
   });
+    
+  console.log("appointments on date", appointments);
 
-
-
-  const cancelAppointmentMutation = useMutation({
-    mutationFn: async (appointmentId: string) => {
-      const response = await api.patch(`/api/appointment/update-status/${appointmentId}`, { status: 'CANCELLED' });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast.success('Appointment cancelled successfully');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to cancel appointment');
-    },
+    const requiredAppointments = appointments?.filter(appointment => {
+        if (appointment.labTests) {
+          const labtest = appointment.labTests?.find(labTest => labTest.status === LabTestStatus.PENDING);
+          if (labtest) {
+            return true;
+          }
+        }
+      return false;
   });
+    
+  console.log("requiredAppointments", requiredAppointments);
 
-  const filteredAppointments = appointments?.filter(appointment => {
-    if (searchQuery) {
+
+  const filteredAppointments = requiredAppointments?.filter(appointment => {
+    if (searchQuery && appointment.patient) {
       return appointment.patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         appointment.patient.phone.toLowerCase().includes(searchQuery.toLowerCase());
     }
@@ -92,16 +72,7 @@ export default function AppointmentManagement() {
   if (appointmentsLoading) return <div>Loading...</div>;
   if (appointmentsError) return <div>Error loading data</div>;
 
-  const handleEditAppointment = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
-    setIsUpdateDialogOpen(true);
-  };
 
-  const handleCancelAppointment = (appointmentId: string) => {
-    if (window.confirm('Are you sure you want to cancel this appointment?')) {
-      cancelAppointmentMutation.mutate(appointmentId);
-    }
-  };
 
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
@@ -146,9 +117,9 @@ export default function AppointmentManagement() {
               <TableBody>
                 {filteredAppointments.map((appointment) => (
                   <TableRow key={appointment.id}>
-                    <TableCell className="font-medium">{appointment.patient.name}</TableCell>
-                    <TableCell>{appointment.doctor.name}</TableCell>
-                    <TableCell>{appointment.patient.phone}</TableCell>
+                    <TableCell className="font-medium">{appointment.patient?.name ?? ''}</TableCell>
+                    <TableCell>{appointment.doctor?.name}</TableCell>
+                    <TableCell>{appointment.patient?.phone}</TableCell>
                     <TableCell>{appointment.visitType}</TableCell>
                     <TableCell>
                       {new Date(appointment.scheduledAt).toLocaleString('en-IN', {
@@ -174,33 +145,7 @@ export default function AppointmentManagement() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEditAppointment(appointment)}
-                          className="p-1 hover:bg-gray-100 rounded-full"
-                          title="Edit Appointment"
-                        >
-                          <Pencil className="w-4 h-4 text-gray-500" />
-                        </button>
-                        {canViewBills && (
-                          <button
-                            onClick={() => handleViewBill(appointment.id)}
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            title="View Bill"
-                          >
-                            <Receipt className="w-4 h-4 text-blue-500" />
-                          </button>
-                        )}
-                        {appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
-                          <button
-                            onClick={() => handleCancelAppointment(appointment.id)}
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            title="Cancel Appointment"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </button>
-                        )}
-                      </div>
+                      <Button onClick={() => handleViewBill(appointment.id)}>View Bill</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -218,18 +163,7 @@ export default function AppointmentManagement() {
         </div>
       </div>
 
-      {selectedAppointment && (
-        <UpdateAppointment
-          appointment={selectedAppointment}
-          isOpen={isUpdateDialogOpen}
-          onClose={() => {
-            setIsUpdateDialogOpen(false);
-            setSelectedAppointment(null);
-          }}
-        />
-      )}
-
-      {/* View Bill Dialog */}
+    {/* View Bill Dialog */}
       {viewBillAppointmentId && (
         <ViewAppointmentBill
           appointmentId={viewBillAppointmentId}

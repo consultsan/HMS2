@@ -113,8 +113,10 @@ export class AppointmentController {
 						appointment: true
 					}
 				});
-				if (!surgery)
+				if (!surgery) {
 					res.status(200).json(new ApiResponse("Surgery not found", null));
+					return;
+				}
 				res.status(200).json(new ApiResponse("Fetched surgery", surgery));
 			} catch (error: any) {
 				errorHandler(error, res);
@@ -206,7 +208,7 @@ export class AppointmentController {
 					scheduleAt: new Date(date as string)
 				};
 
-				const appointment = await prisma.appointment.findMany({
+				const appointments = await prisma.appointment.findMany({
 					where: {
 						hospitalId,
 						scheduledAt: data.scheduleAt,
@@ -218,10 +220,12 @@ export class AppointmentController {
 						vitals: true
 					}
 				});
-				if (!appointment) throw new AppError("Appointment not found", 404);
 				res
 					.status(200)
-					.json(new ApiResponse("Fetched appointments", appointment));
+					.json(new ApiResponse(
+						appointments.length ? "Fetched appointments" : "No appointments found",
+						appointments
+					));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -346,6 +350,91 @@ export class AppointmentController {
 				res
 					.status(200)
 					.json(new ApiResponse("Fetched appointments", appointments));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
+		}
+	}
+
+	async getAppointmentsByDate(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { date } = req.query;
+				const hospitalId = req.user.hospitalId;
+
+				if (!hospitalId) {
+					throw new AppError("User isn't linked to any hospital", 403);
+				}
+
+				// Create proper date range for the specific day
+				const queryDate = new Date(date as string);
+				const startOfDay = new Date(
+					Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						0,
+						0,
+						0,
+						0
+					)
+				);
+				const endOfDay = new Date(
+					Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						23,
+						59,
+						59,
+						999
+					)
+				);
+
+				const appointments = await prisma.appointment.findMany({
+					where: {
+						hospitalId,
+						scheduledAt: {
+							gte: startOfDay,
+							lte: endOfDay
+						}
+					},
+					include: {
+						patient: {
+							select: {
+								id: true,
+								name: true,
+								patientUniqueId: true,
+								phone: true
+							}
+						},
+						doctor: {
+							select: {
+								id: true,
+								name: true,
+								specialisation: true
+							}
+						},
+						labTests: {
+							include: {
+								labTest: {
+									select: {
+										id: true,
+										name: true,
+										code: true
+									}
+								}
+							}
+						}
+					},
+					orderBy: {
+						scheduledAt: "asc"
+					}
+				});
+
+				res.status(200).json(new ApiResponse("Fetched appointments", appointments));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -565,7 +654,7 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { appointmentId } = req.params;
-				const { items, dueDate, notes } = req.body;
+				const { items, dueDate, notes, paidAmount, dueAmount, status, billDate } = req.body;
 
 				// Get appointment details
 				const appointment = await prisma.appointment.findUnique({
@@ -591,11 +680,11 @@ export class AppointmentController {
 				}
 
 				// Calculate totals
-				let totalAmount = 0;
-				const billItems = [];
 
+				const billItems = [];
+				let totalAmount = 0;
 				for (const item of items) {
-					const itemTotal = item.unitPrice * item.quantity;
+					const itemTotal = item.unitPrice * item.quantity - item.discountAmount;
 					totalAmount += itemTotal;
 					billItems.push({
 						itemType: item.itemType,
@@ -603,6 +692,7 @@ export class AppointmentController {
 						quantity: item.quantity,
 						unitPrice: item.unitPrice,
 						totalPrice: itemTotal,
+						discountAmount: item.discountAmount,
 						notes: item.notes,
 						labTestId: item.labTestId,
 						surgeryId: item.surgeryId
@@ -621,9 +711,12 @@ export class AppointmentController {
 						patientId: appointment.patientId,
 						hospitalId: appointment.hospitalId,
 						appointmentId,
-						totalAmount,
-						dueAmount: totalAmount,
-						dueDate: dueDate ? new Date(dueDate) : null,
+						totalAmount: totalAmount,
+						dueAmount: dueAmount,
+						paidAmount: paidAmount,
+						status: status,
+						billDate: billDate ? new Date(billDate) : new Date(),
+						dueDate: dueDate ? new Date(dueDate) : new Date(),
 						notes,
 						billItems: {
 							create: billItems
@@ -650,6 +743,59 @@ export class AppointmentController {
 				res
 					.status(201)
 					.json(new ApiResponse("Bill generated successfully", bill));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	// Get appointment by ID
+	async getAppointmentById(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+				const hospitalId = req.user.hospitalId;
+
+				if (!hospitalId) {
+					throw new AppError("User isn't linked to any hospital", 403);
+				}
+
+				const appointment = await prisma.appointment.findUnique({
+					where: {
+						id,
+						hospitalId
+					},
+					include: {
+						patient: {
+							select: {
+								id: true,
+								name: true,
+								patientUniqueId: true,
+								phone: true
+							}
+						},
+						doctor: {
+							select: {
+								id: true,
+								name: true,
+								specialisation: true
+							}
+						},
+						vitals: true,
+						attachments: true,
+						diagnosisRecord: true
+					}
+				});
+
+				if (!appointment) {
+					throw new AppError("Appointment not found", 404);
+				}
+
+				res
+					.status(200)
+					.json(new ApiResponse("Appointment retrieved successfully", appointment));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}

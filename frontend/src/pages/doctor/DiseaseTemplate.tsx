@@ -338,6 +338,7 @@ export default function DiseaseTemplate() {
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const doctorId = user?.id;
+    const { searchQuery} = useSearch();
 
     const createMutation = useMutation({
         mutationFn: (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) =>
@@ -408,7 +409,16 @@ export default function DiseaseTemplate() {
     }, [templates, doctorId]);
 
     const allTemplates = templates || [];
+    const filteredAllTemplates = allTemplates.filter(template => {
+        if (searchQuery == '') { return true; }
+        return template.name.toLowerCase().includes(searchQuery.toLowerCase());
 
+    });
+    const filteredYourTemplates = yourTemplates.filter(template => {
+        if (searchQuery == '') { return true; }
+        return template.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    });
     const handleCreate = async (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) => {
         createMutation.mutate(data);
     };
@@ -572,11 +582,11 @@ export default function DiseaseTemplate() {
                 </TabsList>
 
                 <TabsContent value="your-templates" className="bg-white rounded-lg shadow">
-                    <TemplatesTable data={yourTemplates} showEditButton={true} />
+                    <TemplatesTable data={filteredYourTemplates} showEditButton={true} />
                 </TabsContent>
 
                 <TabsContent value="all-templates" className="bg-white rounded-lg shadow">
-                    <TemplatesTable data={allTemplates} />
+                    <TemplatesTable data={filteredAllTemplates} />
                 </TabsContent>
             </Tabs>
 

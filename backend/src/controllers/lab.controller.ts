@@ -8,12 +8,13 @@ import s3 from "../services/s3client";
 // Lab Test Controllers
 const createLabTest = async (req: Request, res: Response) => {
 	try {
-		const { code, name, description, sampleType } = req.body;
+		const { code, name, description, sampleType, charge } = req.body;
 		const labTest = await prisma.labTest.create({
 			data: {
 				code,
 				name,
 				description,
+				charge,
 				sampleType
 			}
 		});
@@ -66,14 +67,15 @@ const getLabTestById = async (req: Request, res: Response) => {
 const updateLabTest = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const { code, name, description, sampleType } = req.body;
+		const { code, name, description, sampleType, charge } = req.body;
 		const labTest = await prisma.labTest.update({
 			where: { id },
 			data: {
 				code,
 				name,
 				description,
-				sampleType
+				sampleType,
+				charge
 			}
 		});
 		res

@@ -12,6 +12,7 @@ interface Test {
     id: string;
     labTestId: string;
     status: LabTestStatus;
+    charge: number;
     tentativeReportDate?: string;
     isExternal?: boolean;
     patient?: {
@@ -159,6 +160,7 @@ export default function LabTests({
                         <TableHead>Gender</TableHead>
                         <TableHead>Age</TableHead>
                         <TableHead>Total Tests</TableHead>
+                        <TableHead>Total Charge (₹)</TableHead>
                         <TableHead>Status Summary</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
@@ -166,7 +168,7 @@ export default function LabTests({
                 <TableBody>
                     {patientGroups.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                                 No tests found
                             </TableCell>
                         </TableRow>
@@ -201,6 +203,11 @@ export default function LabTests({
                                                     {group.tests.length} test{group.tests.length !== 1 ? 's' : ''}
                                                 </span>
                                             </TableCell>
+                                            <TableCell>
+                                                <span className="text-sm font-medium text-green-600">
+                                                    ₹{group.tests.reduce((total, test) => total + test.charge, 0).toFixed(2)}
+                                                </span>
+                                            </TableCell>
                                             <TableCell>{getStatusSummary(group.tests)}</TableCell>
                                             <TableCell>
                                                 <Button
@@ -224,6 +231,7 @@ export default function LabTests({
                                                     <TableCell className="font-medium text-sm text-blue-800">Status</TableCell>
                                                     <TableCell className="font-medium text-sm text-blue-800">Tentative Date</TableCell>
                                                     <TableCell className="font-medium text-sm text-blue-800">External</TableCell>
+                                                    <TableCell className="font-medium text-sm text-blue-800">Charge (₹)</TableCell>
                                                     <TableCell className="font-medium text-sm text-blue-800">Actions</TableCell>
                                                     <TableCell></TableCell>
                                                 </TableRow>
@@ -269,6 +277,11 @@ export default function LabTests({
                                                                     <SelectItem value="no">No</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className="text-sm font-medium text-green-600">
+                                                                ₹{test.charge?.toFixed(2) || '0.00'}
+                                                            </span>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex gap-1">

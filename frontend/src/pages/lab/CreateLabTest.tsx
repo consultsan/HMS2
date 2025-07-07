@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { labApi } from '@/api/lab';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Settings } from 'lucide-react';
@@ -23,6 +23,7 @@ interface LabTestFormData {
     description: string;
     unit: string;
     sampleType: string;
+    charge: number;
 }
 
 interface LabTestParameter {
@@ -47,7 +48,8 @@ export default function CreateLabTest() {
         name: '',
         description: '',
         unit: '',
-        sampleType: ''
+        sampleType: '',
+        charge: 0
     });
 
     const [parameters, setParameters] = useState<LabTestParameter[]>([]);
@@ -56,6 +58,18 @@ export default function CreateLabTest() {
         unit: '',
         lowerLimit: 0,
         upperLimit: 0
+    });
+
+    const [editTestCharge, setEditTestCharge] = useState<number>(0);
+    const updateLabTestMutation = useMutation({
+        mutationFn: (data: { id: string; charge: number }) => labApi.updateLabTest(data.id, { charge: data.charge } as any),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['labTests', 'all'] });
+            toast.success('Lab test price updated successfully');
+        },
+        onError: () => {
+            toast.error('Failed to update lab test price');
+        }
     });
 
     const { data: labTests, isLoading: isLabTestsLoading } = useQuery({
@@ -89,18 +103,25 @@ export default function CreateLabTest() {
         e.preventDefault();
         setIsLoading(true);
         try {
-            if (formData.sampleType === '' || formData.unit === '' || formData.name === '' || formData.code === '' || formData.description === '') {
-                toast.error('Please fill all the fields');
+            if (formData.sampleType === '' || formData.unit === '' || formData.name === '' || formData.code === '' || formData.description === '' || formData.charge <= 0) {
+                toast.error('Please fill all the fields and enter a valid charge amount');
                 return;
             }
-            const response = await labApi.createLabTest(formData);
+            const response = await labApi.createLabTest({
+                code: formData.code,
+                name: formData.name,
+                description: formData.description,
+                sampleType: formData.sampleType,
+                charge: formData.charge
+            });
             if (response.status === 201) {
                 setFormData({
                     code: '',
                     name: '',
                     description: '',
                     unit: '',
-                    sampleType: ''
+                    sampleType: '',
+                    charge: 0
                 });
                 setIsDialogOpen(false);
                 toast.success('Lab test created successfully');
@@ -132,6 +153,7 @@ export default function CreateLabTest() {
 
     const handleEditParameters = (test: any) => {
         setSelectedTest(test);
+        setEditTestCharge(test.charge || 0);
         setIsParametersDialogOpen(true);
     };
 
@@ -168,17 +190,18 @@ export default function CreateLabTest() {
                             <TableHead>Description</TableHead>
                             <TableHead>Unit</TableHead>
                             <TableHead>Sample Type</TableHead>
+                            <TableHead>Charge (₹)</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLabTestsLoading ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4">Loading...</TableCell>
+                                <TableCell colSpan={7} className="text-center py-4">Loading...</TableCell>
                             </TableRow>
                         ) : labTests?.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4">No lab tests found</TableCell>
+                                <TableCell colSpan={7} className="text-center py-4">No lab tests found</TableCell>
                             </TableRow>
                         ) : (
                             searchFilteredTests?.map((test: any) => (
@@ -188,6 +211,7 @@ export default function CreateLabTest() {
                                     <TableCell>{test.description}</TableCell>
                                     <TableCell>{test.unit}</TableCell>
                                     <TableCell>{test.sampleType}</TableCell>
+                                    <TableCell>₹{test.charge?.toFixed(2) || '0.00'}</TableCell>
                                     <TableCell className="text-right">
                                         <Button
                                             variant="outline"
@@ -196,7 +220,7 @@ export default function CreateLabTest() {
                                             className="flex items-center gap-2"
                                         >
                                             <Settings className="h-4 w-4" />
-                                            Edit Parameters
+                                            Edit
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -249,6 +273,20 @@ export default function CreateLabTest() {
                             disabled={isLoading}
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Charge (₹)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={formData.charge}
+                            onChange={(e) => setFormData(prev => ({ ...prev, charge: parseFloat(e.target.value) || 0 }))}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+                            required
+                            disabled={isLoading}
+                            placeholder="Enter amount in rupees"
+                        />
+                    </div>
                 </div>
 
                 <div>
@@ -284,9 +322,34 @@ export default function CreateLabTest() {
             }}>
                 <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
-                        <DialogTitle>{`Edit Parameters - ${selectedTest?.name}`}</DialogTitle>
+                        <DialogTitle>{`Edit - ${selectedTest?.name}`}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {/* Edit Price */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Test Price (₹)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editTestCharge}
+                                onChange={e => setEditTestCharge(Number(e.target.value))}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2"
+                                disabled={updateLabTestMutation.isPending}
+                            />
+                            <Button
+                                type="button"
+                                className="mt-2"
+                                disabled={updateLabTestMutation.isPending || editTestCharge === selectedTest?.charge}
+                                onClick={() => {
+                                    if (selectedTest?.id && editTestCharge >= 0) {
+                                        updateLabTestMutation.mutate({ id: selectedTest.id, charge: editTestCharge });
+                                    }
+                                }}
+                            >
+                                {updateLabTestMutation.isPending ? 'Saving...' : 'Save Price'}
+                            </Button>
+                        </div>
                         {/* Existing Parameters */}
                         <div className="space-y-2">
                             {isParametersLoading ? (

@@ -10,7 +10,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Receipt } from "lucide-react";
 import { toast } from 'sonner';
 import { useState } from 'react';
 import {
@@ -20,12 +20,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import CreateAppointmentBill from '@/components/appointment/CreateAppointmentBill';
+import ViewAppointmentBill from '@/components/appointment/ViewAppointmentBill';
 
 
 export default function AppointmentsSection() {
     const [activeTab, setActiveTab] = useState<'queue' | 'today'>('queue');
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
+    const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+    const [isViewBillDialogOpen, setIsViewBillDialogOpen] = useState(false);
+    const [selectedViewBillAppointmentId, setSelectedViewBillAppointmentId] = useState("");
     const queryClient = useQueryClient();
 
     const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
@@ -57,15 +63,28 @@ export default function AppointmentsSection() {
 
 
     const handleConfirmAppointment = (appointmentId: string) => {
-        updateStatusMutation.mutate({ id: appointmentId, status: 'CONFIRMED' });
+        setSelectedAppointmentId(appointmentId);
+        setIsBillDialogOpen(true);
     };
 
-    const handleRemoveFromQueue = (appointmentId: string) => {
-        updateStatusMutation.mutate({ id: appointmentId, status: 'SCHEDULED' });
+    const handleCloseBillDialog = () => {
+        setIsBillDialogOpen(false);
     };
+
+    const handleViewBill = (appointmentId: string) => {
+        setSelectedViewBillAppointmentId(appointmentId);
+        setIsViewBillDialogOpen(true);
+    };
+
+    const handleCloseViewBillDialog = () => {
+        setIsViewBillDialogOpen(false);
+        setSelectedViewBillAppointmentId("");
+    };
+
 
     const todayAppointments = appointments?.filter((appointment) => {
         const appointmentDate = new Date(appointment.scheduledAt);
+        appointmentDate.setUTCHours(0, 0, 0, 0);
         const today = new Date();
 
         // Set both dates to UTC midnight for comparison
@@ -95,7 +114,7 @@ export default function AppointmentsSection() {
 
     // Get unique doctors from today's appointments
     const { data: doctors } = useQuery<any[]>({
-        queryKey: ['doctors'],  
+        queryKey: ['doctors'],
         queryFn: () => api.get('/api/doctor/get-by-hospital').then(res => res.data.data)
     });
 
@@ -204,11 +223,11 @@ export default function AppointmentsSection() {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleRemoveFromQueue(appointment.id)}
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleViewBill(appointment.id)}
+                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                             >
-                                                <XCircle className="w-4 h-4 mr-1" />
-                                                Remove from Queue
+                                                <Receipt className="w-4 h-4 mr-1" />
+                                                View Bill
                                             </Button>
                                         )}
                                     </TableCell>
@@ -285,6 +304,17 @@ export default function AppointmentsSection() {
                     )}
                 </div>
             </div>
+            <CreateAppointmentBill
+                isOpen={isBillDialogOpen}
+                onClose={handleCloseBillDialog}
+                appointmentId={selectedAppointmentId}
+            />
+
+            <ViewAppointmentBill
+                isOpen={isViewBillDialogOpen}
+                onClose={handleCloseViewBillDialog}
+                appointmentId={selectedViewBillAppointmentId}
+            />
         </div>
     );
 }

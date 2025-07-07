@@ -19,6 +19,10 @@ const sidebarSections = [
         path: '/receptionist/appointments',
     },
     {
+        name: 'Pending Lab Test Bills',
+        path: '/receptionist/lab-test-bills',
+    },
+    {
         name: 'Follow Ups',
         path: '/receptionist/follow-ups',
     },
