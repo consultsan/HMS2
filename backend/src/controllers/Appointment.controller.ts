@@ -33,44 +33,35 @@ interface Status {
 
 export class AppointmentController {
 	async getAppointmentByDateAndDoctor(req: Request, res: Response) {
+		const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes
+
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { doctorId, date } = req.query;
 				const hospitalId = req.user.hospitalId;
 				if (!hospitalId)
 					throw new AppError("User isn't linked to any hospital", 403);
+				
+				// Convert input date string to Date in UTC, then apply IST offset
+				const queryDateUTC = new Date(date as string);
 
-				const queryDate = new Date(date as string);
-				const startOfDay = new Date(
-					Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						0,
-						0,
-						0,
-						0
-					)
-				);
-				const endOfDay = new Date(
-					Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						23,
-						59,
-						59,
-						999
-					)
-				);
+				// Create IST start and end of day		
+				const startOfDayIST = new Date(queryDateUTC);
+				startOfDayIST.setHours(0, 0, 0, 0);
 
-				console.log(startOfDay, endOfDay);
+				const endOfDayIST = new Date(queryDateUTC);
+				endOfDayIST.setHours(23, 59, 59, 999);
+
+				// Convert IST start/end back to UTC timestamps for DB query
+				const startOfDayUTC = new Date(startOfDayIST.getTime() - IST_OFFSET_MS);
+				const endOfDayUTC = new Date(endOfDayIST.getTime() - IST_OFFSET_MS);
+	
 				const appointments = await prisma.appointment.findMany({
 					where: {
 						hospitalId,
 						scheduledAt: {
-							gte: startOfDay,
-							lte: endOfDay
+							gte: startOfDayUTC,
+							lte: endOfDayUTC
 						},
 						doctorId: doctorId as string
 					},
@@ -84,46 +75,21 @@ export class AppointmentController {
 					}
 				});
 
-				// Return 200 even if no appointments found
-				res
-					.status(200)
-					.json(
-						new ApiResponse(
-							appointments.length
-								? "Fetched appointments"
-								: "No appointments found",
-							appointments
-						)
-					);
+				res.status(200).json(
+					new ApiResponse(
+						appointments.length
+							? "Fetched appointments"
+							: "No appointments found",
+						appointments
+					)
+				);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
 		} else {
 			res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
-	}
 
-	async getSurgeyByAppointmentId(req: Request, res: Response) {
-		if (req.user && roles.includes(req.user.role)) {
-			try {
-				const { appointmentId } = req.query as { appointmentId: string };
-				const surgery = await prisma.surgery.findUnique({
-					where: { appointmentId },
-					include: {
-						appointment: true
-					}
-				});
-				if (!surgery) {
-					res.status(200).json(new ApiResponse("Surgery not found", null));
-					return;
-				}
-				res.status(200).json(new ApiResponse("Fetched surgery", surgery));
-			} catch (error: any) {
-				errorHandler(error, res);
-			}
-		} else {
-			res.status(403).json(new ApiResponse("Unauthorized access", null));
-		}
 	}
 
 	async getSurgeryByHospitalId(req: Request, res: Response) {
@@ -142,6 +108,25 @@ export class AppointmentController {
 					}
 				});
 				res.status(200).json(new ApiResponse("Fetched surgeries", surgeries));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getSurgeryByAppointmentId(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+				const surgery = await prisma.surgery.findMany({
+					where: { appointmentId: id },
+					include: {
+						appointment: true
+					}
+				});	
+				res.status(200).json(new ApiResponse("Fetched surgery", surgery));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -392,6 +377,8 @@ export class AppointmentController {
 						999
 					)
 				);
+				console.log("startOfDay", startOfDay);
+				console.log("endOfDay", endOfDay);
 
 				const appointments = await prisma.appointment.findMany({
 					where: {

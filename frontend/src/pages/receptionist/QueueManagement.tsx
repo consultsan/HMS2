@@ -83,25 +83,18 @@ export default function AppointmentsSection() {
 
 
     const todayAppointments = appointments?.filter((appointment) => {
-        const appointmentDate = new Date(appointment.scheduledAt);
-        appointmentDate.setUTCHours(0, 0, 0, 0);
-        const today = new Date();
-
-        // Set both dates to UTC midnight for comparison
-        const appointmentUTCDate = new Date(Date.UTC(
-            appointmentDate.getUTCFullYear(),
-            appointmentDate.getUTCMonth(),
-            appointmentDate.getUTCDate()
-        ));
-
-        const todayUTCDate = new Date(Date.UTC(
-            today.getUTCFullYear(),
-            today.getUTCMonth(),
-            today.getUTCDate()
-        ));
-
-        return appointmentUTCDate.getTime() === todayUTCDate.getTime();
+        const IST_OFFSET = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in ms
+    
+        const appointmentDateIST = new Date(new Date(appointment.scheduledAt).getTime() + IST_OFFSET);
+        const todayIST = new Date(new Date().getTime() + IST_OFFSET);
+    
+        // Normalize both to IST midnight
+        appointmentDateIST.setHours(0, 0, 0, 0);
+        todayIST.setHours(0, 0, 0, 0);
+    
+        return appointmentDateIST.getTime() === todayIST.getTime();
     });
+    
 
     const confirmedAppointments = todayAppointments?.filter((appointment) =>
         appointment.status === 'CONFIRMED' &&
@@ -110,6 +103,7 @@ export default function AppointmentsSection() {
 
     const todayScheduledAppointments = todayAppointments?.filter((appointment) =>
         appointment.status !== 'CONFIRMED'
+        
     );
 
     // Get unique doctors from today's appointments

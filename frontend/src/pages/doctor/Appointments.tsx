@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { DatePicker } from "@/components/ui/date-filter";
 import { formatTime } from '@/utils/dateUtils';
+import { appointmentApi } from '@/api/appointment';
 
 
 
@@ -50,23 +51,27 @@ function Appointments() {
 
   const getDateForFilter = () => {
     const date = new Date(selectedDate);
+    date.setHours(date.getHours() + 5);
+    date.setMinutes(date.getMinutes() + 30);
     date.setUTCHours(0, 0, 0, 0);
     return date.toISOString();
   };
 
-  const { data: appointments, isLoading } = useQuery<any[]>({
+  const date: string = getDateForFilter();
+  console.log("date", date);
 
-    queryKey: ['doctor-appointments', user?.id, selectedDate],
+  const { data: appointments, isLoading } = useQuery<any[]>({
+    queryKey: ['doctor-appointments', user?.id, date],
     queryFn: async () => {
-      const response = await api.get('/api/appointment/get-by-date-and-doctor', {
-        params: {
-          doctorId: user?.id,
-          date: getDateForFilter()
-        }
+      const response = await appointmentApi.getAppointmentsByDateAndDoctor({
+        doctorId: user?.id,
+        date: date
       });
       return response.data?.data;
     },
   });
+
+  console.log(appointments);
 
   if (isLoading) {
     return (

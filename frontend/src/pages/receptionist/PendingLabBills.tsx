@@ -35,11 +35,22 @@ export default function PendingLabBills() {
     return d1.toDateString() === d2.toDateString();
   };
 
+  
+  const getDateForFilter = () => {
+    const date = new Date(filterDate);
+    date.setHours(date.getHours() + 5);
+    date.setMinutes(date.getMinutes() + 30);
+    date.setUTCHours(0, 0, 0, 0);
+    return date.toISOString();
+  };
+  
+  console.log("getDateForFilter", getDateForFilter());
+
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
     queryKey: ["appointments"],
     queryFn: async () => {
       const response = await appointmentApi.getAppointmentsByDate({
-        date: filterDate.toISOString().split('T')[0]
+        date: getDateForFilter()
       });
       return response.data?.data ?? [];
     },

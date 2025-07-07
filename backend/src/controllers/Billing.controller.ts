@@ -414,7 +414,6 @@ export class BillingController {
 					}
 				});
 			}
-
 			res
 				.status(201)
 				.json(new ApiResponse("Bill item added successfully", billItem));
