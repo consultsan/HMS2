@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Receipt } from "lucide-react";
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Select,
     SelectContent,
@@ -22,44 +22,48 @@ import {
 } from "@/components/ui/select";
 import CreateAppointmentBill from '@/components/appointment/CreateAppointmentBill';
 import ViewAppointmentBill from '@/components/appointment/ViewAppointmentBill';
+import { appointmentApi } from '@/api/appointment';
 
 
-export default function AppointmentsSection() {
+export default function QueueManagement() {
     const [activeTab, setActiveTab] = useState<'queue' | 'today'>('queue');
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
-    const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
     const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
     const [isViewBillDialogOpen, setIsViewBillDialogOpen] = useState(false);
     const [selectedViewBillAppointmentId, setSelectedViewBillAppointmentId] = useState("");
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+    const [appointmentsError, setAppointmentsError] = useState(false);
+    const [refresh, setRefresh] = useState<boolean>(false);
     const queryClient = useQueryClient();
+    const today = new Date().toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Kolkata'
+    });
 
-    const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
-        queryKey: ["appointments", selectedDate],
-        queryFn: async () => {
-            const response = await api.get('/api/appointment/get-by-hospital', {
-                params: {
-                    date: selectedDate.toISOString()
-                }
+    // API call inside useEffect
+    const fetchAppointments = async () => {
+        try {
+            setAppointmentsLoading(true);
+            setAppointmentsError(false);
+            const response = await appointmentApi.getAppointmentsByDate({
+                date: today
             });
-            return response.data?.data ?? [];
-        },
-    });
-
-    const updateStatusMutation = useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            const response = await api.patch(`/api/appointment/update-status/${id}`, { status });
-            return response.data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['appointments'] });
-            toast.success('Appointment status updated successfully');
-        },
-        onError: (error) => {
-            toast.error('Failed to update appointment status');
-            console.error('Error updating appointment status:', error);
-        },
-    });
+            console.log("route hitted");
+            setAppointments(response.data?.data ?? []);
+        } catch (error) {
+            console.error('Error fetching appointments:', error);
+            setAppointmentsError(true);
+        } finally {
+            setAppointmentsLoading(false);
+        }
+    };
+    useEffect(() => {
+        fetchAppointments();
+    }, [refresh]);
 
 
     const handleConfirmAppointment = (appointmentId: string) => {
@@ -69,6 +73,12 @@ export default function AppointmentsSection() {
 
     const handleCloseBillDialog = () => {
         setIsBillDialogOpen(false);
+    };
+
+    // Function to refresh appointments after confirmation
+    const refreshAppointments = async () => {
+        console.log("appointments refreshing");
+        await fetchAppointments();
     };
 
     const handleViewBill = (appointmentId: string) => {
@@ -82,28 +92,15 @@ export default function AppointmentsSection() {
     };
 
 
-    const todayAppointments = appointments?.filter((appointment) => {
-        const IST_OFFSET = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in ms
-    
-        const appointmentDateIST = new Date(new Date(appointment.scheduledAt).getTime() + IST_OFFSET);
-        const todayIST = new Date(new Date().getTime() + IST_OFFSET);
-    
-        // Normalize both to IST midnight
-        appointmentDateIST.setHours(0, 0, 0, 0);
-        todayIST.setHours(0, 0, 0, 0);
-    
-        return appointmentDateIST.getTime() === todayIST.getTime();
-    });
-    
 
-    const confirmedAppointments = todayAppointments?.filter((appointment) =>
+    const confirmedAppointments = appointments?.filter((appointment) =>
         appointment.status === 'CONFIRMED' &&
         (selectedDoctor === 'all' || appointment.doctor.id === selectedDoctor)
     );
 
-    const todayScheduledAppointments = todayAppointments?.filter((appointment) =>
+    const todayScheduledAppointments = appointments?.filter((appointment) =>
         appointment.status !== 'CONFIRMED'
-        
+
     );
 
     // Get unique doctors from today's appointments
@@ -298,17 +295,24 @@ export default function AppointmentsSection() {
                     )}
                 </div>
             </div>
+            
             <CreateAppointmentBill
                 isOpen={isBillDialogOpen}
                 onClose={handleCloseBillDialog}
-                appointmentId={selectedAppointmentId}
+                appointmentId={selectedAppointmentId ?? ""}
+                onSuccess = {() => {
+                    setRefresh(!refresh);
+                }}
             />
 
             <ViewAppointmentBill
                 isOpen={isViewBillDialogOpen}
                 onClose={handleCloseViewBillDialog}
                 appointmentId={selectedViewBillAppointmentId}
+                ifpayment={() => {
+                    setRefresh(!refresh);
+                }}
             />
-        </div>
+        </div>  
     );
 }

@@ -193,7 +193,6 @@ export class SlotController {
                         data: { timeSlot }
                     });
                 }
-
                 res.status(200).json(new ApiResponse("Slot updated successfully"));
             } catch (error: any) {
                 console.error("Update slot error:", error);

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { LabTestSearch } from '@/components/LabTestSearch';
 import { Search, Pill, FileText, Plus, X, Save, Stethoscope } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Medicine {
     name: string;
@@ -262,23 +263,25 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
     // Handler for custom medicine submission
     const handleCustomMedicineSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (customMedicine.name && customMedicine.duration && customMedicine.frequency) {
-            const updatedPrescription = {
-                ...selectedPrescription,
-                medicines: [...selectedPrescription.medicines, customMedicine]
-            };
-            setSelectedPrescription(updatedPrescription);
-            onPrescriptionChange({
-                medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
-                tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
-                clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
-            });
-            setCustomMedicine({
-                name: '',
-                frequency: 'Once a day',
-                duration: ''
-            });
+        if (!customMedicine.name || !customMedicine.duration || !customMedicine.frequency) {
+            toast.error('Please fill in all fields for the custom medicine.');
+            return;
         }
+        const updatedPrescription = {
+            ...selectedPrescription,
+            medicines: [...selectedPrescription.medicines, customMedicine]
+        };
+        setSelectedPrescription(updatedPrescription);
+        onPrescriptionChange({
+            medicines: updatedPrescription.medicines.map(m => ({ name: m.name, frequency: m.frequency, duration: m.duration })),
+            tests: updatedPrescription.tests.map(t => ({ name: t.name, id: t.id })),
+            clinicalNotes: updatedPrescription.clinicalNotes.map(n => ({ note: n.note })),
+        });
+        setCustomMedicine({
+            name: '',
+            frequency: 'Once a day',
+            duration: ''
+        });
     };
 
     // Handler for custom test submission
@@ -457,46 +460,7 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                                         </div>
                                     </div>
                                 ))}
-
-                                {/* Custom Medicine Form */}
-                                <div className="mt-3 p-3 bg-gray-50 rounded border">
-                                    <div className="text-xs text-gray-600 mb-2">Add Custom Medicine</div>
-                                    <form onSubmit={handleCustomMedicineSubmit} className="grid grid-cols-12 gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Medicine name"
-                                            className="col-span-5 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                            value={customMedicine.name}
-                                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, name: e.target.value }))}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Duration"
-                                            className="col-span-2 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                            value={customMedicine.duration}
-                                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, duration: e.target.value }))}
-                                        />
-                                        <select
-                                            value={customMedicine.frequency}
-                                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, frequency: e.target.value }))}
-                                            className="col-span-3 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                        >
-                                            {FREQUENCY_OPTIONS.map((option) => (
-                                                <option key={option} value={option}>
-                                                    {option}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            type="submit"
-                                            className="col-span-2 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
-                                        >
-                                            Add
-                                        </button>
-                                    </form>
-                                </div>
                             </div>
-
                             {/* Tests Section */}
                             <div>
                                 <h4 className="text-sm font-medium text-gray-700 mb-3">Lab Tests</h4>
@@ -529,43 +493,7 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                                         </div>
                                     </div>
                                 ))}
-
-                                {/* Custom Test Form */}
-                                <div className="mt-3 p-3 bg-gray-50 rounded border">
-                                    <div className="text-xs text-gray-600 mb-2">Add Custom Lab Test</div>
-                                    {customTest.name ? (
-                                        <form onSubmit={handleCustomTestSubmit} className="flex gap-2">
-                                            <div className="flex-1 flex items-center p-1 bg-white border border-gray-300 rounded text-sm">
-                                                <span className="flex-1 text-gray-800">{customTest.name}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCustomTest({ name: '', id: '', instructions: '' })}
-                                                    className="p-1 text-gray-400 hover:text-red-500"
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </div>
-                                            <button
-                                                type="submit"
-                                                className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
-                                            >
-                                                Add
-                                            </button>
-                                        </form>
-                                    ) : (
-                                        <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <LabTestSearch
-                                                    onTestSelect={handleTestSelection}
-                                                    placeholder="Search lab test..."
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
-
                             {/* Clinical Notes Section */}
                             <div>
                                 <h4 className="text-sm font-medium text-gray-700 mb-3">Clinical Notes</h4>
@@ -613,30 +541,103 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                                         </div>
                                     </div>
                                 )) || <div className="text-gray-500 text-sm">No clinical notes in this template</div>}
-
-                                {/* Custom Clinical Note Form */}
-                                <div className="mt-3 p-3 bg-gray-50 rounded border">
-                                    <div className="text-xs text-gray-600 mb-2">Add Custom Clinical Note</div>
-                                    <form onSubmit={handleCustomClinicalNoteSubmit} className="grid grid-cols-12 gap-2">
-                                        <textarea
-                                            placeholder="Enter clinical note..."
-                                            className="col-span-12 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none h-20"
-                                            value={customClinicalNote.note}
-                                            onChange={(e) => setCustomClinicalNote(prev => ({ ...prev, note: e.target.value }))}
-                                        />
-
-                                        <button
-                                            type="submit"
-                                            className="col-span-2 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 h-fit"
-                                        >
-                                            Add Note
-                                        </button>
-                                    </form>
-                                </div>
                             </div>
                         </div>
                     </div>
                 )}
+
+                {/* Custom Medicine Form - always visible */}
+                <div className="mt-3 p-3 bg-gray-50 rounded border">
+                    <div className="text-xs text-gray-600 mb-2">Add Custom Medicine</div>
+                    <form onSubmit={handleCustomMedicineSubmit} className="grid grid-cols-12 gap-2">
+                        <input
+                            type="text"
+                            placeholder="Medicine name"
+                            className="col-span-5 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                            value={customMedicine.name}
+                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Duration"
+                            className="col-span-2 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                            value={customMedicine.duration}
+                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, duration: e.target.value }))}
+                        />
+                        <select
+                            value={customMedicine.frequency}
+                            onChange={(e) => setCustomMedicine(prev => ({ ...prev, frequency: e.target.value }))}
+                            className="col-span-3 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        >
+                            {FREQUENCY_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                    {option}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="submit"
+                            className="col-span-2 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
+                        >
+                            Add
+                        </button>
+                    </form>
+                </div>
+
+                {/* Custom Test Form - always visible */}
+                <div className="mt-3 p-3 bg-gray-50 rounded border">
+                    <div className="text-xs text-gray-600 mb-2">Add Custom Lab Test</div>
+                    {customTest.name ? (
+                        <form onSubmit={handleCustomTestSubmit} className="flex gap-2">
+                            <div className="flex-1 flex items-center p-1 bg-white border border-gray-300 rounded text-sm">
+                                <span className="flex-1 text-gray-800">{customTest.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomTest({ name: '', id: '', instructions: '' })}
+                                    className="p-1 text-gray-400 hover:text-red-500"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+                            <button
+                                type="submit"
+                                className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600"
+                            >
+                                Add
+                            </button>
+                        </form>
+                    ) : (
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <LabTestSearch
+                                    onTestSelect={handleTestSelection}
+                                    placeholder="Search lab test..."
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Custom Clinical Note Form - always visible */}
+                <div className="mt-3 p-3 bg-gray-50 rounded border">
+                    <div className="text-xs text-gray-600 mb-2">Add Custom Clinical Note</div>
+                    <form onSubmit={handleCustomClinicalNoteSubmit} className="grid grid-cols-12 gap-2">
+                        <textarea
+                            placeholder="Enter clinical note..."
+                            className="col-span-12 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 resize-none h-20"
+                            value={customClinicalNote.note}
+                            onChange={(e) => setCustomClinicalNote(prev => ({ ...prev, note: e.target.value }))}
+                        />
+
+                        <button
+                            type="submit"
+                            className="col-span-2 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-600 h-fit"
+                        >
+                            Add Note
+                        </button>
+                    </form>
+                </div>
             </div>
 
             {/* Right Side - Fixed Prescription Summary */}

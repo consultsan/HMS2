@@ -12,7 +12,8 @@ const roleConfigs = {
         sections: [
             { name: 'Dashboard', path: '/doctor/dashboard' },
             { name: 'Appointments', path: '/doctor/appointments' },
-            { name: 'Disease Templates', path: '/doctor/template' },
+          { name: 'Disease Templates', path: '/doctor/template' },
+          { name: 'Create Test', path: '/lab/create' },
         ],
         searchPlaceholders: {
             appointments: 'Search Patients',

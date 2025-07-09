@@ -33,18 +33,14 @@ interface Status {
 
 export class AppointmentController {
 	async getAppointmentByDateAndDoctor(req: Request, res: Response) {
-		const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes
-
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { doctorId, date } = req.query;
 				const hospitalId = req.user.hospitalId;
 				if (!hospitalId)
 					throw new AppError("User isn't linked to any hospital", 403);
-				
 				// Convert input date string to Date in UTC, then apply IST offset
 				const queryDateUTC = new Date(date as string);
-
 				// Create IST start and end of day		
 				const startOfDayIST = new Date(queryDateUTC);
 				startOfDayIST.setHours(0, 0, 0, 0);
@@ -53,9 +49,9 @@ export class AppointmentController {
 				endOfDayIST.setHours(23, 59, 59, 999);
 
 				// Convert IST start/end back to UTC timestamps for DB query
-				const startOfDayUTC = new Date(startOfDayIST.getTime() - IST_OFFSET_MS);
-				const endOfDayUTC = new Date(endOfDayIST.getTime() - IST_OFFSET_MS);
-	
+				const startOfDayUTC = new Date(startOfDayIST.getTime());
+				const endOfDayUTC = new Date(endOfDayIST.getTime());
+
 				const appointments = await prisma.appointment.findMany({
 					where: {
 						hospitalId,
@@ -125,7 +121,7 @@ export class AppointmentController {
 					include: {
 						appointment: true
 					}
-				});	
+				});
 				res.status(200).json(new ApiResponse("Fetched surgery", surgery));
 			} catch (error: any) {
 				errorHandler(error, res);
@@ -354,32 +350,36 @@ export class AppointmentController {
 				}
 
 				// Create proper date range for the specific day
-				const queryDate = new Date(date as string);
-				const startOfDay = new Date(
-					Date.UTC(
+				let startOfDay, endOfDay;
+				if (typeof date === 'string') {
+					let queryDate;
+					// Try to parse as dd/MM/yyyy
+					const parts = date.split('/');
+					if (parts.length === 3) {
+						const [day, month, year] = parts;
+						queryDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+					} else {
+						// Try to parse as ISO or fallback
+						queryDate = new Date(date);
+					}
+					if (isNaN(queryDate.getTime())) {
+						return res.status(400).json(new ApiResponse('Invalid date format', null));
+					}
+					startOfDay = new Date(Date.UTC(
 						queryDate.getUTCFullYear(),
 						queryDate.getUTCMonth(),
 						queryDate.getUTCDate(),
-						0,
-						0,
-						0,
-						0
-					)
-				);
-				const endOfDay = new Date(
-					Date.UTC(
+						0, 0, 0, 0
+					));
+					endOfDay = new Date(Date.UTC(
 						queryDate.getUTCFullYear(),
 						queryDate.getUTCMonth(),
 						queryDate.getUTCDate(),
-						23,
-						59,
-						59,
-						999
-					)
-				);
-				console.log("startOfDay", startOfDay);
-				console.log("endOfDay", endOfDay);
-
+						23, 59, 59, 999
+					));
+				} else {
+					return res.status(400).json(new ApiResponse('Date is required', null));
+				}
 				const appointments = await prisma.appointment.findMany({
 					where: {
 						hospitalId,

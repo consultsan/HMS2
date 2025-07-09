@@ -64,6 +64,8 @@ export default function AppointmentManagement() {
     },
   });
 
+  console.log(appointments);
+
 
 
   const cancelAppointmentMutation = useMutation({
@@ -151,12 +153,13 @@ export default function AppointmentManagement() {
                     <TableCell>{appointment.patient.phone}</TableCell>
                     <TableCell>{appointment.visitType}</TableCell>
                     <TableCell>
-                      {new Date(appointment.scheduledAt).toLocaleString('en-IN', {
+                      {new Date(appointment.scheduledAt).toLocaleString('en-GB', {
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: 'UTC'
                       })}
                     </TableCell>
                     <TableCell>
