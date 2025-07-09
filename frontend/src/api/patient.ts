@@ -27,7 +27,7 @@ export const patientApi = {
 
     // Get patient by phone number
     getPatientByPhone: (phoneNumber: string) =>
-        api.get<ApiResponse<Patient[]>>(`/api/patient/get-by-phone?phoneNumber=${encodeURIComponent(phoneNumber)}`).then(res => res.data.data),
+        api.get<ApiResponse<Patient[]>>(`/api/patient/get-by-phone?phone=${(phoneNumber)}`).then(res => res.data.data),
 
     // Upload document for patient
     uploadDocument: (data: DocumentUploadData) => {

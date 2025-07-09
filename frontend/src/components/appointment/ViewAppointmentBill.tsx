@@ -222,7 +222,6 @@ export default function ViewAppointmentBill({
         const finalPrice = calculateFinalPrice(labTest);
         const basePrice = labTest.labTest.charge;
         const discountAmount = calculateDiscountAmount(labTest);
-        console.log(labTest)
 
         if (discountAmount > basePrice) {
             toast.error('Discount amount cannot be greater than the base price');
