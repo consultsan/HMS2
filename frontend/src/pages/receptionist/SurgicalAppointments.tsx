@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
@@ -30,18 +30,35 @@ export default function SurgicalAppointments() {
     const [showOpdForm, setShowOpdForm] = useState(false);
     const { searchQuery } = useSearch();
 
-    const { data: surgeries, isLoading, refetch } = useQuery<Surgery[]>({
-        queryKey: ['pending-surgical-appointments'],
-        queryFn: async () => {
+    const [surgeries, setSurgeries] = useState<Surgery[] | undefined>(undefined);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    const fetchSurgeries = async () => {
+        setIsLoading(true);
+        try {
             const response = await api.get('/api/appointment/get-surgery-by-hospital-id');
             const allSurgeries = response.data?.data ?? [];
             console.log('allSurgeries', allSurgeries);
-            return allSurgeries.filter(
-                (surgery: Surgery) =>
-                    surgery.status === 'NOT_CONFIRMED' && surgery.scheduledAt === null
+            setSurgeries(
+                allSurgeries.filter(
+                    (surgery: Surgery) =>
+                        surgery.status === 'NOT_CONFIRMED' && surgery.scheduledAt === null
+                )
             );
-        },
-    });
+        } catch (error) {
+            setSurgeries([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSurgeries();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // For compatibility with the rest of the code
+    const refetch = fetchSurgeries;
 
     const updateSurgeryStatus = useMutation({
         mutationFn: async ({ surgeryId, status, scheduledAt }: { surgeryId: string; status: 'CONFIRMED'; scheduledAt: string }) => {

@@ -173,6 +173,7 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         setSelectedDate("");
         setSelectedTimeSlot("");
         setSelectedSlotId("");
+        setSlectedDoctorOpdCharge(0);
         setPartiallyBooked(false);
     };
 

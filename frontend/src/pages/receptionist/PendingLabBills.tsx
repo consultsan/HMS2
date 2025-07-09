@@ -1,6 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { Pencil, Trash2, Receipt } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -9,18 +7,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from 'sonner';
 import { DatePicker } from "@/components/ui/date-filter";
-import AddAppointment from "@/components/appointment/AddAppointment";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearch } from "@/contexts/SearchContext";
-import UpdateAppointment from "@/components/appointment/UpdateAppointment";
-import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";
-import { useAuth } from "@/contexts/AuthContext";
+import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";   
 import { appointmentApi } from "@/api/appointment";
 import { Button } from "@/components/ui/button";
 import { LabTestStatus } from "@/types/types";
 import { Appointment } from "@/types/types";
+import { redirect } from "react-router-dom";
 
 
 export default function PendingLabBills() {
@@ -37,24 +32,39 @@ export default function PendingLabBills() {
 
   
   const getDateForFilter = () => {
+    console.log("filterDate", filterDate);
     const date = new Date(filterDate);
-    date.setHours(date.getHours() + 5);
-    date.setMinutes(date.getMinutes() + 30);
+    date.setHours(date.getHours());
+    date.setMinutes(date.getMinutes());
     date.setUTCHours(0, 0, 0, 0);
+    console.log("date after setting", date);
     return date.toISOString();
   };
   
-  console.log("getDateForFilter", getDateForFilter());
 
-  const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
-    queryKey: ["appointments"],
-    queryFn: async () => {
-      const response = await appointmentApi.getAppointmentsByDate({
-        date: getDateForFilter()
-      });
-      return response.data?.data ?? [];
-    },
-  });
+  const [appointments, setAppointments] = useState<Appointment[] | undefined>(undefined);
+  const [appointmentsLoading, setAppointmentsLoading] = useState<boolean>(true);
+  const [appointmentsError, setAppointmentsError] = useState<boolean>(false);
+  const [refresh, setRefresh] = useState<boolean>(false);
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setAppointmentsLoading(true);
+      setAppointmentsError(false);
+      try {
+        const response = await appointmentApi.getAppointmentsByDate({
+          date: getDateForFilter()
+        });
+        setAppointments(response.data?.data ?? []);
+      } catch (error) {
+        setAppointmentsError(true);
+        setAppointments(undefined);
+      } finally {
+        setAppointmentsLoading(false);
+      }
+    };
+    fetchAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterDate,refresh]);
     
   console.log("appointments on date", appointments);
 
@@ -66,8 +76,8 @@ export default function PendingLabBills() {
           }
         }
       return false;
-  });
-    
+    });
+   
   console.log("requiredAppointments", requiredAppointments);
 
 
@@ -97,15 +107,11 @@ export default function PendingLabBills() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Appointments</h1>
-        <AddAppointment patientId={''} />
-      </div>
 
       {/* All Appointments Section */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">All Appointments</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Pending Lab Bills</h2>
           <DatePicker
             date={filterDate}
             onDateChange={handleDateChange}
@@ -139,6 +145,7 @@ export default function PendingLabBills() {
                         day: '2-digit',
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: 'UTC'
                       })}
                     </TableCell>
                     <TableCell>
@@ -165,7 +172,7 @@ export default function PendingLabBills() {
               <TableBody>
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-4 text-gray-500">
-                    {filterDate ? 'No appointments found for the selected date' : 'No appointments found'}
+                    {filterDate ? 'No pending labtest bills found for the selected date' : 'No pending labtest bills found'}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -178,8 +185,14 @@ export default function PendingLabBills() {
       {viewBillAppointmentId && (
         <ViewAppointmentBill
           appointmentId={viewBillAppointmentId}
+          ifpayment={() => {
+            setRefresh(!refresh);
+          }}
           isOpen={!!viewBillAppointmentId}
-          onClose={() => setViewBillAppointmentId(null)}
+          onClose={() => {
+            setViewBillAppointmentId(null)
+          }}
+            
         />
       )}
     </div>

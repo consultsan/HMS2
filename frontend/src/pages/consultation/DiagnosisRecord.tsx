@@ -15,7 +15,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import ViewTestResult from "../lab/ViewTestResult";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { appointmentApi } from '@/api/appointment';
 import { calculateAge } from '@/utils/dateUtils';
@@ -28,15 +28,18 @@ function DiagnosisRecord() {
     const [selectedTestForView, setSelectedTestForView] = useState<{ id: string, name: string } | null>(null);
     const [isViewTestResultDialogOpen, setIsViewTestResultDialogOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [diagnosisRecord, setDiagnosisRecord] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const { data: diagnosisRecord, isLoading } = useQuery<any>({
-        queryKey: ['diagnosis-record', appointmentId],
-        queryFn: async () => {
+    useEffect(() => {
+        const fetchDiagnosisRecord = async () => {
+            setIsLoading(true);
             const response = await api.get(`/api/diagnosis/get-by-appointment/${appointmentId}`);
-            return response.data.data;
-        },
-        enabled: !!appointmentId,
-    });
+            setDiagnosisRecord(response.data.data);
+            setIsLoading(false);
+        }
+        fetchDiagnosisRecord();
+    }, [appointmentId]);
 
     const { data: labTests } = useQuery<any>({
         queryKey: ['lab-tests', appointmentId],

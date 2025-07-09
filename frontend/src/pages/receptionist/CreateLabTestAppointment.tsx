@@ -129,20 +129,21 @@ export default function CreateLabTestAppointment() {
 
     // Open finalize dialog instead of direct mutation
     const handleOrderTestClick = () => {
-        const patient = patients?.find(p => p.id === selectedPatient);
-        const test = labTests?.find((t: any) => t.id === selectedTest);
-        if (!patient || !test) {
-            toast.error('Select patient and test');
-            return;
-        }
-        setFinalizePatient(patient);
-        setFinalizeTest(test);
-        setDiscountType('percentage');
-        setDiscountValue(0);
-        setAmountPaid(0);
-        setPaymentOption('full');
-        setPaymentMethod(PaymentMethod.CASH);
-        setFinalizeDialogOpen(true);
+        console.log("selectedPatient", selectedPatient);
+        // const patient = patients?.find(p => p.id === selectedPatient);
+        // const test = labTests?.find((t: any) => t.id === selectedTest);
+        // if (!patient || !test) {
+        //     toast.error('Select patient and test');
+        //     return;
+        // }
+        // setFinalizePatient(patient);
+        // setFinalizeTest(test);
+        // setDiscountType('percentage');
+        // setDiscountValue(0);
+        // setAmountPaid(0);
+        // setPaymentOption('full');
+        // setPaymentMethod(PaymentMethod.CASH);
+        // setFinalizeDialogOpen(true);
     };
 
     // Calculate discount and totals

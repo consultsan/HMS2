@@ -1,5 +1,5 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
-import React, { useState, useCallback, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { Patient } from './interfaces/PatinetInterface'
 import PatientBasicDetails from './PatientBasicDetails';
@@ -60,6 +60,7 @@ function ConsultationPage() {
     const doctorId = user?.id || '';
     const doctorDept = user?.specialisation || '';
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     // State management
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -157,6 +158,8 @@ function ConsultationPage() {
         },
         onSuccess: async () => {
             await updateAppointmentStatus();
+            // Invalidate the diagnosis-record query for this appointment
+            await queryClient.invalidateQueries({ queryKey: ['diagnosis-record', appointmentId] });
             setIsSubmitted(true);
             toast.success('Diagnosis record added successfully');
         },
@@ -186,21 +189,27 @@ function ConsultationPage() {
     });
 
     // Check if diagnosis already exists
-    const { data: existingDiagnosis, isLoading: isDiagnosisLoading } = useQuery({
-        queryKey: ['diagnosis-record', appointmentId],
-        queryFn: async () => {
-            try {
-                const response = await api.get(`/api/diagnosis/get-diagnosis/${appointmentId}`);
-                return response.data.data;
-            } catch (error: any) {
-                if (error.response?.status === 404) {
-                    return null; // No diagnosis exists
-                }
-                throw error;
-            }
-        },
-        enabled: !!appointmentId,
-    });
+    const getDiagnosis = async () => {
+        try {
+            const response = await api.get(`/api/diagnosis/get-by-appointment/${appointmentId}`);
+            return response.data.data;
+        } catch (error: any) {
+            return null;
+        }
+    }
+    const [existingDiagnosis, setExistingDiagnosis] = useState<any>(null);
+    const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDiagnosis = async () => {
+            setIsDiagnosisLoading(true);
+            const diagnosis = await getDiagnosis();
+            setExistingDiagnosis(diagnosis);
+            setIsDiagnosisLoading(false);
+        }
+        fetchDiagnosis();
+    }, [appointmentId]);
+    
 
     // Form validation
     const validateForm = useCallback(() => {

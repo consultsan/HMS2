@@ -19,7 +19,8 @@ import { formatDate } from "@/utils/dateUtils";
 interface ViewAppointmentBillProps {
     appointmentId: string;
     isOpen: boolean;
-    onClose: () => void;
+    ifpayment: () => void;
+    onClose: ()     => void;
 }
 
 interface PendingLabTest {
@@ -35,9 +36,11 @@ interface PendingLabTest {
 
 export default function ViewAppointmentBill({
     appointmentId,
+    ifpayment,
     isOpen,
     onClose
 }: ViewAppointmentBillProps) {
+    if (!appointmentId || !isOpen) return null;
     const [pendingLabTests, setPendingLabTests] = useState<PendingLabTest[]>([]);
     const [labTestDiscounts, setLabTestDiscounts] = useState<Record<string, { type: 'percentage' | 'custom', value: number }>>({});
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -48,17 +51,20 @@ export default function ViewAppointmentBill({
     const [processingPayment, setProcessingPayment] = useState(false);
     const [downloadingBill, setDownloadingBill] = useState(false);
     const queryClient = useQueryClient();
+    const [bill, setBill] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
+    const fetchBill = async () => {
+        setIsLoading(true);
+        const response = await billingApi.getAppointmentBilling(appointmentId);
+        setBill(response.data?.data);
+        setIsLoading(false);
+    }
     // Fetch bill details
-    const { data: bill, isLoading, isLoading: billLoading, refetch } = useQuery<any>({
-        queryKey: ["appointment-bill", appointmentId],
-        queryFn: async () => {
-            const response = await billingApi.getAppointmentBilling(appointmentId);
-            return response.data?.data;
-        },
-        enabled: !!appointmentId && isOpen,
-    });
-    console.log(bill);
+    useEffect(() => {
+        fetchBill();
+    }, [appointmentId]);
+
 
     const totalDiscount = bill?.billItems.reduce((acc: number, item: any) => acc + item.discountAmount, 0);
     const totalAmountWithoutDiscount = bill?.billItems.reduce((acc: number, item: any) => acc + item.unitPrice * item.quantity, 0);
@@ -99,6 +105,8 @@ export default function ViewAppointmentBill({
             setShowPaymentDialog(false);
             setProcessingPayment(false);
             resetPaymentForm();
+            fetchBill();
+            ifpayment();
         },
         onError: (error: any) => {
             console.error('Error processing payment:', error);
@@ -211,9 +219,15 @@ export default function ViewAppointmentBill({
             toast.error('No bill found');
             return;
         }
-
         const finalPrice = calculateFinalPrice(labTest);
+        const basePrice = labTest.labTest.charge;
         const discountAmount = calculateDiscountAmount(labTest);
+        console.log(labTest)
+
+        if (discountAmount > basePrice) {
+            toast.error('Discount amount cannot be greater than the base price');
+            return;
+        }   
 
         try {
             await addBillItemMutation.mutateAsync({
@@ -243,7 +257,7 @@ export default function ViewAppointmentBill({
                 return newDiscounts;
             });
 
-            refetch(); // Refresh bill data
+            fetchBill(); // Refresh bill data
             refetchLabTests(); // Refresh lab tests data
         } catch (error) {
             console.error('Error adding lab test to bill:', error);
@@ -345,7 +359,7 @@ export default function ViewAppointmentBill({
         );
     }
 
-    if (billLoading || !bill) {
+    if (isLoading) {
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -453,59 +467,59 @@ export default function ViewAppointmentBill({
                                                         {/* Discount Controls */}
                                                         <div className="space-y-2">
                                                             <div className="text-sm font-medium text-gray-700">Discount</div>
-                                                            <div className="flex gap-1 flex-wrap">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant={currentDiscount?.type === 'percentage' && currentDiscount?.value === 50 ? 'default' : 'outline'}
-                                                                    size="sm"
-                                                                    onClick={() => handleDiscountChange(labTest.id, 'percentage', 50)}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                    className="text-xs px-2 py-1 bg-green-600 hover:bg-green-700 text-white"
-                                                                >
-                                                                    50%
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant={currentDiscount?.type === 'percentage' && currentDiscount?.value === 25 ? 'default' : 'outline'}
-                                                                    size="sm"
-                                                                    onClick={() => handleDiscountChange(labTest.id, 'percentage', 25)}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                    className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white"
-                                                                >
-                                                                    25%
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant={currentDiscount?.type === 'percentage' && currentDiscount?.value === 15 ? 'default' : 'outline'}
-                                                                    size="sm"
-                                                                    onClick={() => handleDiscountChange(labTest.id, 'percentage', 15)}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                    className="text-xs px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white"
-                                                                >
-                                                                    15%
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => handleDiscountChange(labTest.id, 'percentage', 0)}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                    className="text-xs px-2 py-1"
-                                                                >
-                                                                    No
-                                                                </Button>
+                                                            <div className="flex gap-6 mb-2">
+                                                                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        checked={currentDiscount?.type !== 'custom'}
+                                                                        onChange={() => handleDiscountChange(labTest.id, 'percentage', currentDiscount?.type === 'percentage' ? currentDiscount.value : 0)}
+                                                                        className="accent-blue-600"
+                                                                        disabled={addBillItemMutation.isPending}
+                                                                    />
+                                                                    Percentage (%)
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        checked={currentDiscount?.type === 'custom'}
+                                                                        onChange={() => handleDiscountChange(labTest.id, 'custom', currentDiscount?.type === 'custom' ? currentDiscount.value : 0)}
+                                                                        className="accent-blue-600"
+                                                                        disabled={addBillItemMutation.isPending}
+                                                                    />
+                                                                    Custom Amount
+                                                                </label>
                                                             </div>
-                                                            <Input
-                                                                type="number"
-                                                                placeholder="Custom amount"
-                                                                min="0"
-                                                                max={labTest.labTest.charge}
-                                                                step="0.01"
-                                                                value={currentDiscount?.type === 'custom' ? currentDiscount.value : ''}
-                                                                onChange={(e) => handleDiscountChange(labTest.id, 'custom', Number(e.target.value))}
-                                                                className="text-xs h-8"
-                                                                disabled={addBillItemMutation.isPending}
-                                                            />
+                                                            {currentDiscount?.type === 'custom' ? (
+                                                                <div>
+                                                                <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-custom-discount-${labTest.id}`}>Custom Discount Amount</label>
+                                                                <Input
+                                                                    id={`labtest-custom-discount-${labTest.id}`}
+                                                                    type="number"
+                                                                    placeholder={`Max: ₹${labTest.labTest.charge}`}
+                                                                    min="0"
+                                                                    max={labTest.labTest.charge}
+                                                                    value={currentDiscount?.type === 'custom' ? currentDiscount.value : ''}
+                                                                    onChange={e => handleDiscountChange(labTest.id, 'custom', Number(e.target.value))}
+                                                                    className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'custom' && (currentDiscount.value < 0 || currentDiscount.value > labTest.labTest.charge)) ? 'border-red-500' : ''}`}
+                                                                    disabled={addBillItemMutation.isPending}
+                                                                />
+                                                            </div>
+                                                            ): (
+                                                                <div>
+                                                                <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-discount-percentage-${labTest.id}`}>Discount Percentage</label>
+                                                                <Input
+                                                                    id={`labtest-discount-percentage-${labTest.id}`}
+                                                                    type="number"
+                                                                    placeholder="e.g. 10"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    value={currentDiscount?.type === 'percentage' ? currentDiscount.value : ''}
+                                                                    onChange={e => handleDiscountChange(labTest.id, 'percentage', Number(e.target.value))}
+                                                                    className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'percentage' && (currentDiscount.value < 0 || currentDiscount.value > 100)) ? 'border-red-500' : ''}`}
+                                                                    disabled={addBillItemMutation.isPending}
+                                                                />
+                                                            </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Price Summary and Action */}
@@ -686,7 +700,7 @@ export default function ViewAppointmentBill({
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-                                <DollarSign className="h-5 w-5" />
+
                                 {paymentType === 'full' ? 'Pay Full Amount' : 'Pay Partial Amount'}
                             </DialogTitle>
                         </DialogHeader>

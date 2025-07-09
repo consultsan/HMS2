@@ -452,6 +452,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                                                 size="sm"
                                                                 onClick={() => handleEditClick(test.id)}
                                                                 className="text-blue-600 hover:text-blue-700"
+                                                                disabled={test.status === 'COMPLETED' || test.status === 'PENDING'}
                                                             >
                                                                 Set Date
                                                             </Button>
@@ -463,7 +464,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                                         value={test.isSentExternal ? 'yes' : 'no'}
                                                         onChange={(e) => handleExternalChange(test.id, e.target.value)}
                                                         className="text-sm border border-gray-300 rounded px-2 py-1"
-                                                        disabled={test.status === 'COMPLETED'}
+                                                        disabled={test.status === 'COMPLETED' || test.status === 'PENDING'}
                                                     >
                                                         <option value="no">Internal</option>
                                                         <option value="yes">External</option>
@@ -476,7 +477,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                                                 variant="outline"
                                                                 size="sm"
                                                                 onClick={() => handleStatusUpdate(test.id)}
-                                                                disabled={updateTestStatusMutation.isPending}
+                                                                disabled={updateTestStatusMutation.isPending || test.status === 'PENDING'}
                                                             >
                                                                 Start Processing
                                                             </Button>

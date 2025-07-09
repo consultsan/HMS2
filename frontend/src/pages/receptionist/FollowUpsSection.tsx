@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
@@ -38,14 +38,28 @@ export default function FollowUpsSection() {
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-    const { data: appointments, isLoading, refetch } = useQuery<Appointment[]>({
-        queryKey: ['appointments'],
-        queryFn: async () => {
-            const response = await appointmentApi.getAppointmentsByHospitalAndVisitType(VisitType.FOLLOW_UP);
+    const [appointments, setAppointments] = useState<Appointment[] | undefined>(undefined);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    const fetchAppointments = async () => {
+        setIsLoading(true);
+        try {
+            const response = await appointmentApi.getAppointmentsByHospitalAndVisitType(VisitType.FOLLOW_UP);   
             const allAppointments = response.data?.data ?? [];
-            return allAppointments;
-        },
-    });
+            setAppointments(allAppointments);
+        } catch (error) {
+            setAppointments([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAppointments();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const refetch = fetchAppointments;
 
 
     const handleConfirmFollowUp = async (appointmentId: string) => {
@@ -231,6 +245,9 @@ export default function FollowUpsSection() {
                 <UpdateAppointment
                     appointment={{
                         ...selectedAppointment,
+                        id: selectedAppointment.id,
+                        scheduledAt: selectedAppointment.scheduledAt,
+                        status: selectedAppointment.status,
                         patientId: selectedAppointment.patient.id,
                         doctorId: selectedAppointment.doctor.id,
                         visitType: selectedAppointment.visitType === 'FOLLOW_UP' ? 'OPD' : selectedAppointment.visitType as 'OPD' | 'IPD' | 'EMERGENCY',
@@ -245,4 +262,4 @@ export default function FollowUpsSection() {
             )}
         </div>
     );
-}
+}   

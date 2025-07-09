@@ -12,66 +12,55 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearch } from '@/contexts/SearchContext';
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useState } from 'react';
-import { Appointment, AppointmentStatus } from '@/types/types';
+import { useState, useEffect } from 'react';
+import { Appointment } from '@/types/types';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 import { DatePicker } from "@/components/ui/date-filter";
 import { formatTime } from '@/utils/dateUtils';
 import { appointmentApi } from '@/api/appointment';
-
-
-
-// id          String   @id @default(uuid())
-//   scheduledAt DateTime
-//   visitType   VisitType
-//   status      AppointmentStatus @default(SCHEDULED)
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-
-//   diagnosisRecord DiagnosisRecord?
-//   vitals          Vital[]
-//   attachments     AppointmentAttachment[]
-
-//   patient     Patient       @relation(fields: [patientId], references: [id])
-//   patientId   String
-//   doctor      HospitalStaff @relation(fields: [doctorId], references: [id])
-//   doctorId    String
-//   hospital    Hospital      @relation(fields: [hospitalId], references: [id])
-//   hospitalId  String
-
+import ViewDiagnosisRecordButton from '../consultation/viewDiagnosisRecord';
 
 function Appointments() {
   const { user } = useAuth();
   const { searchQuery } = useSearch();
   const [activeTab, setActiveTab] = useState('upcoming');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const getDateForFilter = () => {
     const date = new Date(selectedDate);
     date.setHours(date.getHours() + 5);
     date.setMinutes(date.getMinutes() + 30);
     date.setUTCHours(0, 0, 0, 0);
+    console.log("date after setting", date);
     return date.toISOString();
   };
 
   const date: string = getDateForFilter();
-  console.log("date", date);
 
-  const { data: appointments, isLoading } = useQuery<any[]>({
-    queryKey: ['doctor-appointments', user?.id, date],
-    queryFn: async () => {
-      const response = await appointmentApi.getAppointmentsByDateAndDoctor({
-        doctorId: user?.id,
-        date: date
-      });
-      return response.data?.data;
-    },
-  });
+  // API call inside useEffect
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setIsLoading(true);
+        const response = await appointmentApi.getAppointmentsByDateAndDoctor({
+          doctorId: user?.id,
+          date: date
+        });
+        setAppointments(response.data?.data || []);
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+        setAppointments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  console.log(appointments);
+    if (user?.id) {
+      fetchAppointments();
+    }
+  }, [user?.id, date]);
 
   if (isLoading) {
     return (
@@ -80,12 +69,6 @@ function Appointments() {
       </div>
     );
   }
-
-  // new Date(appointment.scheduledAt).toLocaleString()
-  // useEffect(() => {
-  //   setSearchQuery('');
-  // }, [setActiveTab]);
-  
 
   const filteredAppointments = appointments?.filter((appointment) => {
     if (searchQuery === '') { return true; }
@@ -104,23 +87,6 @@ function Appointments() {
   const completedAppointments = filteredAppointments?.filter(
     (appointment) => appointment.status === 'COMPLETED' || appointment.status === 'DIAGNOSED'
   ) || [];
-
-  const handleMarkAsCompleted = async (appointmentId: string) => {
-    try {
-      await api.patch(`/api/appointment/update-status/${appointmentId}`, {
-        status: 'DIAGNOSED'
-      });
-
-      // Invalidate and refetch the appointments query with all its dependencies
-      queryClient.invalidateQueries({
-        queryKey: ['doctor-appointments', user?.id, selectedDate]
-      });
-      toast.success('Appointment marked as diagnosed');
-    } catch (error: any) {
-      console.error('Error updating appointment status:', error);
-      toast.error(error.response?.data?.message || 'Failed to update appointment status');
-    }
-  };
 
   const AppointmentTable = ({ appointments, title }: { appointments: Appointment[], title: string }) => (
     <div className="mb-8">
@@ -183,18 +149,7 @@ function Appointments() {
                       </Link>
                     )}
                     {appointment.status === 'DIAGNOSED' && (
-                      <Link
-                        to={`/doctor/diagnosis-record/${appointment.id}`}
-                        className="inline-flex"
-                      >
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          View Diagnosis
-                        </Button>
-                      </Link>
+                      <ViewDiagnosisRecordButton appointmentId={appointment.id} />
                     )}
                   </TableCell>
                 </TableRow>
