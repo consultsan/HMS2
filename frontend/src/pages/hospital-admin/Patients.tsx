@@ -104,16 +104,20 @@ export default function Patients() {
 
   const handleSearch = async () => {
     setIsSearching(true);
+    console.log("inside seach funtion")
     try {
       let res;
       if (!searchValue || searchValue === '') {
+        console.log("Search value is empty");
         setIsSearching(false);
         setSearchAttempted(false);
         setSearchResults([]);
         return;
       }
+      console.log("SearchType ", searchType == 'phone');
       if (searchType === 'phone') {
         res = await patientApi.getPatientByPhone(searchValue);
+        console.log("Search result", res);
         if (res.length > 0) {
           setSearchResults(res);
           setPatientExists(true);
@@ -245,7 +249,7 @@ export default function Patients() {
         onSubmit={handleAddSubmit}
         isLoading={addPatientMutation.isPending}
         showSubmitButton={true}
-
+      
       >
 
 
@@ -270,17 +274,25 @@ export default function Patients() {
           </Button>
         </div>
 
-        {searchAttempted && searchType === 'phone' && searchResults.length > 0 && (
+        {patientExists && (
           <div className="p-4 bg-yellow-50 rounded border border-yellow-200 space-y-4">
             <div className="font-semibold text-yellow-800">Existing patients found with this number:</div>
             {searchResults.map((patient) => (
-              <div key={patient.id} className="p-3 bg-white rounded border border-yellow-100">
-                <div><b>Name:</b> {patient.name}</div>
-                <div><b>Gender:</b> {patient.gender}</div>
-                <div><b>Phone:</b> {patient.phone}</div>
-                <div><b>Age:</b> {calculateAge(patient.dob.toString())}</div>
-                <div><b>Unique ID:</b> {patient.patientUniqueId}</div>
-                <div className="mt-2 flex justify-end">
+              <div
+                key={patient.id}
+                className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-2 shadow-sm"
+              >
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                  <span className="font-semibold text-blue-900 text-base md:text-lg">{patient.name}</span>
+                  <span className="text-gray-500 text-sm md:text-base flex items-center">
+                    {patient.gender}
+                    <span className="mx-2 text-gray-300">•</span>
+                    {calculateAge(patient.dob.toString())} yrs
+                    <span className="mx-2 text-gray-300">•</span>
+                    {patient.phone}
+                  </span>
+                </div>
+                <div className="mt-2 md:mt-0 md:ml-4">
                   <AddAppointment patientId={patient.id} />
                 </div>
               </div>

@@ -17,6 +17,7 @@ import { useSearch } from "@/contexts/SearchContext";
 import UpdateAppointment from "@/components/appointment/UpdateAppointment";
 import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";
 import { useAuth } from "@/contexts/AuthContext";
+import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 
 interface Appointment {
   id: string;
@@ -185,15 +186,16 @@ export default function AppointmentManagement() {
                         >
                           <Pencil className="w-4 h-4 text-gray-500" />
                         </button>
-                        {canViewBills && (
-                          <button
-                            onClick={() => handleViewBill(appointment.id)}
-                            className="p-1 hover:bg-gray-100 rounded-full"
-                            title="View Bill"
-                          >
-                            <Receipt className="w-4 h-4 text-blue-500" />
-                          </button>
+                          {canViewBills && (
+                            <button
+                              onClick={() => handleViewBill(appointment.id)}
+                              className="p-1 hover:bg-gray-100 rounded-full"
+                              title="View Bill"
+                            >
+                              <Receipt className="w-4 h-4 text-blue-500" />
+                            </button>
                         )}
+                        <ViewAppointmentLabtests appointmentId={appointment.id} />
                         {appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
@@ -238,6 +240,7 @@ export default function AppointmentManagement() {
           appointmentId={viewBillAppointmentId}
           isOpen={!!viewBillAppointmentId}
           onClose={() => setViewBillAppointmentId(null)}
+          ifpayment={()=>{}}
         />
       )}
     </div>
