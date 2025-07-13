@@ -54,8 +54,7 @@ export default function SurgicalAppointments() {
 
     useEffect(() => {
         fetchSurgeries();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+   }, []);
 
     // For compatibility with the rest of the code
     const refetch = fetchSurgeries;
@@ -102,6 +101,7 @@ export default function SurgicalAppointments() {
                     timeSlot: appointmentDateTime.toISOString()
                 });
             }
+            
 
             return response.data;
         },
