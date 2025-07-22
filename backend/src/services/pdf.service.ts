@@ -62,235 +62,321 @@ export class PDFService {
 	static async generateBillPDF(bill: BillWithRelations): Promise<Buffer> {
 		return new Promise((resolve, reject) => {
 			try {
-				const doc = new PDFDocument({ margin: 40 });
+				const doc = new PDFDocument({ margin: 30 });
 				const chunks: Buffer[] = [];
 
 				doc.on("data", (chunk) => chunks.push(chunk));
 				doc.on("end", () => resolve(Buffer.concat(chunks)));
 				doc.on("error", reject);
 
+				const pageWidth = doc.page.width;
+				const margin = 30;
+				const contentWidth = pageWidth - (margin * 2);
+
 				// Header with Hospital Name and Logo
-				const headerHeight = 80;
-				doc.rect(0, 0, doc.page.width, headerHeight);
+				const headerHeight = 70;
+				doc.rect(0, 0, pageWidth, headerHeight);
 				doc.fillColor('#1E40AF').fill();
 
-				// Hospital Name and Bill Title
-				doc.fillColor('white').fontSize(20);
-				doc.text(bill.hospital.name, 50, 25);
+				// Hospital Name - Left side
+				doc.fillColor('white').fontSize(18).font('Helvetica-Bold');
+				doc.text(bill.hospital.name, margin, 20, { width: contentWidth * 0.6 });
 
-				// Bill Number and Date
-				doc.fontSize(12);
-				doc.text(`Bill #: ${bill.billNumber}`, doc.page.width - 200, 30, {
-					width: 150,
-					align: 'right'
-				});
-				doc.text(`Date: ${format(new Date(bill.billDate), 'dd MMM yyyy')}`, doc.page.width - 200, 50, {
-					width: 150,
-					align: 'right'
-				});
+				// Bill Number and Date - Right side  
+				doc.fontSize(11).font('Helvetica');
+				const rightInfoX = pageWidth - 180;
+				doc.text(`Bill #: ${bill.billNumber}`, rightInfoX, 20, { width: 150, align: 'left' });
+				doc.text(`Date: ${format(new Date(bill.billDate), 'dd MMM yyyy')}`, rightInfoX, 35, { width: 150, align: 'left' });
+				doc.text(`Status: ${bill.status}`, rightInfoX, 50, { width: 150, align: 'left' });
 
-				// Reset position and styles after header
-				doc.y = headerHeight + 20;
+				// Start content after header
+				let currentY = headerHeight + 20;
 				doc.fillColor('black').font('Helvetica').fontSize(12);
 
 				// Patient Information Section
-				const patient = bill.patient;
-				if (patient) {
-					const sectionY = doc.y;
+				if (bill.patient) {
+					doc.fontSize(14).font('Helvetica-Bold');
+					doc.text('PATIENT INFORMATION', margin, currentY);
+					currentY += 20;
 
-					// Left Column
-					doc.fontSize(12);
-					let leftY = sectionY;
-					const leftItems = [
-						['Patient Name:', patient.name],
-						['Patient ID:', patient.patientUniqueId],
-						['Phone:', patient.phone]
+					// Single column layout for patient info
+					const lineHeight = 16;
+					doc.fontSize(11).font('Helvetica');
+
+					// All patient information items in single column
+					const patientItems = [
+						['Patient Name:', bill.patient.name],
+						['Patient ID:', bill.patient.patientUniqueId],
+						['Phone:', bill.patient.phone || 'N/A'],
+						['Email:', bill.patient.email || 'N/A'],
+						['Due Date:', bill.dueDate ? format(new Date(bill.dueDate), 'dd MMM yyyy') : 'N/A'],
+						['Created:', format(new Date(bill.createdAt), 'dd MMM yyyy')]
 					];
 
-					leftItems.forEach(([label, value]) => {
-						doc.font('Helvetica-Bold').text(label, 50, leftY, { width: 120, continued: true });
-						doc.font('Helvetica').text(` ${value}`, { width: 200 });
-						leftY += 18;
+					patientItems.forEach(([label, value]) => {
+						doc.font('Helvetica-Bold').text(label, margin, currentY, { width: 120, continued: true });
+						doc.font('Helvetica').text(` ${value}`, { width: contentWidth - 120 });
+						currentY += lineHeight;
 					});
 
-					// Right Column
-					let rightY = sectionY;
-					const rightItems = [
-						['Email:', patient.email || 'N/A'],
-						['Bill Status:', bill.status],
-						['Due Date:', bill.dueDate ? format(new Date(bill.dueDate), 'dd MMM yyyy') : 'N/A']
-					];
-
-					rightItems.forEach(([label, value]) => {
-						doc.font('Helvetica-Bold').text(label, 320, rightY, { width: 150, continued: true });
-						doc.font('Helvetica').text(` ${value}`, { width: 200 });
-						rightY += 18;
-					});
-
-					doc.y = Math.max(leftY, rightY) + 10;
+					currentY += 15;
 				}
 
-				// Add separator line
-				doc.strokeColor('#E5E7EB').moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
-				doc.moveDown();
+				// Separator line
+				doc.strokeColor('#E5E7EB').lineWidth(1);
+				doc.moveTo(margin, currentY).lineTo(pageWidth - margin, currentY).stroke();
+				currentY += 15;
 
 				// Bill Items Section
 				if (bill.billItems && bill.billItems.length > 0) {
-					doc.fillColor('black').fontSize(16).font('Helvetica-Bold');
-					doc.text('Bill Items', 50, doc.y);
-					doc.moveDown(0.5);
+					doc.fillColor('black').fontSize(14).font('Helvetica-Bold');
+					doc.text('BILL ITEMS', margin, currentY);
+					currentY += 20;
 
-					// Table header
-					const tableY = doc.y;
-					doc.rect(50, tableY, doc.page.width - 100, 25);
-					doc.fillColor('#F3F4F6').fill();
-					doc.rect(50, tableY, doc.page.width - 100, 25);
-					doc.strokeColor('#D1D5DB').stroke();
+					// Define table structure
+					const tableStartY = currentY;
+					const rowHeight = 30;
+					const headerHeight = 25;
+
+					// Table column definitions
+					const columns = [
+						{ label: 'S.No', x: margin + 5, width: 40 },
+						{ label: 'Description', x: margin + 50, width: 200 },
+						{ label: 'Qty', x: margin + 260, width: 40 },
+						{ label: 'Unit Price', x: margin + 310, width: 70 },
+						{ label: 'Discount', x: margin + 390, width: 60 },
+						{ label: 'Total', x: margin + 460, width: 70 }
+					];
+
+					// Draw table header
+					doc.rect(margin, tableStartY, contentWidth, headerHeight);
+					doc.fillColor('#F8F9FA').fill();
+					doc.rect(margin, tableStartY, contentWidth, headerHeight);
+					doc.strokeColor('#DEE2E6').stroke();
 
 					doc.fillColor('black').fontSize(10).font('Helvetica-Bold');
-					doc.text('S.No', 60, tableY + 10);
-					doc.text('Description', 120, tableY + 10);
-					doc.text('Qty', 320, tableY + 10);
-					doc.text('Unit Price', 380, tableY + 10);
-					doc.text('Discount', 460, tableY + 10);
-					doc.text('Total', 540, tableY + 10);
-
-					// Table rows
-					let rowY = tableY + 25;
-					bill.billItems.forEach((item, index) => {
-						doc.rect(50, rowY, doc.page.width - 100, 25);
-						doc.fillColor(index % 2 === 0 ? '#FFFFFF' : '#F9FAFB').fill();
-						doc.rect(50, rowY, doc.page.width - 100, 25);
-						doc.strokeColor('#E5E7EB').stroke();
-
-						doc.fillColor('black').fontSize(9).font('Helvetica');
-						doc.text(`${index + 1}`, 60, rowY + 10);
-						doc.font('Helvetica-Bold').text(item.description, 120, rowY + 10, { width: 180 });
-						doc.font('Helvetica').text(item.quantity.toString(), 320, rowY + 10);
-						doc.text(`₹${item.unitPrice.toFixed(2)}`, 380, rowY + 10);
-						doc.text(`₹${item.discountAmount.toFixed(2)}`, 460, rowY + 10);
-						doc.font('Helvetica-Bold').text(`₹${(item.totalPrice).toFixed(2)}`, 540, rowY + 10);
-						rowY += 25;
+					columns.forEach(col => {
+						doc.text(col.label, col.x, tableStartY + 8, { width: col.width, align: 'center' });
 					});
-					doc.y = rowY + 15;
+
+					currentY = tableStartY + headerHeight;
+
+					// Draw table rows
+					bill.billItems.forEach((item, index) => {
+						// Alternate row colors
+						const rowColor = index % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
+
+						doc.rect(margin, currentY, contentWidth, rowHeight);
+						doc.fillColor(rowColor).fill();
+						doc.rect(margin, currentY, contentWidth, rowHeight);
+						doc.strokeColor('#DEE2E6').stroke();
+
+						// Row data
+						doc.fillColor('black').fontSize(9).font('Helvetica');
+
+						// S.No
+						doc.text((index + 1).toString(), columns[0].x, currentY + 10, {
+							width: columns[0].width,
+							align: 'center'
+						});
+
+						// Description - handle long text
+						doc.font('Helvetica').text(item.description, columns[1].x, currentY + 6, {
+							width: columns[1].width - 10,
+							height: rowHeight - 12,
+							ellipsis: true
+						});
+
+						// Quantity
+						doc.text(item.quantity.toString(), columns[2].x, currentY + 10, {
+							width: columns[2].width,
+							align: 'center'
+						});
+
+						// Unit Price
+						doc.text(`₹${item.unitPrice.toFixed(2)}`, columns[3].x, currentY + 10, {
+							width: columns[3].width,
+							align: 'right'
+						});
+
+						// Discount
+						doc.text(`₹${item.discountAmount.toFixed(2)}`, columns[4].x, currentY + 10, {
+							width: columns[4].width,
+							align: 'right'
+						});
+
+						// Total
+						doc.font('Helvetica-Bold').text(`₹${item.totalPrice.toFixed(2)}`, columns[5].x, currentY + 10, {
+							width: columns[5].width,
+							align: 'right'
+						});
+
+						currentY += rowHeight;
+					});
+
+					currentY += 10;
 				}
 
-				// Payment Summary Section
-				doc.fillColor('black').fontSize(16).font('Helvetica-Bold');
-				doc.text('Payment Summary', 50, doc.y);
-				doc.moveDown(0.5);
+				// Payment Summary Section - Positioned properly to avoid overlaps
+				doc.fillColor('black').fontSize(14).font('Helvetica-Bold');
+				doc.text('PAYMENT SUMMARY', margin, currentY);
+				currentY += 20;
 
-				const summaryY = doc.y;
-				const summaryWidth = 300;
-				const summaryX = doc.page.width - summaryWidth - 50;
+				// Create summary box with proper spacing
+				const summaryBoxHeight = 120;
+				const summaryBoxWidth = 280;
+				const summaryX = pageWidth - summaryBoxWidth - margin;
 
-				// Summary box
-				doc.rect(summaryX, summaryY, summaryWidth, 120);
-				doc.fillColor('#F8FAFC').fill();
-				doc.rect(summaryX, summaryY, summaryWidth, 120);
-				doc.strokeColor('#E2E8F0').stroke();
+				doc.rect(summaryX, currentY, summaryBoxWidth, summaryBoxHeight);
+				doc.fillColor('#F8F9FA').fill();
+				doc.rect(summaryX, currentY, summaryBoxWidth, summaryBoxHeight);
+				doc.strokeColor('#DEE2E6').stroke();
 
-				// Summary content
-				doc.fillColor('black').fontSize(12);
-				let summaryItemY = summaryY + 15;
+				// Summary items with proper spacing
+				doc.fillColor('black').fontSize(11);
+				let summaryY = currentY + 15;
+				const summaryLineHeight = 20;
 
-				// Total Amount
-				doc.font('Helvetica-Bold').text('Total Amount:', summaryX + 15, summaryItemY, { width: 150, continued: true });
-				doc.font('Helvetica').text(` ₹${bill.totalAmount.toFixed(2)}`, { width: 100, align: 'right' });
-				summaryItemY += 20;
+				const summaryItems = [
+					['Total Amount:', `₹${bill.totalAmount.toFixed(2)}`],
+					['Amount Paid:', `₹${bill.paidAmount.toFixed(2)}`],
+					['Amount Due:', `₹${bill.dueAmount.toFixed(2)}`],
+					['Status:', bill.status]
+				];
 
-				// Amount Paid
-				doc.font('Helvetica-Bold').text('Amount Paid:', summaryX + 15, summaryItemY, { width: 150, continued: true });
-				doc.font('Helvetica').text(` ₹${bill.paidAmount.toFixed(2)}`, { width: 100, align: 'right' });
-				summaryItemY += 20;
+				summaryItems.forEach(([label, value], index) => {
+					doc.font('Helvetica-Bold').text(label, summaryX + 15, summaryY, {
+						width: 120,
+						continued: true
+					});
 
-				// Amount Due
-				doc.font('Helvetica-Bold').text('Amount Due:', summaryX + 15, summaryItemY, { width: 150, continued: true });
-				doc.font('Helvetica').text(` ₹${bill.dueAmount.toFixed(2)}`, { width: 100, align: 'right' });
-				summaryItemY += 20;
+					// Color code the status
+					if (index === 3) {
+						const statusColor = bill.status === 'PAID' ? '#16A34A' :
+							bill.status === 'PARTIALLY_PAID' ? '#2563EB' : '#DC2626';
+						doc.fillColor(statusColor);
+					}
 
-				// Payment Status
-				doc.font('Helvetica-Bold').text('Status:', summaryX + 15, summaryItemY, { width: 150, continued: true });
-				const statusColor = bill.status === 'PAID' ? '#16A34A' :
-					bill.status === 'PARTIALLY_PAID' ? '#2563EB' : '#DC2626';
-				doc.fillColor(statusColor).font('Helvetica').text(` ${bill.status}`, { width: 100, align: 'right' });
+					doc.font('Helvetica').text(` ${value}`, {
+						width: 120,
+						align: 'right'
+					});
 
-				doc.y = summaryY + 140;
+					doc.fillColor('black'); // Reset color
+					summaryY += summaryLineHeight;
+				});
+
+				currentY += summaryBoxHeight + 20;
 
 				// Payment History Section
 				if (bill.payments && bill.payments.length > 0) {
-					doc.fillColor('black').fontSize(16).font('Helvetica-Bold');
-					doc.text('Payment History', 50, doc.y);
-					doc.moveDown(0.5);
+					doc.fillColor('black').fontSize(14).font('Helvetica-Bold');
+					doc.text('PAYMENT HISTORY', margin, currentY);
+					currentY += 20;
 
-					// Payment history table
-					const paymentTableY = doc.y;
-					doc.rect(50, paymentTableY, doc.page.width - 100, 25);
-					doc.fillColor('#F3F4F6').fill();
-					doc.rect(50, paymentTableY, doc.page.width - 100, 25);
-					doc.strokeColor('#D1D5DB').stroke();
+					// Payment table
+					const paymentRowHeight = 25;
+					const paymentColumns = [
+						{ label: 'Date', x: margin + 5, width: 80 },
+						{ label: 'Amount', x: margin + 90, width: 80 },
+						{ label: 'Method', x: margin + 180, width: 100 },
+						{ label: 'Status', x: margin + 290, width: 80 },
+						{ label: 'Transaction ID', x: margin + 380, width: 150 }
+					];
+
+					// Payment table header
+					doc.rect(margin, currentY, contentWidth, paymentRowHeight);
+					doc.fillColor('#F8F9FA').fill();
+					doc.rect(margin, currentY, contentWidth, paymentRowHeight);
+					doc.strokeColor('#DEE2E6').stroke();
 
 					doc.fillColor('black').fontSize(10).font('Helvetica-Bold');
-					doc.text('Date', 60, paymentTableY + 10);
-					doc.text('Amount', 200, paymentTableY + 10);
-					doc.text('Method', 300, paymentTableY + 10);
-					doc.text('Status', 400, paymentTableY + 10);
-					doc.text('Transaction ID', 500, paymentTableY + 10);
+					paymentColumns.forEach(col => {
+						doc.text(col.label, col.x, currentY + 8, { width: col.width, align: 'center' });
+					});
+
+					currentY += paymentRowHeight;
 
 					// Payment rows
-					let paymentRowY = paymentTableY + 25;
 					bill.payments.forEach((payment, index) => {
-						doc.rect(50, paymentRowY, doc.page.width - 100, 25);
-						doc.fillColor(index % 2 === 0 ? '#FFFFFF' : '#F9FAFB').fill();
-						doc.rect(50, paymentRowY, doc.page.width - 100, 25);
-						doc.strokeColor('#E5E7EB').stroke();
+						const rowColor = index % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
+
+						doc.rect(margin, currentY, contentWidth, paymentRowHeight);
+						doc.fillColor(rowColor).fill();
+						doc.rect(margin, currentY, contentWidth, paymentRowHeight);
+						doc.strokeColor('#DEE2E6').stroke();
 
 						doc.fillColor('black').fontSize(9).font('Helvetica');
-						doc.text(format(new Date(payment.paymentDate), 'dd MMM yyyy'), 60, paymentRowY + 10);
-						doc.text(`₹${payment.amount.toFixed(2)}`, 200, paymentRowY + 10);
-						doc.text(payment.paymentMethod, 300, paymentRowY + 10);
-						doc.text(payment.status, 400, paymentRowY + 10);
-						doc.text(payment.transactionId || 'N/A', 500, paymentRowY + 10);
-						paymentRowY += 25;
+
+						doc.text(format(new Date(payment.paymentDate), 'dd MMM yyyy'), paymentColumns[0].x, currentY + 8, {
+							width: paymentColumns[0].width,
+							align: 'center'
+						});
+						doc.text(`₹${payment.amount.toFixed(2)}`, paymentColumns[1].x, currentY + 8, {
+							width: paymentColumns[1].width,
+							align: 'right'
+						});
+						doc.text(payment.paymentMethod, paymentColumns[2].x, currentY + 8, {
+							width: paymentColumns[2].width,
+							align: 'center',
+							ellipsis: true
+						});
+						doc.text(payment.status, paymentColumns[3].x, currentY + 8, {
+							width: paymentColumns[3].width,
+							align: 'center'
+						});
+						doc.text(payment.transactionId || 'N/A', paymentColumns[4].x, currentY + 8, {
+							width: paymentColumns[4].width - 10,
+							align: 'left',
+							ellipsis: true
+						});
+
+						currentY += paymentRowHeight;
 					});
-					doc.y = paymentRowY + 15;
+
+					currentY += 15;
 				}
 
 				// Notes Section
 				if (bill.notes) {
-					doc.fillColor('black').fontSize(16).font('Helvetica-Bold');
-					doc.text('Notes', 50, doc.y);
-					doc.moveDown(0.5);
+					doc.fillColor('black').fontSize(14).font('Helvetica-Bold');
+					doc.text('NOTES', margin, currentY);
+					currentY += 15;
 
-					const notesBoxY = doc.y;
-					doc.rect(50, notesBoxY, doc.page.width - 100, 40);
-					doc.fillColor('#F9FAFB').fill();
-					doc.rect(50, notesBoxY, doc.page.width - 100, 40);
-					doc.strokeColor('#E5E7EB').stroke();
+					const notesHeight = 50;
+					doc.rect(margin, currentY, contentWidth, notesHeight);
+					doc.fillColor('#F8F9FA').fill();
+					doc.rect(margin, currentY, contentWidth, notesHeight);
+					doc.strokeColor('#DEE2E6').stroke();
 
-					doc.fillColor('black').fontSize(11).font('Helvetica');
-					doc.text(bill.notes, 60, notesBoxY + 15, {
-						width: doc.page.width - 120,
-						height: 20
+					doc.fillColor('black').fontSize(10).font('Helvetica');
+					doc.text(bill.notes, margin + 10, currentY + 10, {
+						width: contentWidth - 20,
+						height: notesHeight - 20,
+						align: 'left'
 					});
-					doc.y = notesBoxY + 50;
+					currentY += notesHeight + 15;
 				}
 
 				// Footer Section
-				const footerY = Math.max(doc.y + 20, doc.page.height - 80);
-				doc.rect(0, footerY, doc.page.width, 80);
-				doc.fillColor('#F9FAFB').fill();
+				const footerY = Math.max(currentY + 20, doc.page.height - 60);
+				doc.rect(0, footerY, pageWidth, 60);
+				doc.fillColor('#F8F9FA').fill();
 
-				doc.fillColor('#6B7280').fontSize(10).font('Helvetica');
-				doc.text(`Generated on: ${format(new Date(), 'dd MMMM yyyy, hh:mm a')}`, 50, footerY + 20);
-				doc.text(`Hospital: ${bill.hospital.name}`, 50, footerY + 35);
+				doc.fillColor('#6B7280').fontSize(9).font('Helvetica');
+				doc.text(`Generated on: ${format(new Date(), 'dd MMMM yyyy, hh:mm a')}`, margin, footerY + 15);
+				doc.text(`Hospital: ${bill.hospital.name}`, margin, footerY + 30);
 				if (bill.hospital.address) {
-					doc.text(`Address: ${bill.hospital.address}`, 50, footerY + 50);
+					doc.text(`Address: ${bill.hospital.address}`, margin, footerY + 45, {
+						width: contentWidth - 200,
+						ellipsis: true
+					});
 				}
 
-				// Signature line
-				doc.fillColor('#6B7280').text('Authorized Sign', doc.page.width - 150, footerY + 20);
-				doc.strokeColor('#D1D5DB').moveTo(doc.page.width - 150, footerY + 50).lineTo(doc.page.width - 50, footerY + 50).stroke();
+				// Signature area
+				doc.text('Authorized Signature', pageWidth - 150, footerY + 15);
+				doc.strokeColor('#D1D5DB').lineWidth(1);
+				doc.moveTo(pageWidth - 150, footerY + 40).lineTo(pageWidth - 30, footerY + 40).stroke();
 
 				doc.end();
 			} catch (error) {

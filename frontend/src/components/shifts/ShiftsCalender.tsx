@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Clock, Plus, Edit3, Trash2, Save, X, Users, CalendarDays, Timer } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -23,6 +23,8 @@ import { toast } from '../ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '../ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 
 const DAYS_OF_WEEK = Object.values(WeekDay);
@@ -39,6 +41,19 @@ interface EditingShift {
     endTime: string;
 }
 
+// Helper function to get day color
+const getDayColor = (day: WeekDay) => {
+    const colors = {
+        [WeekDay.MONDAY]: 'bg-blue-50 border-blue-200',
+        [WeekDay.TUESDAY]: 'bg-green-50 border-green-200',
+        [WeekDay.WEDNESDAY]: 'bg-purple-50 border-purple-200',
+        [WeekDay.THURSDAY]: 'bg-orange-50 border-orange-200',
+        [WeekDay.FRIDAY]: 'bg-pink-50 border-pink-200',
+        [WeekDay.SATURDAY]: 'bg-yellow-50 border-yellow-200',
+        [WeekDay.SUNDAY]: 'bg-red-50 border-red-200',
+    };
+    return colors[day] || 'bg-gray-50 border-gray-200';
+};
 
 // Helper function to format datetime for datetime-local input
 const formatDateTimeLocal = (date: Date): string => {
@@ -312,256 +327,373 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
     const isLoading = createShiftMutation.isPending || updateShiftMutation.isPending ||
         deleteShiftMutation.isPending || createTempShiftMutation.isPending || deleteTempShiftMutation.isPending;
 
+    // Calculate some stats
+    const activeShifts = shifts.filter((shift: Shift) => shift.status === Status.ACTIVE).length;
+    const upcomingTempShifts = tempShifts.filter((shift: TempShift) => {
+        const startDate = shift.startTime ? new Date(shift.startTime) : null;
+        return startDate && startDate > new Date();
+    }).length;
+
     return (
         <>
-            <button
+            <Button
                 onClick={() => setIsOpen(true)}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                title="View Schedule"
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
                 disabled={isLoadingShifts || isLoadingTempShifts}
             >
-                <Calendar className="w-4 h-4 text-gray-500" />
-            </button>
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline">Schedule</span>
+                {(activeShifts > 0 || upcomingTempShifts > 0) && (
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                        {activeShifts + upcomingTempShifts}
+                    </Badge>
+                )}
+            </Button>
 
             <Dialog open={isOpen} onOpenChange={(open) => !isLoading && setIsOpen(open)}>
-                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {userName ? `${userName}'s Schedule` : 'Weekly Schedule'}
-                        </DialogTitle>
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="border-b pb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Calendar className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-xl font-semibold">
+                                        {userName ? `${userName}'s Schedule` : 'Weekly Schedule'}
+                                    </DialogTitle>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        Manage regular shifts and temporary schedules
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Quick Stats */}
+                            <div className="flex gap-4">
+                                <div className="text-center">
+                                    <div className="text-lg font-bold text-blue-600">{activeShifts}</div>
+                                    <div className="text-xs text-gray-500">Regular Shifts</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-lg font-bold text-green-600">{upcomingTempShifts}</div>
+                                    <div className="text-xs text-gray-500">Upcoming Temp</div>
+                                </div>
+                            </div>
+                        </div>
                     </DialogHeader>
 
-                    <Tabs defaultValue="regular" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="regular">Regular Shifts</TabsTrigger>
-                            <TabsTrigger value="temporary">Temporary Shifts</TabsTrigger>
-                        </TabsList>
+                    <div className="flex-1 overflow-y-auto">
+                        <Tabs defaultValue="regular" className="w-full h-full">
+                            <TabsList className="grid w-full grid-cols-2 mb-6">
+                                <TabsTrigger value="regular" className="flex items-center gap-2">
+                                    <Users className="h-4 w-4" />
+                                    Regular Shifts
+                                </TabsTrigger>
+                                <TabsTrigger value="temporary" className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4" />
+                                    Temporary Shifts
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <TabsContent value="regular">
-                            {isLoadingShifts ? (
-                                <div className="flex justify-center items-center p-4">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Day</TableHead>
-                                            <TableHead>Start Time</TableHead>
-                                            <TableHead>End Time</TableHead>
-                                            <TableHead>Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                            <TabsContent value="regular" className="space-y-4">
+                                {isLoadingShifts ? (
+                                    <div className="flex justify-center items-center py-12">
+                                        <div className="text-center">
+                                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-2" />
+                                            <p className="text-gray-600">Loading shifts...</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-3">
                                         {DAYS_OF_WEEK.map((day) => {
                                             const shift = getShiftForDay(day);
                                             const isEditing = editingDay === day;
 
                                             return (
-                                                <TableRow key={day}>
-                                                    <TableCell>{day}</TableCell>
-                                                    <TableCell>
-                                                        {isEditing ? (
-                                                            <Input
-                                                                type="time"
-                                                                defaultValue={shift?.startTime || "09:00"}
-                                                                className="w-32"
-                                                                id={`start-${day}`}
-                                                                disabled={isLoading}
-                                                            />
-                                                        ) : (
-                                                            shift?.startTime || '-'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditing ? (
-                                                            <Input
-                                                                type="time"
-                                                                defaultValue={shift?.endTime || "17:00"}
-                                                                className="w-32"
-                                                                id={`end-${day}`}
-                                                                disabled={isLoading}
-                                                            />
-                                                        ) : (
-                                                            shift?.endTime || '-'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {isEditing ? (
-                                                            <div className="flex space-x-2">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        const startTime = (document.getElementById(`start-${day}`) as HTMLInputElement)?.value;
-                                                                        const endTime = (document.getElementById(`end-${day}`) as HTMLInputElement)?.value;
-                                                                        if (startTime && endTime) {
-                                                                            handleSaveShift(day, startTime, endTime);
-                                                                        }
-                                                                    }}
-                                                                    disabled={isLoading}
-                                                                >
-                                                                    {isLoading ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                                    ) : null}
-                                                                    Save
-                                                                </Button>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => setEditingDay(null)}
-                                                                    disabled={isLoading}
-                                                                >
-                                                                    Cancel
-                                                                </Button>
+                                                <Card key={day} className={`transition-all duration-200 hover:shadow-md ${getDayColor(day)}`}>
+                                                    <CardContent className="p-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-medium text-gray-900">{day}</span>
+                                                                    {shift && (
+                                                                        <Badge variant="outline" className="w-fit mt-1">
+                                                                            Active
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        ) : (
-                                                            <div className="flex space-x-2">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => setEditingDay(day)}
-                                                                    disabled={isLoading}
-                                                                >
-                                                                    {shift ? 'Edit' : 'Add'}
-                                                                </Button>
-                                                                {shift && (
-                                                                    <Button
-                                                                        variant="destructive"
-                                                                        size="sm"
-                                                                        onClick={() => deleteShiftMutation.mutate(shift.id)}
-                                                                        disabled={isLoading}
-                                                                    >
-                                                                        {deleteShiftMutation.isPending ? (
-                                                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                                        ) : null}
-                                                                        Delete
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
+
+                                                            {isEditing ? (
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Clock className="h-4 w-4 text-gray-500" />
+                                                                        <Input
+                                                                            type="time"
+                                                                            defaultValue={shift?.startTime || "09:00"}
+                                                                            className="w-32 h-8"
+                                                                            id={`start-${day}`}
+                                                                            disabled={isLoading}
+                                                                        />
+                                                                        <span className="text-gray-500">to</span>
+                                                                        <Input
+                                                                            type="time"
+                                                                            defaultValue={shift?.endTime || "17:00"}
+                                                                            className="w-32 h-8"
+                                                                            id={`end-${day}`}
+                                                                            disabled={isLoading}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                                const startTime = (document.getElementById(`start-${day}`) as HTMLInputElement)?.value;
+                                                                                const endTime = (document.getElementById(`end-${day}`) as HTMLInputElement)?.value;
+                                                                                if (startTime && endTime) {
+                                                                                    handleSaveShift(day, startTime, endTime);
+                                                                                }
+                                                                            }}
+                                                                            disabled={isLoading}
+                                                                            className="gap-1"
+                                                                        >
+                                                                            {isLoading ? (
+                                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            ) : (
+                                                                                <Save className="h-3 w-3" />
+                                                                            )}
+                                                                            Save
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => setEditingDay(null)}
+                                                                            disabled={isLoading}
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="text-right">
+                                                                        {shift ? (
+                                                                            <div className="flex items-center gap-2 text-sm">
+                                                                                <Clock className="h-4 w-4 text-gray-500" />
+                                                                                <span className="font-medium">
+                                                                                    {shift.startTime} - {shift.endTime}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-gray-500 text-sm">No shift scheduled</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => setEditingDay(day)}
+                                                                            disabled={isLoading}
+                                                                            className="gap-1"
+                                                                        >
+                                                                            {shift ? <Edit3 className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                                                                            {shift ? 'Edit' : 'Add'}
+                                                                        </Button>
+                                                                        {shift && (
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                size="sm"
+                                                                                onClick={() => deleteShiftMutation.mutate(shift.id)}
+                                                                                disabled={isLoading}
+                                                                                className="gap-1"
+                                                                            >
+                                                                                {deleteShiftMutation.isPending ? (
+                                                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                                                ) : (
+                                                                                    <Trash2 className="h-3 w-3" />
+                                                                                )}
+                                                                                Delete
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
                                             );
                                         })}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </TabsContent>
-
-                        <TabsContent value="temporary" className="space-y-4">
-                            <div className="space-y-4">
-                                <Button
-                                    onClick={() => setIsAddingTemp(true)}
-                                    disabled={isLoading}
-                                    className="w-full sm:w-auto"
-                                >
-                                    Add Temporary Shift
-                                </Button>
-
-                                {isAddingTemp && (
-                                    <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="temp-start">Start Date & Time</Label>
-                                                <Input
-                                                    id="temp-start"
-                                                    type="datetime-local"
-                                                    value={formatDateTimeLocal(newTempShift.startTime)}
-                                                    min={formatDateTimeLocal(new Date())}
-                                                    onChange={(e) => setNewTempShift(prev => ({
-                                                        ...prev,
-                                                        startTime: new Date(e.target.value)
-                                                    }))}
-                                                    disabled={isLoading}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="temp-end">End Date & Time</Label>
-                                                <Input
-                                                    id="temp-end"
-                                                    type="datetime-local"
-                                                    value={formatDateTimeLocal(newTempShift.endTime)}
-                                                    onChange={(e) => setNewTempShift(prev => ({
-                                                        ...prev,
-                                                        endTime: new Date(e.target.value)
-                                                    }))}
-                                                    disabled={isLoading}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex space-x-2 justify-end">
-                                            <Button
-                                                onClick={handleSaveTempShift}
-                                                disabled={isLoading}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                {createTempShiftMutation.isPending && (
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                )}
-                                                Save
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setIsAddingTemp(false)}
-                                                disabled={isLoading}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
                                     </div>
                                 )}
+                            </TabsContent>
+
+                            <TabsContent value="temporary" className="space-y-6">
+                                <Card className="border-dashed border-2 border-blue-300 bg-blue-50/50">
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Plus className="h-5 w-5 text-blue-600" />
+                                            Add Temporary Shift
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {!isAddingTemp ? (
+                                            <Button
+                                                onClick={() => setIsAddingTemp(true)}
+                                                disabled={isLoading}
+                                                className="w-full gap-2"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Schedule Temporary Shift
+                                            </Button>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="temp-start" className="flex items-center gap-2">
+                                                            <Timer className="h-4 w-4" />
+                                                            Start Date & Time
+                                                        </Label>
+                                                        <Input
+                                                            id="temp-start"
+                                                            type="datetime-local"
+                                                            value={formatDateTimeLocal(newTempShift.startTime)}
+                                                            min={formatDateTimeLocal(new Date())}
+                                                            onChange={(e) => setNewTempShift(prev => ({
+                                                                ...prev,
+                                                                startTime: new Date(e.target.value)
+                                                            }))}
+                                                            disabled={isLoading}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="temp-end" className="flex items-center gap-2">
+                                                            <Timer className="h-4 w-4" />
+                                                            End Date & Time
+                                                        </Label>
+                                                        <Input
+                                                            id="temp-end"
+                                                            type="datetime-local"
+                                                            value={formatDateTimeLocal(newTempShift.endTime)}
+                                                            onChange={(e) => setNewTempShift(prev => ({
+                                                                ...prev,
+                                                                endTime: new Date(e.target.value)
+                                                            }))}
+                                                            disabled={isLoading}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button
+                                                        onClick={handleSaveTempShift}
+                                                        disabled={isLoading}
+                                                        className="gap-2"
+                                                    >
+                                                        {createTempShiftMutation.isPending ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <Save className="h-4 w-4" />
+                                                        )}
+                                                        Save Shift
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => setIsAddingTemp(false)}
+                                                        disabled={isLoading}
+                                                        className="gap-2"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
                                 {isLoadingTempShifts ? (
-                                    <div className="flex justify-center items-center p-4">
-                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    <div className="flex justify-center items-center py-12">
+                                        <div className="text-center">
+                                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600 mb-2" />
+                                            <p className="text-gray-600">Loading temporary shifts...</p>
+                                        </div>
                                     </div>
                                 ) : tempShifts.length === 0 ? (
-                                    <div className="text-center py-4 text-gray-500">
-                                        No temporary shifts scheduled
-                                    </div>
+                                    <Card className="border-gray-200">
+                                        <CardContent className="flex flex-col items-center justify-center py-12">
+                                            <CalendarDays className="h-12 w-12 text-gray-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No temporary shifts</h3>
+                                            <p className="text-gray-600 text-center max-w-md">
+                                                Temporary shifts will appear here when scheduled. These are perfect for covering
+                                                special events or additional coverage needs.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
                                 ) : (
-                                    <div className="overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead>Start Time</TableHead>
-                                                    <TableHead>End Time</TableHead>
-                                                    <TableHead>Actions</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {tempShifts.map((shift: TempShift, index: number) => {
-                                                    const startDate = shift.startTime ? new Date(shift.startTime) : null;
-                                                    const endDate = shift.endTime ? new Date(shift.endTime) : null;
+                                    <div className="space-y-3">
+                                        {tempShifts.map((shift: TempShift, index: number) => {
+                                            const startDate = shift.startTime ? new Date(shift.startTime) : null;
+                                            const endDate = shift.endTime ? new Date(shift.endTime) : null;
 
-                                                    // Convert GMT back to original local time for display
-                                                    const getOriginalTime = (date: Date) => {
-                                                        // Since we stored GMT, but user intended local time,
-                                                        // we need to add back the timezone offset
-                                                        const originalTime = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-                                                        return originalTime;
-                                                    };
+                                            // Convert GMT back to original local time for display
+                                            const getOriginalTime = (date: Date) => {
+                                                // Since we stored GMT, but user intended local time,
+                                                // we need to add back the timezone offset
+                                                const originalTime = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+                                                return originalTime;
+                                            };
 
-                                                    const displayStartDate = startDate ? getOriginalTime(startDate) : null;
-                                                    const displayEndDate = endDate ? getOriginalTime(endDate) : null;
+                                            const displayStartDate = startDate ? getOriginalTime(startDate) : null;
+                                            const displayEndDate = endDate ? getOriginalTime(endDate) : null;
 
-                                                    return (
-                                                        <TableRow key={shift.id || `temp-shift-${index}`}>
-                                                            <TableCell>
-                                                                {displayStartDate ? displayStartDate.toLocaleDateString() : '-'}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {displayStartDate ? displayStartDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {displayEndDate ? displayEndDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                                            </TableCell>
-                                                            <TableCell>
+                                            const isUpcoming = displayStartDate && displayStartDate > new Date();
+                                            const isActive = displayStartDate && displayEndDate &&
+                                                new Date() >= displayStartDate && new Date() <= displayEndDate;
+
+                                            return (
+                                                <Card key={shift.id || `temp-shift-${index}`}
+                                                    className={`transition-all duration-200 hover:shadow-md ${isActive ? 'bg-green-50 border-green-200' :
+                                                            isUpcoming ? 'bg-blue-50 border-blue-200' :
+                                                                'bg-gray-50 border-gray-200'
+                                                        }`}>
+                                                    <CardContent className="p-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`p-2 rounded-lg ${isActive ? 'bg-green-100' :
+                                                                        isUpcoming ? 'bg-blue-100' :
+                                                                            'bg-gray-100'
+                                                                    }`}>
+                                                                    <CalendarDays className={`h-4 w-4 ${isActive ? 'text-green-600' :
+                                                                            isUpcoming ? 'text-blue-600' :
+                                                                                'text-gray-600'
+                                                                        }`} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-medium text-gray-900">
+                                                                        {displayStartDate ? displayStartDate.toLocaleDateString('en-US', {
+                                                                            weekday: 'long',
+                                                                            year: 'numeric',
+                                                                            month: 'long',
+                                                                            day: 'numeric'
+                                                                        }) : '-'}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                                                                        <Clock className="h-3 w-3" />
+                                                                        <span>
+                                                                            {displayStartDate ? displayStartDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                                            {' - '}
+                                                                            {displayEndDate ? displayEndDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3">
+                                                                <Badge variant={isActive ? 'default' : isUpcoming ? 'secondary' : 'outline'}>
+                                                                    {isActive ? 'Active Now' : isUpcoming ? 'Upcoming' : 'Past'}
+                                                                </Badge>
                                                                 <Button
                                                                     variant="destructive"
                                                                     size="sm"
@@ -571,23 +703,26 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                                                                         }
                                                                     }}
                                                                     disabled={isLoading || !shift.id}
+                                                                    className="gap-1"
                                                                 >
                                                                     {deleteTempShiftMutation.isPending ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                                    ) : null}
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    )}
                                                                     Delete
                                                                 </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })}
                                     </div>
                                 )}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
                 </DialogContent>
             </Dialog>
         </>

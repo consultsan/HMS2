@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { doctorApi } from "@/api/doctor";
+import { HospitalStaff, Appointment } from "@/types/types";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -20,31 +22,6 @@ import {
 import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
 
-interface Doctor {
-    id: string;
-    name: string;
-    specialisation: string;
-    role: 'DOCTOR';
-    status: 'ACTIVE' | 'INACTIVE';
-}
-
-interface Appointment {
-    id: string;
-    patientId: string;
-    doctorId: string;
-    visitType: 'OPD' | 'IPD' | 'EMERGENCY';
-    scheduledAt: string;
-    status: string;
-    patient: {
-        name: string;
-        id: string;
-        phone: string;
-    };
-    doctor: {
-        name: string;
-        id: string;
-    };
-}
 
 interface UpdateAppointmentProps {
     appointment: Appointment;
@@ -64,17 +41,15 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
             timeZone: 'UTC'
         });
     });
-    console.log(appointment)
     const [selectedSlotId, setSelectedSlotId] = useState<string>("");
     const [partiallyBooked, setPartiallyBooked] = useState(false);
 
     const queryClient = useQueryClient();
 
-    const { data: doctors } = useQuery<Doctor[]>({
+    const { data: doctors } = useQuery<HospitalStaff[]>({
         queryKey: ["doctors"],
         queryFn: async () => {
-            const response = await api.get('/api/doctor/get-by-hospital');
-            return response.data?.data ?? [];
+            return await doctorApi.getDoctorsByHospital();
         },
     });
 
@@ -85,8 +60,8 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
             await api.patch(`/api/appointment/update-appointment-schedule/${appointment.id}`, data);
 
             // Then update the doctor's time slot
-            await api.patch('/api/doctor/update-time-slot-by-appointment-id', {
-                timeSlot: data.scheduledAt,
+            await doctorApi.updateTimeSlotByAppointmentId({
+                timeSlot: new Date(data.scheduledAt),
                 appointmentId: appointment.id
             });
         },
@@ -144,7 +119,7 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
                     <div className="p-4 bg-gray-50 rounded-lg">
                         <h3 className="font-medium text-gray-900">Patient Information</h3>
                         <p className="text-sm text-gray-600 mt-1">
-                            {appointment.patient.name} • {appointment.patient.phone}
+                            {appointment?.patient?.name} • {appointment?.patient?.phone}
                         </p>
                     </div>
 
@@ -158,7 +133,7 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
                             <SelectContent>
                                 {doctors?.map((doctor) => (
                                     <SelectItem key={doctor.id} value={doctor.id}>
-                                        {doctor.name} ({doctor.specialisation})
+                                        {doctor.name} ({doctor.specialisation || 'No specialisation'})
                                     </SelectItem>
                                 ))}
                             </SelectContent>

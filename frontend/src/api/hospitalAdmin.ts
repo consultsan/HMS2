@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import { Department, Doctor, OpdFee, Staff, StaffFormData, TempShift, HospitalStaff } from '@/types/types';
 import { Shift } from '@/types/types';
+import { HospitalAdminKpis } from '@/types/kpis';
 
 interface ApiResponse<T> {
     data: T;
@@ -48,4 +49,7 @@ export const hospitalAdminApi = {
         api.post<ApiResponse<TempShift>>('/api/hospital-admin/shift/create-temp', data).then(res => res.data.data),
     deleteTempShift: (id: string) =>
         api.delete<ApiResponse<void>>(`/api/hospital-admin/shift/temp-shift/${id}`).then(res => res.data.data),
+
+    // KPIs
+    getKpis: () => api.get<ApiResponse<HospitalAdminKpis>>('/api/hospital-admin/kpis').then(res => res.data.data),
 };

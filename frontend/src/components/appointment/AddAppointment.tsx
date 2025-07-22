@@ -21,7 +21,8 @@ import { Search, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
 import { billingApi } from "@/api/billing";
-import { HospitalStaff } from "@/types/types";
+import { HospitalStaff, VisitType } from "@/types/types";
+import { appointmentApi } from "@/api/appointment";
 
 interface Patient {
     id: string;
@@ -81,11 +82,11 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             selectedSlotId: string;
             partiallyBooked: boolean;
         }) => {
-            const appointmentResponse = await api.post('/api/appointment/book', {
+            const appointmentResponse = await appointmentApi.bookAppointment({
                 patientId: data.patientId,
                 doctorId: data.doctorId,
-                visitType: data.visitType,
-                scheduledAt: data.scheduledAt
+                visitType: data.visitType as VisitType,
+                scheduledAt: new Date(data.scheduledAt)
             });
 
             // Handle slot booking
@@ -131,8 +132,6 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         setSelectedSlotId(slotId);
         setPartiallyBooked(isPartiallyBooked);
     };
-
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

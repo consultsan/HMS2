@@ -20,7 +20,7 @@ interface ViewAppointmentBillProps {
     appointmentId: string;
     isOpen: boolean;
     ifpayment: () => void;
-    onClose: ()     => void;
+    onClose: () => void;
 }
 
 interface PendingLabTest {
@@ -40,7 +40,10 @@ export default function ViewAppointmentBill({
     isOpen,
     onClose
 }: ViewAppointmentBillProps) {
+    // Early return BEFORE any hooks
     if (!appointmentId || !isOpen) return null;
+
+    // All hooks must be called in the same order every time
     const [pendingLabTests, setPendingLabTests] = useState<PendingLabTest[]>([]);
     const [labTestDiscounts, setLabTestDiscounts] = useState<Record<string, { type: 'percentage' | 'custom', value: number }>>({});
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -53,22 +56,9 @@ export default function ViewAppointmentBill({
     const queryClient = useQueryClient();
     const [bill, setBill] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [billNotFound, setBillNotFound] = useState(false);
 
-    const fetchBill = async () => {
-        setIsLoading(true);
-        const response = await billingApi.getAppointmentBilling(appointmentId);
-        setBill(response.data?.data);
-        setIsLoading(false);
-    }
-    // Fetch bill details
-    useEffect(() => {
-        fetchBill();
-    }, [appointmentId]);
-
-
-    const totalDiscount = bill?.billItems.reduce((acc: number, item: any) => acc + item.discountAmount, 0);
-    const totalAmountWithoutDiscount = bill?.billItems.reduce((acc: number, item: any) => acc + item.unitPrice * item.quantity, 0);
-    // Fetch lab tests for this appointment
+    // Fetch lab tests for this appointment - ALL hooks must be called before conditional logic
     const { data: labTests, isLoading: labTestsLoading, refetch: refetchLabTests } = useQuery<any[]>({
         queryKey: ["appointment-lab-tests", appointmentId],
         queryFn: async () => {
@@ -77,6 +67,94 @@ export default function ViewAppointmentBill({
         },
         enabled: !!appointmentId && isOpen,
     });
+
+    const fetchBill = async () => {
+        setIsLoading(true);
+        setBillNotFound(false);
+        try {
+            const response = await billingApi.getAppointmentBilling(appointmentId);
+            const billData = response.data?.data;
+            setBill(billData);
+            setBillNotFound(!billData);
+        } catch (error: any) {
+            console.error('Error fetching bill:', error);
+            setBill(null);
+            setBillNotFound(true);
+            // Don't show error toast for 404/not found cases
+            if (error.response?.status !== 404) {
+                toast.error('Failed to fetch bill details');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    // Fetch bill details
+    useEffect(() => {
+        fetchBill();
+    }, [appointmentId]);
+
+    // Safe calculations with proper null checks
+    const totalDiscount = bill?.billItems?.reduce((acc: number, item: any) => acc + (item.discountAmount || 0), 0) || 0;
+    const totalAmountWithoutDiscount = bill?.billItems?.reduce((acc: number, item: any) => acc + ((item.unitPrice || 0) * (item.quantity || 0)), 0) || 0;
+
+    // Loading state
+    if (isLoading || labTestsLoading) {
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                            View Appointment Bill
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span className="ml-2">Loading bill details...</span>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
+    // No bill found state
+    if (billNotFound || !bill) {
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                            <Receipt className="h-5 w-5" />
+                            No Bill Found
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <Receipt className="h-16 w-16 text-gray-300 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-700 mb-2">No Bill Found</h3>
+                        <p className="text-gray-500 text-center mb-6">
+                            No bill has been created for this appointment yet.
+                        </p>
+                        {pendingLabTests.length > 0 && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 w-full max-w-md">
+                                <p className="text-blue-800 text-sm text-center">
+                                    <FlaskConical className="h-4 w-4 inline mr-1" />
+                                    {pendingLabTests.length} pending lab test{pendingLabTests.length !== 1 ? 's' : ''} available
+                                </p>
+                            </div>
+                        )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                            className="mt-4"
+                        >
+                            Close
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     // Add bill item mutation
     const addBillItemMutation = useMutation({
@@ -226,7 +304,7 @@ export default function ViewAppointmentBill({
         if (discountAmount > basePrice) {
             toast.error('Discount amount cannot be greater than the base price');
             return;
-        }   
+        }
 
         try {
             await addBillItemMutation.mutateAsync({
@@ -393,12 +471,12 @@ export default function ViewAppointmentBill({
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-gray-800">{bill.billNumber}</h3>
-                                    <p className="text-sm text-gray-600">Generated on {formatDate(bill.billDate)}</p>
+                                    <h3 className="text-sm font-semibold text-gray-800">{bill?.billNumber}</h3>
+                                    <p className="text-sm text-gray-600">Generated on {formatDate(bill?.billDate)}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(bill.status)}`}>
-                                        {bill.status}
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(bill?.status)}`}>
+                                        {bill?.status}
                                     </span>
                                     <Button
                                         onClick={handleDownloadBill}
@@ -419,11 +497,11 @@ export default function ViewAppointmentBill({
 
                             {/* Patient and Hospital Info */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {bill.patient && (
+                                {bill?.patient && (
                                     <div className="flex items-center gap-3">
                                         <User className="h-4 w-4 text-gray-500" />
                                         <div>
-                                            <div className="font-medium">{bill.patient.name}</div>
+                                            <div className="font-medium">{bill?.patient.name}</div>
                                         </div>
                                     </div>
                                 )}
@@ -490,34 +568,34 @@ export default function ViewAppointmentBill({
                                                             </div>
                                                             {currentDiscount?.type === 'custom' ? (
                                                                 <div>
-                                                                <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-custom-discount-${labTest.id}`}>Custom Discount Amount</label>
-                                                                <Input
-                                                                    id={`labtest-custom-discount-${labTest.id}`}
-                                                                    type="number"
-                                                                    placeholder={`Max: ₹${labTest.labTest.charge}`}
-                                                                    min="0"
-                                                                    max={labTest.labTest.charge}
-                                                                    value={currentDiscount?.type === 'custom' ? currentDiscount.value : ''}
-                                                                    onChange={e => handleDiscountChange(labTest.id, 'custom', Number(e.target.value))}
-                                                                    className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'custom' && (currentDiscount.value < 0 || currentDiscount.value > labTest.labTest.charge)) ? 'border-red-500' : ''}`}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                />
-                                                            </div>
-                                                            ): (
+                                                                    <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-custom-discount-${labTest.id}`}>Custom Discount Amount</label>
+                                                                    <Input
+                                                                        id={`labtest-custom-discount-${labTest.id}`}
+                                                                        type="number"
+                                                                        placeholder={`Max: ₹${labTest.labTest.charge}`}
+                                                                        min="0"
+                                                                        max={labTest.labTest.charge}
+                                                                        value={currentDiscount?.type === 'custom' ? currentDiscount.value : ''}
+                                                                        onChange={e => handleDiscountChange(labTest.id, 'custom', Number(e.target.value))}
+                                                                        className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'custom' && (currentDiscount.value < 0 || currentDiscount.value > labTest.labTest.charge)) ? 'border-red-500' : ''}`}
+                                                                        disabled={addBillItemMutation.isPending}
+                                                                    />
+                                                                </div>
+                                                            ) : (
                                                                 <div>
-                                                                <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-discount-percentage-${labTest.id}`}>Discount Percentage</label>
-                                                                <Input
-                                                                    id={`labtest-discount-percentage-${labTest.id}`}
-                                                                    type="number"
-                                                                    placeholder="e.g. 10"
-                                                                    min="0"
-                                                                    max="100"
-                                                                    value={currentDiscount?.type === 'percentage' ? currentDiscount.value : ''}
-                                                                    onChange={e => handleDiscountChange(labTest.id, 'percentage', Number(e.target.value))}
-                                                                    className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'percentage' && (currentDiscount.value < 0 || currentDiscount.value > 100)) ? 'border-red-500' : ''}`}
-                                                                    disabled={addBillItemMutation.isPending}
-                                                                />
-                                                            </div>
+                                                                    <label className="block text-xs text-gray-500 mb-1" htmlFor={`labtest-discount-percentage-${labTest.id}`}>Discount Percentage</label>
+                                                                    <Input
+                                                                        id={`labtest-discount-percentage-${labTest.id}`}
+                                                                        type="number"
+                                                                        placeholder="e.g. 10"
+                                                                        min="0"
+                                                                        max="100"
+                                                                        value={currentDiscount?.type === 'percentage' ? currentDiscount.value : ''}
+                                                                        onChange={e => handleDiscountChange(labTest.id, 'percentage', Number(e.target.value))}
+                                                                        className={`text-xs h-8 border-gray-300 rounded-md ${(currentDiscount?.type === 'percentage' && (currentDiscount.value < 0 || currentDiscount.value > 100)) ? 'border-red-500' : ''}`}
+                                                                        disabled={addBillItemMutation.isPending}
+                                                                    />
+                                                                </div>
                                                             )}
                                                         </div>
 
@@ -594,7 +672,7 @@ export default function ViewAppointmentBill({
                             <div className="flex items-center gap-3 text-l mb-2">
                                 {/* Final Price */}
                                 <span className="font-bold text-xl text-black">
-                                    ₹{bill.totalAmount.toFixed(2)}
+                                    ₹{bill?.totalAmount.toFixed(2)}
                                 </span>
                                 {/* Original Price with strikethrough, only if discount applied */}
                                 {totalDiscount > 0 && (
@@ -612,7 +690,7 @@ export default function ViewAppointmentBill({
                             <div className="mt-4 space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span>Amount Paid:</span>
-                                    <span className="font-medium text-green-600">₹{bill.paidAmount.toFixed(2)}</span>
+                                    <span className="font-medium text-green-600">₹{bill?.paidAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="border-t pt-2 flex justify-between font-semibold text-lg">
                                     <span>Amount Due:</span>

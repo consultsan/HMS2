@@ -15,6 +15,10 @@ import {
 	deleteParameter,
 
 	// Lab Test Order Controllers
+	createLabOrder,
+	createExternalLabOrder,
+	getInternalLabOrderByHospital,
+	getExternalLabOrderByHospital,
 	orderLabTest,
 	getOrderedTestsByAppointment,
 	getOrderedTestById,
@@ -38,7 +42,8 @@ import {
 
 	// Lab Test Billing Controllers
 	generateLabTestBill,
-	getLabTestBilling
+	getLabTestBilling,
+	updateLabOrder
 } from "../controllers/lab.controller";
 import { upload } from "../services/upload.service";
 
@@ -58,11 +63,16 @@ router.get("/parameters/:id", getParameterById);
 router.patch("/parameters/:id", updateParameter);
 router.delete("/parameters/:id", deleteParameter);
 
-// Lab Test Order Routes
+// Lab Test Order Routes	
+router.post("/lab-order", createLabOrder);
+router.post("/external-lab-order", createExternalLabOrder);
+router.get("/lab-orders-by-hospital", getInternalLabOrderByHospital);
+router.get("/external-lab-orders-by-hospital", getExternalLabOrderByHospital);
+router.patch("/lab-orders/:id", updateLabOrder); // Changed to lab-orders for LabOrder updates
 router.post("/orders", orderLabTest);
 router.get("/appointments/:appointmentId/orders", getOrderedTestsByAppointment);
 router.get("/orders/:id", getOrderedTestById);
-router.patch("/orders/:id", updateLabTestOrder);
+router.patch("/orders/:id", updateLabTestOrder); // Keep as orders for AppointmentLabTest updates
 router.delete("/orders/:id", cancelLabTestOrder);
 router.patch("/orders/:id/mark-external", markTestSentExternal);
 router.patch("/orders/:id/attach-report", attachReportToOrder);

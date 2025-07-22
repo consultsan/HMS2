@@ -310,8 +310,9 @@ model Patient {
   bills               Bill[]
   insurances          Insurance[]
 
-  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
+  LabOrder   LabOrder[]
 
   @@index([hospitalId])
   @@index([patientUniqueId])
@@ -368,10 +369,40 @@ model Appointment {
 
   labTests AppointmentLabTest[]
   bills    Bill[]
+  LabOrder LabOrder[]
 
   @@index([patientId])
   @@index([doctorId])
   @@index([hospitalId])
+}
+
+/// — Lab order to group multiple lab tests ordered together —
+model LabOrder {
+  id            String       @id @default(uuid())
+  patient       Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId     String
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  appointmentId String?
+  orderedBy     String? // Name of the person who ordered (doctor/receptionist)
+  orderDate     DateTime     @default(now())
+  notes         String? // Additional notes for the entire order
+  urgentOrder   Boolean      @default(false)
+  status        String       @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Optional billing relationship
+  bill   Bill?   @relation(fields: [billId], references: [id])
+  billId String?
+
+  // Related lab tests
+  appointmentLabTests AppointmentLabTest[]
+
+  @@index([patientId])
+  @@index([appointmentId])
+  @@index([orderDate])
+  @@index([status])
+  @@index([billId])
 }
 
 /// — Static master list of all lab tests conducted —
@@ -437,10 +468,13 @@ model AppointmentLabTest {
   results     AppointmentLabTestResult[]
   attachments AppointmentLabTestAttachment[]
   billItems   BillItem[]
+  LabOrder    LabOrder?                      @relation(fields: [labOrderId], references: [id])
+  labOrderId  String?
 
   @@index([appointmentId])
   @@index([labTestId])
   @@index([status])
+  @@index([labOrderId])
 }
 
 /// — One row per (ordered test × parameter) with the actual measured value —
@@ -584,6 +618,7 @@ model Bill {
   payments      Payment[]
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
   appointmentId String?
+  labOrders     LabOrder[]
 
   @@index([patientId])
   @@index([hospitalId])
