@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { LabTest, LabTestParameter, AppointmentLabTest, AppointmentLabTestResult } from '@/types/types';
+import { LabTest, LabTestParameter, AppointmentLabTest, AppointmentLabTestResult, LabOrder, LabOrderStatus } from '@/types/types';
 
 export const labApi = {
     // Lab Test APIs
@@ -17,6 +17,11 @@ export const labApi = {
     deleteParameter: (id: string) => api.delete(`/api/lab/parameters/${id}`),
 
     // Lab Test Order APIs
+    createLabOrder: (labOrder: { patientId: string; appointmentId?: string; appointmentLabTestIds: string[]; notes?: string; urgentOrder?: boolean }) => api.post('/api/lab/lab-order', labOrder),
+    createExternalLabOrder: (labOrder: { patientId: string; appointmentId?: string; labTestIds: string[]; notes?: string; urgentOrder?: boolean }) => api.post('/api/lab/external-lab-order', labOrder),
+    getInternalLabOrdersByHospital: (hospitalId: string) => api.get(`/api/lab/lab-orders-by-hospital?hospitalId=${hospitalId}`),
+    getExternalLabOrdersByHospital: (hospitalId: string) => api.get(`/api/lab/external-lab-orders-by-hospital?hospitalId=${hospitalId}`),
+    updateLabOrder: (id: string, data: { status?: LabOrderStatus; notes?: string; orderedBy?: string; orderDate?: Date; urgentOrder?: boolean; billId?: string }) => api.patch(`/api/lab/lab-orders/${id}`, data),
     orderLabTest: (order: Partial<AppointmentLabTest>) => api.post('/api/lab/orders', order),
     getOrderedTestsByAppointment: (appointmentId: string) => api.get(`/api/lab/appointments/${appointmentId}/orders`),
     getOrderedTestById: (id: string) => api.get(`/api/lab/orders/${id}`),

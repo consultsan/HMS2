@@ -20,7 +20,7 @@ router.patch(
 router.delete(
 	"/staff/delete/:id",
 	staffController.deleteStaff.bind(staffController)
-); 
+);
 router.get("/staff/fetch", hospitalController.getStaffByHospital.bind(hospitalController));
 router.get("/staff/fetch/:id", shiftController.getStaffById.bind(shiftController));
 router.post("/shift/create", shiftController.createShift.bind(shiftController));
@@ -64,4 +64,5 @@ router.post("/shift/create-temp", shiftController.createTempShift.bind(shiftCont
 router.get("/shift/temp-shift/:staffId", shiftController.getTempShiftByStaff.bind(shiftController));
 router.get("/shift/temp-shift", shiftController.getTempShiftsByHospital.bind(shiftController));
 router.delete("/shift/temp-shift/delete/:id", shiftController.deleteTempShift.bind(shiftController));
+router.get("/kpis", hospitalController.getHospitalKpis.bind(hospitalController));
 export default router;

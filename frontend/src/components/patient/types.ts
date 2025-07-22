@@ -51,7 +51,16 @@ export interface Appointment {
         name: string;
         id: string;
     };
+    bills?: Bill[];
 }
+
+export interface Bill {
+    id: string;
+    amount: number;
+    status: 'PENDING' | 'PAID' | 'CANCELLED';
+    createdAt: Date;
+    updatedAt: Date;
+}   
 
 
 export interface Surgery {

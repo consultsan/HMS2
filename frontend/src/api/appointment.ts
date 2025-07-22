@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { Appointment, AppointmentStatus, Surgery, SurgicalStatus, AppointmentDateQuery, AppointmentAttachType, VisitType } from '@/types/types';
+import { Appointment, AppointmentStatus, Surgery, SurgicalStatus, AppointmentDateQuery, AppointmentAttachType, VisitType, ApiResponse } from '@/types/types';
 
 // Upload attachment interface for API calls
 interface UploadAttachmentData {
@@ -17,8 +17,8 @@ export const appointmentApi = {
 
     // Book a new appointment
     bookAppointment: (appointment: Partial<Appointment>) =>
-        api.post('/api/appointments/book', appointment),
-
+        api.post('/api/appointment/book', appointment),
+ 
     // Upload attachment for appointment 
     uploadAttachment: (data: UploadAttachmentData) => {
         const formData = new FormData();
@@ -49,7 +49,7 @@ export const appointmentApi = {
 
     // Get appointments by hospital
     getAppointmentsByHospital: () =>
-        api.get('/api/appointment/get-by-hospital'),
+        api.get<ApiResponse<Appointment[]>>('/api/appointment/get-by-hospital'),
 
     getAppointmentsByHospitalAndVisitType: (visitType: VisitType) =>
         api.get(`/api/appointment/get-by-hospital?visitType=${visitType}`),

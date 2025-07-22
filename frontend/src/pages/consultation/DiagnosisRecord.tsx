@@ -15,7 +15,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import ViewTestResult from "../lab/ViewTestResult";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { appointmentApi } from '@/api/appointment';
 import { calculateAge } from '@/utils/dateUtils';
@@ -28,18 +28,17 @@ function DiagnosisRecord() {
     const [selectedTestForView, setSelectedTestForView] = useState<{ id: string, name: string } | null>(null);
     const [isViewTestResultDialogOpen, setIsViewTestResultDialogOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
-    const [diagnosisRecord, setDiagnosisRecord] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchDiagnosisRecord = async () => {
-            setIsLoading(true);
+    // Fetch diagnosis record using useQuery
+    const { data: diagnosisRecord, isLoading } = useQuery<any>({
+        queryKey: ['diagnosis-record', appointmentId],
+        queryFn: async () => {
+            if (!appointmentId) throw new Error('Appointment ID is required');
             const response = await api.get(`/api/diagnosis/get-by-appointment/${appointmentId}`);
-            setDiagnosisRecord(response.data.data);
-            setIsLoading(false);
-        }
-        fetchDiagnosisRecord();
-    }, [appointmentId]);
+            return response.data.data;
+        },
+        enabled: !!appointmentId,
+    });
 
     const { data: labTests } = useQuery<any>({
         queryKey: ['lab-tests', appointmentId],
@@ -363,7 +362,16 @@ function DiagnosisRecord() {
                             <span className="font-medium text-gray-700 w-32">FollowUps:</span>
                             <span className="text-gray-900">
                                 {diagnosisRecord.followUpAppointment
-                                    ? format(new Date(diagnosisRecord.followUpAppointment.scheduledAt), 'dd MMMM yyyy, hh:mm a')
+                                    ? new Date(diagnosisRecord.followUpAppointment.scheduledAt)
+                                        .toLocaleString('en-IN', {
+                                            day: '2-digit',
+                                            month: 'long',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: true,
+                                            timeZone: 'UTC',
+                                        })
                                     : 'No Follow-Up Required'
                                 }
                             </span>
@@ -375,8 +383,10 @@ function DiagnosisRecord() {
                         <div className="flex">
                             <span className="font-medium text-gray-700 w-32">Surgical Status:</span>
                             <span className="text-gray-900">
-                                {surgicalInfo && surgicalInfo.status !== 'NOT_REQUIRED'
-                                    ? `${surgicalInfo.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'} ${surgicalInfo.scheduledAt ? `- ${format(new Date(surgicalInfo.scheduledAt), 'dd MMM yyyy')}` : ''}`
+                                {surgicalInfo && surgicalInfo.length > 0 && surgicalInfo[0].status !== 'NOT_REQUIRED'
+                                    ? surgicalInfo.map((surgery: any, index: number) => (
+                                        `${surgery.category} - ${surgery.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'}${surgery.scheduledAt ? ` (${format(new Date(surgery.scheduledAt), 'dd MMM yyyy')})` : ''}`
+                                    )).join(', ')
                                     : 'Non-Surgical Treatment'
                                 }
                             </span>

@@ -91,7 +91,14 @@ export class PatientRepository {
 	async findByName(data: Pick<Patient, "name" | "hospitalId">) {
 		try {
 			return await prisma.patient.findMany({
-				where: { hospitalId: data.hospitalId, name: data.name }
+				where: {
+					hospitalId: data.hospitalId,
+					name: {
+						contains: data.name,
+						mode: 'insensitive'
+					}
+					
+				}
 			});
 		} catch (error: any) {
 			throw new AppError(error.message);

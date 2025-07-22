@@ -191,6 +191,239 @@ const deleteParameter = async (req: Request, res: Response) => {
 };
 
 // Lab Test Order Controllers
+const createLabOrder = async (req: Request, res: Response) => {
+	try {
+		const { patientId, appointmentId, appointmentLabTestIds, notes, urgentOrder } = req.body;
+
+		// Create the lab order first
+		const labOrder = await prisma.labOrder.create({
+			data: {
+				patientId,
+				appointmentId,
+				notes,
+				urgentOrder
+			}
+		});
+
+		// Update the appointment lab tests to link them to this lab order
+		if (appointmentLabTestIds && appointmentLabTestIds.length > 0) {
+			await prisma.appointmentLabTest.updateMany({
+				where: {
+					id: {
+						in: appointmentLabTestIds
+					}
+				},
+				data: {
+					labOrderId: labOrder.id
+				}
+			});
+		}
+
+		// Fetch the complete lab order with all relations
+		const completeLabOrder = await prisma.labOrder.findUnique({
+			where: { id: labOrder.id },
+			include: {
+				appointment: true,
+				patient: true,
+				appointmentLabTests: {
+					include: {
+						labTest: true
+					}
+				}
+			}
+		});
+
+		res
+			.status(201)
+			.json(new ApiResponse("Lab order created successfully", completeLabOrder));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
+
+const createExternalLabOrder = async (req: Request, res: Response) => {
+	try {
+		const { patientId, appointmentId, labTestIds, notes, urgentOrder } = req.body;
+
+		if (!patientId || !labTestIds || !Array.isArray(labTestIds) || labTestIds.length === 0) {
+			return res.status(400).json(new ApiResponse("Patient ID and lab test IDs are required", null));
+		}
+
+		// Create appointment lab test orders for each lab test (external referral)
+		const createdLabTests = await Promise.all(
+			labTestIds.map((labTestId: string) =>
+				prisma.appointmentLabTest.create({
+					data: {
+						patientId,
+						appointmentId: appointmentId || null,
+						labTestId,
+						referredFromOutside: true,
+						status: "PENDING"
+					}
+				})
+			)
+		);
+
+		// Create a lab order to group these external tests
+		const labOrder = await prisma.labOrder.create({
+			data: {
+				patientId,
+				appointmentId: appointmentId || null,
+				orderedBy: "External Referral",
+				notes: notes || "External lab order",
+				urgentOrder: urgentOrder || false
+			}
+		});
+
+		// Link the created lab tests to the lab order
+		await prisma.appointmentLabTest.updateMany({
+			where: {
+				id: {
+					in: createdLabTests.map(test => test.id)
+				}
+			},
+			data: {
+				labOrderId: labOrder.id
+			}
+		});
+
+		// Fetch the complete lab order with all relations
+		const completeLabOrder = await prisma.labOrder.findUnique({
+			where: { id: labOrder.id },
+			include: {
+				appointment: true,
+				patient: true,
+				appointmentLabTests: {
+					include: {
+						labTest: true
+					}
+				}
+			}
+		});
+
+		res
+			.status(201)
+			.json(new ApiResponse("External lab order created successfully", completeLabOrder));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
+
+const updateLabOrder = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const { status, notes, orderedBy, orderDate, urgentOrder, billId } = req.body;
+
+		console.log('Attempting to update lab order:', id, 'with data:', { status, notes, orderedBy, orderDate, urgentOrder, billId });
+
+		// First check if the lab order exists
+		const existingLabOrder = await prisma.labOrder.findUnique({
+			where: { id }
+		});
+
+		if (!existingLabOrder) {
+			console.log('Lab order not found with ID:', id);
+			return res.status(404).json(new ApiResponse("Lab order not found", null));
+		}
+
+		console.log('Found existing lab order:', existingLabOrder.id);
+
+		const labOrder = await prisma.labOrder.update({
+			where: { id },
+			data: { status, notes, orderedBy, orderDate, urgentOrder, billId }
+		});
+
+		console.log('Successfully updated lab order:', labOrder.id);
+		res
+			.status(200)
+			.json(new ApiResponse("Lab order updated successfully", labOrder));
+	} catch (error: any) {
+		console.error('Error updating lab order:', error);
+
+		// Handle Prisma specific errors
+		if (error.code === 'P2025') {
+			return res.status(404).json(new ApiResponse("Lab order not found", null));
+		}
+
+		errorHandler(error, res);
+	}
+};
+
+const getInternalLabOrderByHospital = async (req: Request, res: Response) => {
+	try {
+		const { hospitalId } = req.user as { hospitalId: string };
+
+		// Get internal lab orders (those with appointments)
+		const labOrders = await prisma.labOrder.findMany({
+			where: {
+				OR: [
+					{ appointment: { hospitalId } },
+					{ patient: { hospitalId } }
+				],
+				appointmentId: { not: null } // Internal orders have appointments
+			},
+			include: {
+				appointment: {
+					include: {
+						patient: true,
+						doctor: {
+							select: {
+								id: true,
+								name: true
+							}
+						}
+					}
+				},
+				patient: true,
+				appointmentLabTests: {
+					include: {
+						labTest: true
+					}
+				}
+			},
+			orderBy: {
+				createdAt: "desc"
+			}
+		});
+
+		res
+			.status(200)
+			.json(new ApiResponse("Internal lab orders fetched successfully", labOrders));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
+
+const getExternalLabOrderByHospital = async (req: Request, res: Response) => {
+	try {
+		const { hospitalId } = req.user as { hospitalId: string };
+
+		// Get external lab orders (those without appointments or referred from outside)
+		const labOrders = await prisma.labOrder.findMany({
+			where: {
+				patient: { hospitalId },
+				appointmentId: null // External orders don't have appointments
+			},
+			include: {
+				patient: true,
+				appointmentLabTests: {
+					include: {
+						labTest: true
+					}
+				}
+			},
+			orderBy: {
+				createdAt: "desc"
+			}
+		});
+
+		res
+			.status(200)
+			.json(new ApiResponse("External lab orders fetched successfully", labOrders));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
 const orderLabTest = async (req: Request, res: Response) => {
 	try {
 		const {
@@ -750,6 +983,11 @@ export {
 	deleteParameter,
 
 	// Lab Test Order Controllers
+	createLabOrder,
+	createExternalLabOrder,
+	getInternalLabOrderByHospital,
+	getExternalLabOrderByHospital,
+	updateLabOrder,
 	orderLabTest,
 	getOrderedTestsByAppointment,
 	getOrderedTestsByPatient,

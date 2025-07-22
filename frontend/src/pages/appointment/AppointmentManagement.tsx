@@ -18,24 +18,9 @@ import UpdateAppointment from "@/components/appointment/UpdateAppointment";
 import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";
 import { useAuth } from "@/contexts/AuthContext";
 import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
-
-interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  visitType: 'OPD' | 'IPD' | 'EMERGENCY';
-  scheduledAt: string;
-  status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
-  patient: {
-    name: string;
-    id: string;
-    phone: string;
-  };
-  doctor: {
-    name: string;
-    id: string;
-  };
-}
+import ViewBill from "@/components/billing/ViewBill";
+import { appointmentApi } from "@/api/appointment";
+import { ApiResponse, Appointment } from "@/types/types";
 
 export default function AppointmentManagement() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
@@ -57,11 +42,11 @@ export default function AppointmentManagement() {
     return d1.toDateString() === d2.toDateString();
   };
 
-  const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<Appointment[]>({
+  const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<ApiResponse<Appointment[]>>({
     queryKey: ["appointments"],
     queryFn: async () => {
-      const response = await api.get('/api/appointment/get-by-hospital');
-      return response.data?.data ?? [];
+      const response = await appointmentApi.getAppointmentsByHospital();
+      return response.data;
     },
   });
 
@@ -83,14 +68,15 @@ export default function AppointmentManagement() {
     },
   });
 
-  const filteredAppointments = appointments?.filter(appointment => {
-    if (searchQuery) {
-      return appointment.patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        appointment.patient.phone.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    // Use date comparison
-    return isSameDay(appointment.scheduledAt, filterDate);
-  });
+  const filteredAppointments = appointments?.data;
+  // ?.filter((appointment: Appointment) => {
+  //   if (searchQuery) {
+  //     return appointment.patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //       appointment.patient.phone.toLowerCase().includes(searchQuery.toLowerCase());
+  //   }
+  //   // Use date comparison
+  //   return isSameDay(appointment.scheduledAt, filterDate);
+  // });
 
   if (appointmentsLoading) return <div>Loading...</div>;
   if (appointmentsError) return <div>Error loading data</div>;
@@ -112,8 +98,9 @@ export default function AppointmentManagement() {
     }
   };
 
-  const handleViewBill = (appointmentId: string) => {
-    setViewBillAppointmentId(appointmentId);
+  const handleViewBill = (appointment: Appointment) => {
+    console.log("appointment", appointment.bills);
+    setViewBillAppointmentId(appointment.bills?.[0]?.id || '');
   };
 
   return (
@@ -149,9 +136,9 @@ export default function AppointmentManagement() {
               <TableBody>
                 {filteredAppointments.map((appointment) => (
                   <TableRow key={appointment.id}>
-                    <TableCell className="font-medium">{appointment.patient.name}</TableCell>
-                    <TableCell>{appointment.doctor.name}</TableCell>
-                    <TableCell>{appointment.patient.phone}</TableCell>
+                    <TableCell className="font-medium">{appointment?.patient?.name}</TableCell>
+                    <TableCell>{appointment?.doctor?.name}</TableCell>
+                    <TableCell>{appointment?.patient?.phone}</TableCell>
                     <TableCell>{appointment.visitType}</TableCell>
                     <TableCell>
                       {new Date(appointment.scheduledAt).toLocaleString('en-GB', {
@@ -186,17 +173,17 @@ export default function AppointmentManagement() {
                         >
                           <Pencil className="w-4 h-4 text-gray-500" />
                         </button>
-                          {canViewBills && (
-                            <button
-                              onClick={() => handleViewBill(appointment.id)}
-                              className="p-1 hover:bg-gray-100 rounded-full"
-                              title="View Bill"
-                            >
-                              <Receipt className="w-4 h-4 text-blue-500" />
-                            </button>
+                        {canViewBills && (
+                          <button
+                            onClick={() => handleViewBill(appointment)}
+                            className="p-1 hover:bg-gray-100 rounded-full"
+                            title="View Bill"
+                          >
+                            <Receipt className="w-4 h-4 text-blue-500" />
+                          </button>
                         )}
-                        <ViewAppointmentLabtests appointmentId={appointment.id} />
-                        {appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
+                        <ViewAppointmentLabtests appointmentId={appointment?.id} />
+                        {appointment?.status !== 'CANCELLED' && appointment?.status !== 'DIAGNOSED' && appointment?.status !== 'PENDING' && (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
                             className="p-1 hover:bg-gray-100 rounded-full"
@@ -225,7 +212,7 @@ export default function AppointmentManagement() {
 
       {selectedAppointment && (
         <UpdateAppointment
-          appointment={selectedAppointment}
+          appointment={selectedAppointment as Appointment}
           isOpen={isUpdateDialogOpen}
           onClose={() => {
             setIsUpdateDialogOpen(false);
@@ -236,12 +223,17 @@ export default function AppointmentManagement() {
 
       {/* View Bill Dialog */}
       {viewBillAppointmentId && (
-        <ViewAppointmentBill
-          appointmentId={viewBillAppointmentId}
+        <ViewBill
+          billId={viewBillAppointmentId}
           isOpen={!!viewBillAppointmentId}
           onClose={() => setViewBillAppointmentId(null)}
-          ifpayment={()=>{}}
         />
+        // <ViewAppointmentBill
+        //   appointmentId={viewBillAppointmentId}
+        //   isOpen={!!viewBillAppointmentId}
+        //   onClose={() => setViewBillAppointmentId(null)}
+        //   ifpayment={()=>{}}
+        // />
       )}
     </div>
   );

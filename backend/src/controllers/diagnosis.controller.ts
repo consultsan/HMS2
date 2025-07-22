@@ -52,7 +52,8 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 
 				// Create lab test orders if any
 				if (labTests && labTests.length > 0) {
-					await Promise.all(
+					// Create individual lab test orders
+					const createdLabTests = await Promise.all(
 						labTests.map((test) =>
 							prisma.appointmentLabTest.create({
 								data: {
@@ -63,6 +64,29 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 							})
 						)
 					);
+
+					// Create a lab order to group these tests
+					const labOrder = await prisma.labOrder.create({
+						data: {
+							patientId: appointment.patientId,
+							appointmentId,
+							orderedBy: "Doctor",
+							notes: `Lab tests ordered during diagnosis: ${diagnosis}`,
+							urgentOrder: false
+						}
+					});
+
+					// Link the created lab tests to the lab order
+					await prisma.appointmentLabTest.updateMany({
+						where: {
+							id: {
+								in: createdLabTests.map(test => test.id)
+							}
+						},
+						data: {
+							labOrderId: labOrder.id
+						}
+					});
 				}
 
 				return record;

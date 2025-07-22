@@ -64,7 +64,8 @@ export class AppointmentController {
 					include: {
 						patient: true,
 						attachments: true,
-						vitals: true
+						vitals: true,
+						bills: true
 					},
 					orderBy: {
 						scheduledAt: "desc"
@@ -98,7 +99,8 @@ export class AppointmentController {
 						appointment: {
 							include: {
 								patient: true,
-								doctor: true
+								doctor: true,
+								bills: true
 							}
 						}
 					}
@@ -198,7 +200,8 @@ export class AppointmentController {
 					include: {
 						doctor: true,
 						attachments: true,
-						vitals: true
+						vitals: true,
+						bills: true
 					}
 				});
 				res
@@ -297,7 +300,8 @@ export class AppointmentController {
 						diagnosisRecord: true,
 						vitals: true,
 						attachments: true,
-						doctor: true
+						doctor: true,
+						bills: true
 					}
 				});
 
@@ -316,16 +320,17 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { hospitalId } = req.user;
-				const { visitType } = req.query;
 				const appointments = await prisma.appointment.findMany({
-					where: { hospitalId, visitType: visitType as VisitType },
+					where: { hospitalId },
 					orderBy: {
 						scheduledAt: "desc"
 					},
 					include: {
 						patient: true,
 						doctor: true,
-						diagnosisRecord: true
+						diagnosisRecord: true,
+						bills: true,
+						labTests: true
 					}
 				});
 				res
@@ -414,7 +419,8 @@ export class AppointmentController {
 									}
 								}
 							}
-						}
+						},
+						bills: true
 					},
 					orderBy: {
 						scheduledAt: "asc"
@@ -847,6 +853,80 @@ export class AppointmentController {
 			}
 		} else {
 			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
+	async getDoctorKpis(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { doctorId } = req.params;
+				const hospitalId = req.user.hospitalId;
+				if (!hospitalId)
+					throw new AppError("User isn't linked to any hospital", 403);
+
+				// Get all appointments for the doctor
+				const appointments = await prisma.appointment.findMany({
+					where: { doctorId, hospitalId },
+					include: {
+						bills: {
+							include: {
+								billItems: true
+							}
+						},
+						diagnosisRecord: {
+							include: {
+								followUpAppointment: true
+							}
+						}
+					}
+				});
+
+				// Calculate KPIs
+				const totalAppointments = appointments.length;
+
+				// Count completed appointments (diagnosed status)
+				const totalCompletedAppointments = appointments.filter(
+					apt => apt.status === AppointmentStatus.DIAGNOSED
+				).length;
+
+				// Count cancelled appointments
+				const totalCancelledAppointments = appointments.filter(
+					apt => apt.status === AppointmentStatus.CANCELLED
+				).length;
+
+				// Calculate total revenue from bills
+				const totalRevenue = appointments.reduce((sum, apt) => {
+					const billTotal = apt.bills.reduce((billSum, bill) => billSum + bill.totalAmount, 0);
+					return sum + billTotal;
+				}, 0);
+
+				// Count unique patients
+				const uniquePatients = new Set(appointments.map(apt => apt.patientId));
+				const totalPatients = uniquePatients.size;
+
+				// Count follow-up appointments (appointments that have a diagnosis with follow-up)
+				const totalFollowUps = appointments.filter(
+					apt => apt.diagnosisRecord?.followUpAppointment
+				).length;
+
+				const kpis = {
+					id: `${doctorId}-${hospitalId}`, // Composite ID
+					doctorId,
+					hospitalId,
+					totalAppointments,
+					totalRevenue,
+					totalPatients,
+					totalFollowUps,
+					totalCancelledAppointments,
+					totalCompletedAppointments
+				};
+
+				res.status(200).json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
 	}
 }

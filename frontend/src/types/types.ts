@@ -133,6 +133,40 @@ export enum LabTestStatus {
     SENT_EXTERNAL = "SENT_EXTERNAL"
 }
 
+export interface LabOrder {
+    id: string;
+    status: LabOrderStatus;
+    patient: {
+        id: string;
+        name: string;
+        patientUniqueId: string;
+        phone: string;
+    };
+    appointmentLabTests: Array<{
+        id: string;
+        labTest: {
+            id: string;
+            name: string;
+            code: string;
+            charge: number;
+            sampleType: string;
+        };
+        status: string;
+    }>;
+    notes?: string;
+    urgentOrder: boolean;
+    createdAt: string;
+    billId?: string; // Optional bill ID if bill is already created
+}
+
+export enum LabOrderStatus {
+    PENDING = "PENDING",
+    PROCESSING = "PROCESSING",
+    COMPLETED = "COMPLETED",
+    CANCELLED = "CANCELLED"
+}
+
+
 export interface PatientFamilyLink {
     id: string;
     patientId: string;
@@ -236,10 +270,12 @@ export interface Appointment {
     patient?: Patient;
     doctor?: HospitalStaff;
     vitals?: Vital[];
+    billId?: string;
     attachments?: AppointmentAttachment[];
     diagnosisRecord?: DiagnosisRecord;
     surgery?: Surgery;
     labTests?: AppointmentLabTest[];
+    bills?: Bill[];
 }
 
 export interface DiagnosisRecord {

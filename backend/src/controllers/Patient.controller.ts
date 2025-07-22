@@ -80,7 +80,8 @@ export class PatientController {
 	async getPatientByName(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST")
+			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST" || req.user.role == "SALES_PERSON"
+			)
 		) {
 			try {
 				const { name } = req.query as Pick<Patient, "name">;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -9,30 +9,28 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, User, Stethoscope, DollarSign, CreditCard, Wallet } from "lucide-react";
+import { Loader2, User, FlaskConical, DollarSign, CreditCard, Wallet, CheckCircle, Clock } from "lucide-react";
 import { toast } from 'sonner';
-import { hospitalAdminApi } from "@/api/hospitalAdmin";
 import { billingApi } from "@/api/billing";
-import { appointmentApi } from "@/api/appointment";
 import { paymentApi } from "@/api/payment";
-import { HospitalStaff, Appointment, BillCreateData, BillType, BillStatus, AppointmentStatus, PaymentMethod, PaymentCreateData } from "@/types/types";
+import { labApi } from "@/api/lab";
+import { BillCreateData, BillType, BillStatus, PaymentMethod, PaymentCreateData, LabTestStatus, LabOrderStatus, LabOrder } from "@/types/types";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface CreateAppointmentBillProps {
-    appointmentId: string;
+
+interface CreateLabOrderBillProps {
+    labOrder: LabOrder | null;
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export default function CreateAppointmentBill({
-    appointmentId,
+export default function CreateLabOrderBill({
+    labOrder,
     isOpen,
     onClose,
     onSuccess
-}: CreateAppointmentBillProps) {
-    console.log("appointmentId", appointmentId);
-    if (appointmentId === "" || !isOpen || !appointmentId) return;
-    const [opdCharge, setOpdCharge] = useState<number>(0);
+}: CreateLabOrderBillProps) {
     const [discountPercentage, setDiscountPercentage] = useState<number>(0);
     const [customDiscountAmount, setCustomDiscountAmount] = useState<number>(0);
     const [discountType, setDiscountType] = useState<'percentage' | 'custom'>('percentage');
@@ -42,33 +40,37 @@ export default function CreateAppointmentBill({
     const [processingStep, setProcessingStep] = useState<'form' | 'processing' | 'complete'>('form');
     const [paymentOption, setPaymentOption] = useState<'none' | 'full' | 'partial'>('none');
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
-    // Fetch appointment details
-    const { data: appointment, isLoading: appointmentLoading } = useQuery<Appointment>({
-        queryKey: ["appointment", appointmentId],
-        queryFn: async () => {
-            const response = await appointmentApi.getAppointmentById(appointmentId);
-            return response.data?.data;
-        },
-        enabled: !!appointmentId && isOpen,
-    });
 
-    // Fetch doctor details using getStaffById
-    const { data: doctor, isLoading: doctorLoading } = useQuery<HospitalStaff>({
-        queryKey: ["doctor", appointment?.doctorId],
-        queryFn: async () => {
-            if (!appointment?.doctorId) throw new Error("No doctor ID");
-            return await hospitalAdminApi.getStaffById(appointment.doctorId);
-        },
-        enabled: !!appointment?.doctorId && isOpen,
-    });
+    // Calculate base price from all lab tests
+    const basePrice = labOrder?.appointmentLabTests?.reduce((total, test) => total + test.labTest.charge, 0) || 0;
 
-    // Set OPD charge when doctor data is loaded
-    useEffect(() => {
-        if (doctor?.opdCharge?.amount) {
-            setOpdCharge(doctor.opdCharge.amount);
+    const changeStatus = async () => {
+        if (!labOrder?.appointmentLabTests) {
+            console.error('No lab tests found to update status');
+            return;
         }
-    }, [doctor]);
+
+        try {
+            //first update status of lab order to PROCESSING
+            await labApi.updateLabOrder(labOrder.id, { status: LabOrderStatus.PROCESSING });
+            // Update status for all appointment lab tests from PENDING to PROCESSING
+            const updatePromises = labOrder.appointmentLabTests.map(async (test) => {
+                if (test.status === LabTestStatus.PENDING) {
+                    return await labApi.updateLabTestOrder(test.id, { status: LabTestStatus.PROCESSING });
+                }
+                return null;
+            });
+
+            await Promise.all(updatePromises);
+            console.log('Successfully updated lab test statuses to PROCESSING');
+        } catch (error) {
+            console.error('Error updating lab test statuses:', error);
+            toast.error('Failed to update lab test statuses');
+        }
+    };
+
 
     // Process payment mutation
     const processPaymentMutation = useMutation({
@@ -85,16 +87,16 @@ export default function CreateAppointmentBill({
     // Create bill mutation
     const createBillMutation = useMutation({
         mutationFn: async (billData: BillCreateData) => {
-            return await billingApi.generateAppointmentBill(appointmentId, billData);
+            return await billingApi.createBill(billData);
         },
         onSuccess: () => {
-            // Invalidate all appointment queries to refresh the queue management
-            queryClient.invalidateQueries({ queryKey: ['appointments'] });
+            queryClient.invalidateQueries({ queryKey: ['external-lab-orders'] });
             queryClient.invalidateQueries({ queryKey: ['bills'] });
             queryClient.invalidateQueries({ queryKey: ['payments'] });
-            queryClient.invalidateQueries({ queryKey: ['doctors'] });
             toast.success('Bill created and payment processed successfully');
+            changeStatus();
             setProcessingStep('complete');
+            onSuccess();
             onClose();
             resetForm();
         },
@@ -102,21 +104,6 @@ export default function CreateAppointmentBill({
             console.error('Error creating bill:', error);
             toast.error(error.response?.data?.message || 'Failed to create bill');
             setProcessingStep('form');
-        },
-    });
-
-    const updateAppointmentStatusMutation = useMutation({
-        mutationFn: async (appointmentId: string) => {
-            return await appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.CONFIRMED);
-        },
-        onSuccess: () => {
-            // Invalidate appointment queries to refresh the queue management
-            queryClient.invalidateQueries({ queryKey: ['appointments'] });
-            toast.success('Appointment status updated successfully');
-        },
-        onError: (error: any) => {
-            console.error('Error updating appointment status:', error);
-            toast.error(error.response?.data?.message || 'Failed to update appointment status');
         },
     });
 
@@ -128,35 +115,65 @@ export default function CreateAppointmentBill({
         setPaymentMethod(PaymentMethod.CASH);
         setNotes("");
         setProcessingStep('form');
-        setPaymentOption('none'); // Reset payment option
-        setOpdCharge(0);
+        setPaymentOption('none');
+    };
+
+    const handleViewBill = async () => {
+        if (!labOrder?.billId) {
+            // If no billId in labOrder, try to find the bill by lab order
+            try {
+                const response = await billingApi.getBillsByHospital({
+                    // Add any relevant filters to find the bill for this lab order
+                });
+
+                // For now, open bills in a new tab or navigate
+                console.log('Finding bill for lab order:', labOrder?.id);
+                toast.info('Opening bill view...');
+
+                // You can implement navigation to bill view page here
+                // Example: navigate(`/bills/${billId}`)
+
+            } catch (error) {
+                console.error('Error finding bill:', error);
+                toast.error('Could not find associated bill');
+            }
+        } else {
+            // If billId exists, navigate directly
+            console.log('Viewing bill:', labOrder.billId);
+            toast.info('Opening bill view...');
+            // Example: navigate(`/bills/${labOrder.billId}`)
+        }
     };
 
     const handleSubmit = async () => {
-
-        if (!appointment?.patientId || !appointment?.hospitalId) {
-            toast.error('Missing appointment details');
+        if (!labOrder) {
+            toast.error('No lab order selected');
             return;
         }
 
-        if (opdCharge <= 0) {
-            toast.error('OPD charge must be greater than 0');
+        if (!labOrder.patient?.id) {
+            toast.error('Missing patient details');
+            return;
+        }
+
+        if (basePrice <= 0) {
+            toast.error('Lab test charges must be greater than 0');
             return;
         }
 
         // Calculate discount amount
         let discountAmount = 0;
         if (discountType === 'percentage' && discountPercentage > 0) {
-            discountAmount = (opdCharge * discountPercentage) / 100;
+            discountAmount = (basePrice * discountPercentage) / 100;
         } else if (discountType === 'custom' && customDiscountAmount > 0) {
             discountAmount = customDiscountAmount;
         }
 
-        if (discountAmount > opdCharge) {
-            discountAmount = opdCharge;
+        if (discountAmount > basePrice) {
+            discountAmount = basePrice;
         }
 
-        const totalAmount = opdCharge - discountAmount;
+        const totalAmount = basePrice - discountAmount;
 
         if (totalAmount <= 0) {
             toast.error('Total amount must be greater than 0');
@@ -176,34 +193,48 @@ export default function CreateAppointmentBill({
         setProcessingStep('processing');
 
         try {
+            const hospitalId = user?.hospitalId || '';
+
             const billData: BillCreateData = {
-                patientId: appointment.patientId,
-                hospitalId: appointment.hospitalId,
-                appointmentId: appointmentId,
+                patientId: labOrder.patient.id,
+                hospitalId: hospitalId,
+                appointmentId: undefined,
                 paidAmount: 0,
                 dueAmount: Number(totalAmount),
                 status: BillStatus.DRAFT,
                 billDate: new Date(),
                 dueDate: new Date(),
-                items: [
-                    {
-                        itemType: BillType.OPD_CONSULTATION,
-                        description: `OPD Consultation - ${doctor?.name} (${doctor?.specialisation})`,
-                        quantity: 1,
-                        unitPrice: Number(opdCharge),
-                        totalPrice: Number(opdCharge),
-                        discountAmount: Number(discountAmount),
-                        notes: notes || undefined,
-                    }
-                ],
+                items: labOrder.appointmentLabTests.map(test => ({
+                    itemType: BillType.LAB_TEST,
+                    description: `Lab Test - ${test.labTest.name} (${test.labTest.code})`,
+                    quantity: 1,
+                    unitPrice: Number(test.labTest.charge),
+                    totalPrice: Number(test.labTest.charge),
+                    discountAmount: Number((test.labTest.charge / basePrice) * discountAmount),
+                    labTestId: test.id,
+                    notes: notes || undefined,
+                })),
                 notes: notes || undefined,
             };
+
+            console.log("billData", billData);
 
             const billResponse = await createBillMutation.mutateAsync(billData);
             const billId = billResponse.data?.data?.id;
 
             if (!billId) {
                 throw new Error('Failed to create bill');
+            }
+
+            // Update lab order with billId
+            try {
+                console.log('Updating lab order with billId:', billId);
+                await labApi.updateLabOrder(labOrder.id, { billId: billId });
+                console.log('Successfully updated lab order with billId');
+            } catch (updateError) {
+                console.error('Failed to update lab order with billId:', updateError);
+                // Don't throw error here - bill creation was successful
+                toast.error('Bill created successfully, but failed to link to lab order');
             }
 
             if (amountPaid > 0) {
@@ -217,9 +248,11 @@ export default function CreateAppointmentBill({
                 await processPaymentMutation.mutateAsync(paymentData);
             }
 
-            updateAppointmentStatusMutation.mutate(appointmentId);
-            onSuccess();
-            
+            // Update lab test statuses to PROCESSING after successful bill creation
+            await changeStatus();
+            console.log("Bill id after status update is ", billId);
+
+
         } catch (error) {
             console.error('Error in bill creation process:', error);
             toast.error('Failed to complete the billing process');
@@ -227,15 +260,15 @@ export default function CreateAppointmentBill({
         }
     };
 
-    const isLoading = appointmentLoading || doctorLoading || createBillMutation.isPending || processPaymentMutation.isPending;
+    const isLoading = createBillMutation.isPending || processPaymentMutation.isPending;
 
     // Calculate values
     const discountAmount = discountType === 'percentage' && discountPercentage > 0
-        ? (opdCharge * discountPercentage) / 100
+        ? (basePrice * discountPercentage) / 100
         : discountType === 'custom' && customDiscountAmount > 0
             ? customDiscountAmount
             : 0;
-    const totalAmount = opdCharge - discountAmount;
+    const totalAmount = basePrice - discountAmount;
     const amountDue = totalAmount - amountPaid;
 
     // Payment method options
@@ -247,13 +280,48 @@ export default function CreateAppointmentBill({
         { value: PaymentMethod.CHEQUE, label: 'Cheque', icon: CreditCard },
     ];
 
+    // Early return after all hooks are declared
+    if (!labOrder || !isOpen) {
+        return null;
+    }
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-lg font-medium">
-                        Create Bill
-                    </DialogTitle>
+                    <div className="flex items-center justify-between">
+                        <DialogTitle className="text-lg font-medium">
+                            {labOrder?.status === LabOrderStatus.PROCESSING ? 'Lab Bill - View' : 'Create Lab Bill'}
+                        </DialogTitle>
+                        {labOrder?.status && (
+                            <div className="flex items-center gap-2">
+                                {labOrder.status === LabOrderStatus.PENDING && (
+                                    <>
+                                        <Clock className="h-4 w-4 text-yellow-500" />
+                                        <span className="text-sm px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium">
+                                            Pending
+                                        </span>
+                                    </>
+                                )}
+                                {labOrder.status === LabOrderStatus.PROCESSING && (
+                                    <>
+                                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                                        <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
+                                            Processing
+                                        </span>
+                                    </>
+                                )}
+                                {labOrder.status === LabOrderStatus.COMPLETED && (
+                                    <>
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                        <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                                            Completed
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </DialogHeader>
 
                 {isLoading ? (
@@ -270,30 +338,119 @@ export default function CreateAppointmentBill({
                         </div>
                         <h3 className="text-base font-medium text-gray-900 mb-1">Success!</h3>
                         <p className="text-sm text-gray-500 text-center">
-                            Bill created and payment processed.
+                            Lab bill created and payment processed.
                         </p>
                     </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Appointment Info */}
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <User className="h-4 w-4 text-gray-400" />
-                                <div>
-                                    <div className="font-medium text-sm">{appointment?.patient?.name}</div>
-                                    <div className="text-xs text-gray-500">Patient</div>
+                ) : labOrder?.status === LabOrderStatus.PROCESSING ? (
+                    <div className="space-y-6">
+                        {/* Patient & Lab Tests Info - Read Only */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <User className="h-4 w-4 text-gray-400" />
+                                    <div>
+                                        <div className="font-medium text-sm">{labOrder.patient.name}</div>
+                                        <div className="text-xs text-gray-500">ID: {labOrder.patient.patientUniqueId}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <FlaskConical className="h-4 w-4 text-gray-400" />
+                                    <div className="text-right">
+                                        <div className="font-medium text-sm">{labOrder.appointmentLabTests.length} Tests</div>
+                                        <div className="text-xs text-gray-500">Lab Order</div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <Stethoscope className="h-4 w-4 text-gray-400" />
-                                <div className="text-right">
-                                    <div className="font-medium text-sm">{doctor?.name}</div>
-                                    <div className="text-xs text-gray-500">{doctor?.specialisation}</div>
+
+                            {/* Lab Tests List - Read Only */}
+                            <div className="bg-white border rounded-lg p-4">
+                                <h4 className="font-medium text-sm mb-2">Lab Tests:</h4>
+                                <div className="space-y-2">
+                                    {labOrder.appointmentLabTests.map((test) => (
+                                        <div key={test.id} className="flex justify-between items-center text-sm">
+                                            <div>
+                                                <span className="font-medium">{test.labTest.name}</span>
+                                                <span className="text-gray-500 ml-2">({test.labTest.code})</span>
+                                            </div>
+                                            <span className="font-medium">₹{test.labTest.charge}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
 
-                        {/* OPD Charge & Discount Section */}
+                        {/* Status Message */}
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5 text-blue-600" />
+                                <div>
+                                    <h3 className="font-medium text-blue-900">Lab Order is Processing</h3>
+                                    <p className="text-sm text-blue-700 mt-1">
+                                        Bill has been generated and the lab tests are currently being processed.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions for Processing Status */}
+                        <div className="flex gap-2 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onClose}
+                                className="flex-1"
+                            >
+                                Close
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleViewBill}
+                                className="flex-1"
+                                variant="default"
+                            >
+                                View Bill
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
+                        {/* Patient & Lab Tests Info */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <User className="h-4 w-4 text-gray-400" />
+                                    <div>
+                                        <div className="font-medium text-sm">{labOrder.patient.name}</div>
+                                        <div className="text-xs text-gray-500">ID: {labOrder.patient.patientUniqueId}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <FlaskConical className="h-4 w-4 text-gray-400" />
+                                    <div className="text-right">
+                                        <div className="font-medium text-sm">{labOrder.appointmentLabTests.length} Tests</div>
+                                        <div className="text-xs text-gray-500">Lab Order</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lab Tests List */}
+                            <div className="bg-white border rounded-lg p-4">
+                                <h4 className="font-medium text-sm mb-2">Lab Tests:</h4>
+                                <div className="space-y-2">
+                                    {labOrder.appointmentLabTests.map((test) => (
+                                        <div key={test.id} className="flex justify-between items-center text-sm">
+                                            <div>
+                                                <span className="font-medium">{test.labTest.name}</span>
+                                                <span className="text-gray-500 ml-2">({test.labTest.code})</span>
+                                            </div>
+                                            <span className="font-medium">₹{test.labTest.charge}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Discount Section */}
                         <div className="bg-white border rounded-xl shadow-sm p-6 mb-6">
                             <div className="mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Apply Discount</h3>
@@ -343,15 +500,15 @@ export default function CreateAppointmentBill({
                                         <Input
                                             id="custom-discount"
                                             type="number"
-                                            placeholder={`Max: ₹${opdCharge}`}
+                                            placeholder={`Max: ₹${basePrice}`}
                                             min="0"
-                                            max={opdCharge}
+                                            max={basePrice}
                                             value={customDiscountAmount}
                                             onChange={e => setCustomDiscountAmount(Number(e.target.value))}
-                                            className={`text-sm h-9 border-gray-300 rounded-md ${customDiscountAmount < 0 || customDiscountAmount > opdCharge ? 'border-red-500' : ''}`}
+                                            className={`text-sm h-9 border-gray-300 rounded-md ${customDiscountAmount < 0 || customDiscountAmount > basePrice ? 'border-red-500' : ''}`}
                                             disabled={createBillMutation.isPending}
                                         />
-                                        <span className="text-xs text-gray-400">Enter a value up to the OPD fee</span>
+                                        <span className="text-xs text-gray-400">Enter a value up to the total fee</span>
                                     </div>
                                 )}
                             </div>
@@ -360,7 +517,7 @@ export default function CreateAppointmentBill({
                             <div className="bg-gray-50 rounded-lg p-4 mt-4">
                                 <div className="flex justify-between text-sm mb-1">
                                     <span>Base Price</span>
-                                    <span>₹{opdCharge.toFixed(2)}</span>
+                                    <span>₹{basePrice.toFixed(2)}</span>
                                 </div>
                                 {discountAmount > 0 && (
                                     <div className="flex justify-between text-sm text-green-600 mb-1">
@@ -402,11 +559,10 @@ export default function CreateAppointmentBill({
                             </div>
                         </div>
 
-                        {/* Amount Details */}
+                        {/* Payment Details */}
                         <div className="space-y-3">
                             <Label className="text-sm font-medium">Payment Details</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Paid & Buttons */}
                                 <div>
                                     <div className="flex items-center gap-6 mb-2">
                                         <div>
@@ -478,8 +634,8 @@ export default function CreateAppointmentBill({
                         {/* Summary */}
                         <div className="p-3 bg-gray-50 rounded-lg space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span>OPD Charge:</span>
-                                <span>₹{opdCharge.toFixed(2)}</span>
+                                <span>Lab Tests Total:</span>
+                                <span>₹{basePrice.toFixed(2)}</span>
                             </div>
                             {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
@@ -504,9 +660,11 @@ export default function CreateAppointmentBill({
                             >
                                 Cancel
                             </Button>
+
+                            {/* Submit button for PENDING status only */}
                             <Button
                                 type="submit"
-                                disabled={!opdCharge || opdCharge <= 0 || createBillMutation.isPending || paymentOption === 'none' || amountPaid <= 0 || amountPaid > totalAmount}
+                                disabled={!basePrice || basePrice <= 0 || createBillMutation.isPending || paymentOption === 'none' || amountPaid <= 0 || amountPaid > totalAmount}
                                 className="flex-1"
                             >
                                 {createBillMutation.isPending ? (
@@ -515,7 +673,7 @@ export default function CreateAppointmentBill({
                                         Processing
                                     </>
                                 ) : (
-                                    'Create Bill'
+                                    'Generate Bill'
                                 )}
                             </Button>
                         </div>
@@ -524,4 +682,4 @@ export default function CreateAppointmentBill({
             </DialogContent>
         </Dialog>
     );
-}
+} 

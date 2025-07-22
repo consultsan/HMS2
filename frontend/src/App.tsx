@@ -135,6 +135,8 @@ export default function App() {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="template" element={<DiseaseTemplate />} />
+            <Route path="create" element={<CreateLabTest />} />
+
           </Route>
 
           <Route path="doctor/consultation/:patientId/:appointmentId" element={<ConsultationPage />} />

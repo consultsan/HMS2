@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { Patient } from './interfaces/PatinetInterface'
 import PatientBasicDetails from './PatientBasicDetails';
@@ -10,10 +10,11 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import ViewDiagnosisRecordButton from './viewDiagnosisRecord';
-import { AppointmentStatus, BillType, BillStatus, Bill } from '@/types/types';
+import { AppointmentStatus, Slot, VisitType } from '@/types/types';
 import { CheckCircle, ArrowLeft, Clock, FileText, Stethoscope, Calendar, Save } from 'lucide-react';
-import { billingApi } from '@/api/billing';
-import { labApi } from '@/api/lab';
+import { doctorApi } from '@/api/doctor';
+import { appointmentApi } from '@/api/appointment';
+
 
 interface DiagnosisFormData {
     diagnosis: string;
@@ -65,7 +66,7 @@ function ConsultationPage() {
     // State management
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [diagnosisText, setDiagnosisText] = useState('');
-    const [notesText, setNotesText] = useState('');
+    const [notesText] = useState('');
     const [prescriptionData, setPrescriptionData] = useState<PrescriptionData>(initialPrescriptionData);
     const [followUpData, setFollowUpData] = useState<FollowUpData>(initialFollowUpData);
     const [surgicalStatus, setSurgicalStatus] = useState<'NOT_CONFIRMED' | 'CONFIRMED' | 'NOT_REQUIRED'>('NOT_REQUIRED');
@@ -88,16 +89,52 @@ function ConsultationPage() {
         if (!followUpData.followUpDateTime) return null;
 
         try {
-            const response = await api.post('/api/appointment/book', {
+            // First check for existing slots at this time
+            const appointmentDate = new Date(followUpData.followUpDateTime);
+            const startDate = new Date(appointmentDate);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(appointmentDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            const slotsResponse = await doctorApi.getSlots(doctorId, {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString()
+            });
+
+            // Find slot that matches the exact time
+            const existingSlot = slotsResponse.find((slot: Slot) => {
+                const slotTime = new Date(slot.timeSlot);
+                return slotTime.getTime() === appointmentDate.getTime();
+            });
+
+            // Create the appointment first
+            const response = await appointmentApi.bookAppointment({
                 patientId,
                 doctorId,
-                visitType: 'FOLLOW_UP',
-                scheduledAt: followUpData.followUpDateTime,
+                visitType: VisitType.FOLLOW_UP,
+                scheduledAt: new Date(followUpData.followUpDateTime),
                 status: AppointmentStatus.PENDING
             });
-            console.log("response", response);
+
+            const appointmentId = response.data.data.id;
+
+            // Handle slot booking logic same as AddAppointment
+            if (existingSlot && existingSlot.appointment1Id && !existingSlot.appointment2Id) {
+                // Slot is partially booked, update with second appointment
+                await doctorApi.updateSlot(existingSlot.id, {
+                    appointment2Id: appointmentId,
+                    timeSlot: new Date(followUpData.followUpDateTime)
+                });
+            } else {
+                // No existing slot or slot is full, create new slot
+                await doctorApi.addSlot(doctorId, {
+                    appointment1Id: appointmentId,
+                    timeSlot: new Date(followUpData.followUpDateTime)
+                });
+            }
+
             toast.success('Follow-up appointment scheduled');
-            return response.data.data.id;
+            return appointmentId;
         } catch (error: any) {
             console.error('Error creating follow-up appointment:', error);
             toast.error(error.response?.data?.message || 'Failed to schedule follow-up appointment');
@@ -209,7 +246,7 @@ function ConsultationPage() {
         }
         fetchDiagnosis();
     }, [appointmentId]);
-    
+
 
     // Form validation
     const validateForm = useCallback(() => {

@@ -2,7 +2,7 @@ import e, { Request, Response } from "express";
 import { HospitalRepository } from "../repositories/Hospital.repository";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
-import { Department, Hospital } from "@prisma/client";
+import { AppointmentStatus, Department, Hospital } from "@prisma/client";
 import prisma from "../utils/dbConfig";
 
 export class HospitalController {
@@ -51,21 +51,21 @@ export class HospitalController {
 	}
 
 	async getHospitalById(req: Request, res: Response) {
-		
-			try {
-				const { id } = req.params as Pick<Hospital, "id">;
-				const hospital = await this.hospitalRepository.getHospitalById(id);
-				res
-					.status(200)
-					.json(new ApiResponse("Hospital retrieved successfully", hospital));
-			} catch (error: any) {
-				res
-					.status(error.code || 500)
-					.json(
-						new ApiResponse(error.message || "Failed to retrieve hospital")
-					);
-			}
-			
+
+		try {
+			const { id } = req.params as Pick<Hospital, "id">;
+			const hospital = await this.hospitalRepository.getHospitalById(id);
+			res
+				.status(200)
+				.json(new ApiResponse("Hospital retrieved successfully", hospital));
+		} catch (error: any) {
+			res
+				.status(error.code || 500)
+				.json(
+					new ApiResponse(error.message || "Failed to retrieve hospital")
+				);
+		}
+
 	}
 
 	async createHospital(req: Request, res: Response) {
@@ -200,6 +200,113 @@ export class HospitalController {
 							error.message || "Failed to add department in hospital"
 						)
 					);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+	async getHospitalKpis(req: Request, res: Response) {
+		if (req.user && req.user.role == "HOSPITAL_ADMIN") {
+			try {
+				const hospitalId = req.user.hospitalId;
+				if (!hospitalId) {
+					throw new AppError("User isn't linked to any hospital", 403);
+				}
+
+				// Get all appointments for the hospital
+				const appointments = await prisma.appointment.findMany({
+					where: { hospitalId },
+					include: {
+						bills: {
+							include: {
+								billItems: true
+							}
+						},
+						diagnosisRecord: {
+							include: {
+								followUpAppointment: true
+							}
+						}
+					}
+				});
+
+				// Get total patients count
+				const totalPatients = await prisma.patient.count({
+					where: { hospitalId }
+				});
+
+				// Get hospital staff count
+				const totalStaff = await prisma.hospitalStaff.count({
+					where: { hospitalId }
+				});
+
+				// Get lab tests count
+				const totalLabTests = await prisma.appointmentLabTest.count({
+					where: {
+						appointment: { hospitalId }
+					}
+				});
+
+				// Get pending lab tests count
+				const pendingLabTests = await prisma.appointmentLabTest.count({
+					where: {
+						appointment: { hospitalId },
+						status: 'PENDING'
+					}
+				});
+
+				// Calculate KPIs from appointments
+				const totalAppointments = appointments.length;
+
+				// Count completed appointments (diagnosed status)
+				const totalCompletedAppointments = appointments.filter(
+					apt => apt.status === 'DIAGNOSED'
+				).length;
+
+				// Count cancelled appointments
+				const totalCancelledAppointments = appointments.filter(
+					apt => apt.status === 'CANCELLED'
+				).length;
+
+				// Calculate total revenue from bills
+				const totalRevenue = appointments.reduce((sum, apt) => {
+					const billTotal = apt.bills.reduce((billSum, bill) => billSum + bill.totalAmount, 0);
+					return sum + billTotal;
+				}, 0);
+
+				// Count follow-up appointments
+				const totalFollowUps = appointments.filter(
+					apt => apt.diagnosisRecord?.followUpAppointment
+				).length;
+
+				// Calculate average revenue per appointment
+				const averageRevenuePerAppointment = totalAppointments > 0
+					? Math.round(totalRevenue / totalAppointments)
+					: 0;
+
+				// Count unique patients from appointments (active patients)
+				const uniquePatients = new Set(appointments.map(apt => apt.patientId));
+				const activePatients = uniquePatients.size;
+
+				const hospitalKpis = {
+					id: `hospital-${hospitalId}`,
+					hospitalId,
+					totalAppointments,
+					totalRevenue,
+					totalPatients,
+					activePatients,
+					totalStaff,
+					totalLabTests,
+					pendingLabTests,
+					totalFollowUps,
+					totalCancelledAppointments,
+					totalCompletedAppointments,
+					averageRevenuePerAppointment
+				};
+
+				res.status(200).json(new ApiResponse("Hospital KPIs retrieved successfully", hospitalKpis));
+			} catch (error: any) {
+				res.status(error.code || 500).json(new ApiResponse(error.message || "Failed to retrieve hospital KPIs"));
 			}
 		} else {
 			res.status(403).json(new ApiResponse("Unauthorized access"));

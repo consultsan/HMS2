@@ -155,6 +155,8 @@ export class SlotController {
                     timeSlot: Date,
                     appointmentId: string
                 }
+                console.log("timeSlot", timeSlot);
+                console.log("appointmentId", appointmentId);
 
                 const slot = await prisma.slot.findFirst({
                     where: {
@@ -165,7 +167,11 @@ export class SlotController {
                     }
                 });
 
-                if (slot?.appointment2Id) {
+                if (!slot) {
+                    throw new AppError("No slot found for this appointment", 404);
+                }
+
+                if (slot.appointment2Id) {
                     if (slot.appointment2Id === appointmentId) {
                         await prisma.slot.update({
                             where: { id: slot.id },
@@ -189,7 +195,7 @@ export class SlotController {
                     })
                 } else {
                     await prisma.slot.update({
-                        where: { id: slot?.id },
+                        where: { id: slot.id },
                         data: { timeSlot }
                     });
                 }
