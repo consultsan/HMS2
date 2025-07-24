@@ -18,7 +18,7 @@ export const appointmentApi = {
     // Book a new appointment
     bookAppointment: (appointment: Partial<Appointment>) =>
         api.post('/api/appointment/book', appointment),
- 
+
     // Upload attachment for appointment 
     uploadAttachment: (data: UploadAttachmentData) => {
         const formData = new FormData();
@@ -62,6 +62,16 @@ export const appointmentApi = {
     getAppointmentsByDate: (query: AppointmentDateQuery) =>
         api.get('/api/appointment/get-by-date', { params: query }),
 
+    // Get created appointments
+    getCreatedAppointments: () =>
+        api.get<ApiResponse<Appointment[]>>('/api/appointment/get-created-appointments'),
+
+    // Get created appointments by date
+    getCreatedAppointmentsByDate: (date: string) =>
+        api.get<ApiResponse<Appointment[]>>('/api/appointment/get-created-appointments-by-date', {
+            params: { date }
+        }),
+
     // Get surgery by appointment ID
     getSurgeryByAppointmentId: (appointmentId: string) => {
         if (!appointmentId) {
@@ -70,7 +80,7 @@ export const appointmentApi = {
         }
         return api.get(`/api/appointment/get-surgery-by-appointment-id/${appointmentId}`);
     },
-    
+
 
 
     // Add surgery to appointment

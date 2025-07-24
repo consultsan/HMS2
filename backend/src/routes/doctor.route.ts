@@ -31,4 +31,5 @@ router.get("/get-slots/:id", slotController.getSlotsByDoctor.bind(slotController
 router.patch("/update-slot/:id", slotController.updateSlot.bind(slotController));
 router.patch("/update-time-slot-by-appointment-id", slotController.updateTimeSlotByAppointmentId.bind(slotController));
 router.get("/kpis/:doctorId", appointmentController.getDoctorKpis.bind(appointmentController));
+router.get("/kpis-by-interval/:doctorId", appointmentController.getDoctorKpisByInterval.bind(appointmentController));
 export default router;

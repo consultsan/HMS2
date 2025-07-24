@@ -11,17 +11,19 @@ export interface DoctorKpis {
 }
 
 export interface HospitalAdminKpis {
-    id: string;
-    hospitalId: string;
     totalAppointments: number;
-    totalRevenue: number;
     totalPatients: number;
     activePatients: number;
     totalStaff: number;
+    totalRevenue: number;
+    averageRevenuePerAppointment: number;
     totalLabTests: number;
     pendingLabTests: number;
-    totalFollowUps: number;
-    totalCancelledAppointments: number;
     totalCompletedAppointments: number;
-    averageRevenuePerAppointment: number;
+    totalCancelledAppointments: number;
+    totalFollowUps: number;
+    period?: {
+        start: string;
+        end: string;
+    };
 }

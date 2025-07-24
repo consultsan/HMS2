@@ -136,6 +136,7 @@ export enum LabTestStatus {
 export interface LabOrder {
     id: string;
     status: LabOrderStatus;
+    appointmentId?: string; // Optional appointment ID for lab orders
     patient: {
         id: string;
         name: string;
@@ -152,6 +153,9 @@ export interface LabOrder {
             sampleType: string;
         };
         status: string;
+        tentativeReportDate?: Date;
+        referredFromOutside: boolean;
+        isSentExternal?: boolean;
     }>;
     notes?: string;
     urgentOrder: boolean;

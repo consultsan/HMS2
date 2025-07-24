@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { hospitalAdminApi } from '@/api/hospitalAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,18 +10,50 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  DollarSign,
+  IndianRupee,
   Activity,
   UserCheck,
   FlaskConical,
   FlaskConicalOff,
   Building2
 } from 'lucide-react';
+import { TimeIntervalFilter } from '@/components/TimeIntervalFilter';
+import { format } from 'date-fns';
+
+type IntervalOption = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom_month' | 'custom_year';
 
 export default function HospitalDashboard() {
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [selectedInterval, setSelectedInterval] = useState<IntervalOption>('today');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const handleTimeIntervalChange = React.useCallback((start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  }, []);
+
+  const handleIntervalChange = React.useCallback((interval: IntervalOption) => {
+    setSelectedInterval(interval);
+  }, []);
+
+  const handleMonthChange = React.useCallback((month: number) => {
+    setSelectedMonth(month);
+  }, []);
+
+  const handleYearChange = React.useCallback((year: number) => {
+    setSelectedYear(year);
+  }, []);
+
   const { data: kpis, isLoading, error } = useQuery<HospitalAdminKpis>({
-    queryKey: ['hospital-admin-kpis'],
-    queryFn: () => hospitalAdminApi.getKpis(),
+    queryKey: ['hospital-admin-kpis', startDate?.toISOString(), endDate?.toISOString()],
+    queryFn: async () => {
+      if (startDate && endDate) {
+        return await hospitalAdminApi.getKpisByDate(startDate.toISOString(), endDate.toISOString());
+      }
+      return await hospitalAdminApi.getKpis();
+    },
   });
 
   if (isLoading) {
@@ -75,7 +108,7 @@ export default function HospitalDashboard() {
     {
       title: 'Total Revenue',
       value: `₹${(kpis?.totalRevenue || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: IndianRupee,
       color: 'bg-emerald-500',
       description: 'Total revenue generated'
     },
@@ -131,16 +164,34 @@ export default function HospitalDashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Hospital Dashboard</h1>
           <p className="text-gray-600 mt-1">Complete overview of hospital operations</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Activity className="w-4 h-4" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <TimeIntervalFilter
+            onTimeIntervalChange={handleTimeIntervalChange}
+            selectedInterval={selectedInterval}
+            onIntervalChange={handleIntervalChange}
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            selectedYear={selectedYear}
+            onYearChange={handleYearChange}
+          />
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Activity className="w-4 h-4" />
+            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
+
+      {/* Date Range Info */}
+      {kpis?.period && (
+        <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-sm">
+          Showing data from {format(new Date(kpis.period.start), 'PPP')} to {format(new Date(kpis.period.end), 'PPP')}
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -207,7 +258,7 @@ export default function HospitalDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-500" />
+              <IndianRupee className="w-5 h-5 text-emerald-500" />
               Revenue Analytics
             </CardTitle>
           </CardHeader>

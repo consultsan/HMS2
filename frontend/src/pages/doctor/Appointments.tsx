@@ -12,8 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearch } from '@/contexts/SearchContext';
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from 'react';
-import { Appointment } from '@/types/types';
+import { useState } from 'react';
+import { Appointment, AppointmentStatus } from '@/types/types';
 import { format } from 'date-fns';
 import { DatePicker } from "@/components/ui/date-filter";
 import { formatTime } from '@/utils/dateUtils';
@@ -25,42 +25,41 @@ function Appointments() {
   const { searchQuery } = useSearch();
   const [activeTab, setActiveTab] = useState('upcoming');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const getDateForFilter = () => {
     const date = new Date(selectedDate);
     date.setHours(date.getHours() + 5);
     date.setMinutes(date.getMinutes() + 30);
     date.setUTCHours(0, 0, 0, 0);
-    console.log("date after setting", date);
     return date.toISOString();
   };
 
   const date: string = getDateForFilter();
 
-  // API call inside useEffect
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        setIsLoading(true);
-        const response = await appointmentApi.getAppointmentsByDateAndDoctor({
-          doctorId: user?.id,
-          date: date
-        });
-        setAppointments(response.data?.data || []);
-      } catch (error) {
-        console.error('Error fetching appointments:', error);
-        setAppointments([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Use React Query for data fetching
+  const { data: appointmentsData, isLoading } = useQuery({
+    queryKey: ['appointments', user?.id, date],
+    queryFn: async () => {
+      const response = await appointmentApi.getAppointmentsByDateAndDoctor({
+        doctorId: user?.id,
+        date: date
+      });
+      return response.data?.data || [];
+    },
+    enabled: !!user?.id,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true,
+    staleTime: 10000 // Consider data fresh for 10 seconds
+  });
 
-    if (user?.id) {
-      fetchAppointments();
-    }
-  }, [user?.id, date]);
+  // Handle consultation start
+  const handleStartConsultation = (patientId: string, appointmentId: string) => {
+    // Set up a one-time check after expected consultation completion
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['appointments', user?.id, date] });
+    }, 1000); // Check after 1 second
+  };
 
   if (isLoading) {
     return (
@@ -70,7 +69,7 @@ function Appointments() {
     );
   }
 
-  const filteredAppointments = appointments?.filter((appointment) => {
+  const filteredAppointments = appointmentsData?.filter((appointment: Appointment) => {
     if (searchQuery === '') { return true; }
     return (
       appointment?.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,11 +80,13 @@ function Appointments() {
 
   // Separate appointments into upcoming and completed
   const upcomingAppointments = filteredAppointments?.filter(
-    (appointment) => appointment.status !== 'COMPLETED' && appointment.status !== 'DIAGNOSED'
+    (appointment: Appointment) =>
+      appointment.status !== AppointmentStatus.DIAGNOSED
   ) || [];
 
   const completedAppointments = filteredAppointments?.filter(
-    (appointment) => appointment.status === 'COMPLETED' || appointment.status === 'DIAGNOSED'
+    (appointment: Appointment) =>
+      appointment.status === AppointmentStatus.DIAGNOSED
   ) || [];
 
   const AppointmentTable = ({ appointments, title }: { appointments: Appointment[], title: string }) => (
@@ -132,23 +133,25 @@ function Appointments() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED' && (
-                      <Link
-                        to={`/doctor/consultation/${appointment?.patient?.id}/${appointment?.id}`}
-                        className="inline-flex"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    {(appointment.status === AppointmentStatus.SCHEDULED ||
+                      appointment.status === AppointmentStatus.CONFIRMED) && (
+                        <Link
+                          to={`/doctor/consultation/${appointment?.patient?.id}/${appointment?.id}`}
+                          className="inline-flex"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => handleStartConsultation(appointment.patient?.id || '', appointment.id)}
                         >
-                          Start Consultation
-                        </Button>
-                      </Link>
-                    )}
-                    {appointment.status === 'DIAGNOSED' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            Start Consultation
+                          </Button>
+                        </Link>
+                      )}
+                    {appointment.status === AppointmentStatus.DIAGNOSED && (
                       <ViewDiagnosisRecordButton appointmentId={appointment.id} />
                     )}
                   </TableCell>

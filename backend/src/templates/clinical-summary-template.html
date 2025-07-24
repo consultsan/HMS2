@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Prescription</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #1E40AF;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #1E40AF;
+            margin-bottom: 10px;
+        }
+
+        .patient-details-box {
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background: #F9FAFB;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1E40AF;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #E5E7EB;
+            padding-bottom: 5px;
+        }
+
+        .patient-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .patient-item {
+            display: flex;
+            margin-bottom: 12px;
+        }
+
+        .patient-label {
+            font-weight: bold;
+            min-width: 120px;
+            color: #374151;
+        }
+
+        .patient-value {
+            color: #1F2937;
+            flex: 1;
+        }
+
+        .medical-history {
+            margin-bottom: 25px;
+        }
+
+        .history-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #F8FAFC;
+            border-left: 4px solid #3B82F6;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .history-label {
+            font-weight: bold;
+            color: #1E40AF;
+            margin-bottom: 5px;
+            text-decoration: underline;
+        }
+
+        .history-value {
+            color: #374151;
+            line-height: 1.4;
+        }
+
+        .visit-details {
+            background: #FFFBEB;
+            border: 1px solid #FCD34D;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .visit-item {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .visit-label {
+            font-weight: bold;
+            min-width: 100px;
+            color: #92400E;
+        }
+
+        .visit-value {
+            color: #451A03;
+        }
+
+        .diagnosis-section {
+            background: #F0F9FF;
+            border: 2px solid #0EA5E9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .diagnosis-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0369A1;
+            margin-bottom: 10px;
+            text-decoration: underline;
+        }
+
+        .diagnosis-content {
+            font-size: 14px;
+            color: #1F2937;
+            line-height: 1.6;
+        }
+
+        .medicines-section {
+            margin-bottom: 25px;
+        }
+
+        .medicine-list {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .medicine-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #E5E7EB;
+            display: flex;
+            align-items: center;
+        }
+
+        .medicine-item:last-child {
+            border-bottom: none;
+        }
+
+        .medicine-bullet {
+            width: 8px;
+            height: 8px;
+            background: #16A34A;
+            border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .medicine-text {
+            color: #166534;
+            font-weight: 500;
+        }
+
+        .lab-tests-section {
+            margin-bottom: 25px;
+        }
+
+        .lab-test-list {
+            background: #FEF3C7;
+            border: 1px solid #FCD34D;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .lab-test-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #E5E7EB;
+            display: flex;
+            align-items: center;
+        }
+
+        .lab-test-item:last-child {
+            border-bottom: none;
+        }
+
+        .lab-test-bullet {
+            width: 8px;
+            height: 8px;
+            background: #D97706;
+            border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .lab-test-text {
+            color: #92400E;
+            font-weight: 500;
+        }
+
+        .vitals-section {
+            margin-bottom: 25px;
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .vital-card {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #EF4444;
+        }
+
+        .vital-type {
+            font-weight: bold;
+            color: #B91C1C;
+            margin-bottom: 5px;
+        }
+
+        .vital-value {
+            font-size: 14px;
+            color: #7F1D1D;
+            margin-bottom: 5px;
+        }
+
+        .vital-notes {
+            font-size: 10px;
+            color: #991B1B;
+            font-style: italic;
+        }
+
+        .notes-section {
+            background: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .notes-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 10px;
+            text-decoration: underline;
+        }
+
+        .notes-content {
+            color: #4B5563;
+            line-height: 1.6;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #E5E7EB;
+            text-align: center;
+            color: #6B7280;
+            font-size: 11px;
+        }
+
+        .footer-text {
+            font-style: italic;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #6B7280;
+            font-style: italic;
+            background: #F9FAFB;
+            border-radius: 6px;
+            border: 1px dashed #D1D5DB;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+            }
+
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Medical Prescription</h1>
+        </div>
+
+        <!-- Patient Details -->
+        <div class="patient-details-box">
+            <div class="section-title">Patient Details</div>
+            <div class="patient-grid">
+                <div>
+                    <div class="patient-item">
+                        <span class="patient-label">Name:</span>
+                        <span class="patient-value">{{patient.name}}</span>
+                    </div>
+                    <div class="patient-item">
+                        <span class="patient-label">Age/Gender:</span>
+                        <span class="patient-value">{{patient.age}} years / {{patient.gender}}</span>
+                    </div>
+                    <div class="patient-item">
+                        <span class="patient-label">DOB:</span>
+                        <span class="patient-value">{{formatDate patient.dob}}</span>
+                    </div>
+                    <div class="patient-item">
+                        <span class="patient-label">Phone:</span>
+                        <span class="patient-value">{{patient.phone}}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="patient-item">
+                        <span class="patient-label">Email:</span>
+                        <span class="patient-value">{{patient.email}}</span>
+                    </div>
+                    <div class="patient-item">
+                        <span class="patient-label">Blood Group:</span>
+                        <span class="patient-value">{{patient.bloodGroup}}</span>
+                    </div>
+                    <div class="patient-item">
+                        <span class="patient-label">Address:</span>
+                        <span class="patient-value">{{patient.address}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medical History -->
+        <div class="medical-history">
+            <div class="section-title">Medical History</div>
+
+            <div class="history-item">
+                <div class="history-label">Allergies:</div>
+                <div class="history-value">
+                    {{#if patient.allergies}}
+                    {{patient.allergies}}
+                    {{else}}
+                    No known allergies
+                    {{/if}}
+                </div>
+            </div>
+
+            <div class="history-item">
+                <div class="history-label">Chronic Diseases:</div>
+                <div class="history-value">
+                    {{#if patient.chronicDiseases}}
+                    {{patient.chronicDiseases}}
+                    {{else}}
+                    No chronic diseases recorded
+                    {{/if}}
+                </div>
+            </div>
+
+            <div class="history-item">
+                <div class="history-label">Pre-existing Conditions:</div>
+                <div class="history-value">
+                    {{#if patient.preExistingConditions}}
+                    {{patient.preExistingConditions}}
+                    {{else}}
+                    No pre-existing conditions recorded
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Visit Details -->
+        <div class="visit-details">
+            <div class="section-title">Visit Details</div>
+            <div class="visit-item">
+                <span class="visit-label">Date:</span>
+                <span class="visit-value">{{formatDateFull scheduledAt}}</span>
+            </div>
+            <div class="visit-item">
+                <span class="visit-label">Doctor:</span>
+                <span class="visit-value">Dr. {{doctor.name}}</span>
+            </div>
+            <div class="visit-item">
+                <span class="visit-label">Visit Type:</span>
+                <span class="visit-value">{{visitType}}</span>
+            </div>
+        </div>
+
+        <!-- Diagnosis -->
+        {{#if diagnosisRecord.diagnosis}}
+        <div class="diagnosis-section">
+            <div class="diagnosis-title">Diagnosis</div>
+            <div class="diagnosis-content">{{diagnosisRecord.diagnosis}}</div>
+        </div>
+        {{/if}}
+
+        <!-- Prescribed Medicines -->
+        <div class="medicines-section">
+            <div class="section-title">Prescribed Medicines</div>
+            {{#if diagnosisRecord.medicines.length}}
+            <div class="medicine-list">
+                {{#each diagnosisRecord.medicines}}
+                <div class="medicine-item">
+                    <div class="medicine-bullet"></div>
+                    <div class="medicine-text">{{name}} - {{frequency}}</div>
+                </div>
+                {{/each}}
+            </div>
+            {{else}}
+            <div class="empty-state">
+                No medicines prescribed
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- Lab Tests Ordered -->
+        {{#if attachments.length}}
+        <div class="lab-tests-section">
+            <div class="section-title">Lab Tests Ordered</div>
+            <div class="lab-test-list">
+                {{#each attachments}}
+                <div class="lab-test-item">
+                    <div class="lab-test-bullet"></div>
+                    <div class="lab-test-text">{{type}}</div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Vitals -->
+        {{#if vitals.length}}
+        <div class="vitals-section">
+            <div class="section-title">Vitals</div>
+            <div class="vitals-grid">
+                {{#each vitals}}
+                <div class="vital-card">
+                    <div class="vital-type">{{type}}</div>
+                    <div class="vital-value">
+                        {{value}}{{#if unit}} {{unit}}{{/if}}
+                    </div>
+                    {{#if notes}}
+                    <div class="vital-notes">Notes: {{notes}}</div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Additional Notes -->
+        {{#if diagnosisRecord.notes}}
+        <div class="notes-section">
+            <div class="notes-title">Additional Notes</div>
+            <div class="notes-content">{{diagnosisRecord.notes}}</div>
+        </div>
+        {{/if}}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-text">
+                Generated on {{formatDateTimeFull currentDate}}
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

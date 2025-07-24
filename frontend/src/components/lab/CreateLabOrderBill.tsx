@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, User, FlaskConical, DollarSign, CreditCard, Wallet, CheckCircle, Clock } from "lucide-react";
+import { Loader2, User, FlaskConical, IndianRupee, CreditCard, Wallet, CheckCircle, Clock } from "lucide-react";
 import { toast } from 'sonner';
 import { billingApi } from "@/api/billing";
 import { paymentApi } from "@/api/payment";
@@ -334,7 +334,7 @@ export default function CreateLabOrderBill({
                 ) : processingStep === 'complete' ? (
                     <div className="flex flex-col items-center justify-center py-12">
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                            <DollarSign className="h-6 w-6 text-green-600" />
+                            <IndianRupee className="h-6 w-6 text-green-600" />
                         </div>
                         <h3 className="text-base font-medium text-gray-900 mb-1">Success!</h3>
                         <p className="text-sm text-gray-500 text-center">

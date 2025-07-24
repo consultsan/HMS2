@@ -183,10 +183,8 @@ function DiagnosisRecord() {
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-3">
-                                    <img src="/True-Hospital-Logo(White).png" className='h-12' />
-                                    <Handshake className="h-6 w-6" />
-                                    <span className="text-white font-semibold text-3xl">{hospital?.name}</span>
-                                </div>
+                                    <img src="/True-Hospital-Logo(White).png" className='h-16' />
+                                    </div>
                             </div>
                             <div className="text-right text-sm">
                                 <p className="text-blue-100">{hospital?.address}</p>

@@ -98,4 +98,10 @@ export const doctorApi = {
     // Get doctor KPIs
     getDoctorKpis: (doctorId: string) =>
         api.get<ApiResponse<DoctorKpis>>(`/api/doctor/kpis/${doctorId}`).then(res => res.data.data),
+
+    // Get doctor KPIs by date range
+    getDoctorKpisByDate: (doctorId: string, startDate: string, endDate: string) =>
+        api.get<ApiResponse<DoctorKpis>>(`/api/doctor/kpis-by-interval/${doctorId}`, {
+            params: { startDate, endDate }
+        }).then(res => res.data.data),
 }; 

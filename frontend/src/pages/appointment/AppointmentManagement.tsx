@@ -15,7 +15,6 @@ import AddAppointment from "@/components/appointment/AddAppointment";
 import { useState } from "react";
 import { useSearch } from "@/contexts/SearchContext";
 import UpdateAppointment from "@/components/appointment/UpdateAppointment";
-import ViewAppointmentBill from "@/components/appointment/ViewAppointmentBill";
 import { useAuth } from "@/contexts/AuthContext";
 import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 import ViewBill from "@/components/billing/ViewBill";
@@ -34,25 +33,19 @@ export default function AppointmentManagement() {
   // Check if user can view bills (receptionist or hospital admin)
   const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
 
-  // Check if two dates are the same day
-  const isSameDay = (date1: Date | string, date2: Date | string) => {
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-
-    return d1.toDateString() === d2.toDateString();
-  };
-
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<ApiResponse<Appointment[]>>({
-    queryKey: ["appointments"],
+    queryKey: ["appointments", filterDate],
     queryFn: async () => {
-      const response = await appointmentApi.getAppointmentsByHospital();
+      // Format date as DD/MM/YYYY
+      const formattedDate = filterDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const response = await appointmentApi.getCreatedAppointmentsByDate(formattedDate);
       return response.data;
     },
   });
-
-  console.log(appointments);
-
-
 
   const cancelAppointmentMutation = useMutation({
     mutationFn: async (appointmentId: string) => {
@@ -68,15 +61,11 @@ export default function AppointmentManagement() {
     },
   });
 
-  const filteredAppointments = appointments?.data;
-  // ?.filter((appointment: Appointment) => {
-  //   if (searchQuery) {
-  //     return appointment.patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //       appointment.patient.phone.toLowerCase().includes(searchQuery.toLowerCase());
-  //   }
-  //   // Use date comparison
-  //   return isSameDay(appointment.scheduledAt, filterDate);
-  // });
+  const filteredAppointments = appointments?.data?.filter((appointment: Appointment) => {
+    if (!searchQuery || searchQuery === '') return true;
+    return appointment?.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment?.patient?.phone?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   if (appointmentsLoading) return <div>Loading...</div>;
   if (appointmentsError) return <div>Error loading data</div>;
@@ -99,8 +88,11 @@ export default function AppointmentManagement() {
   };
 
   const handleViewBill = (appointment: Appointment) => {
-    console.log("appointment", appointment.bills);
-    setViewBillAppointmentId(appointment.bills?.[0]?.id || '');
+    console.log("appointment", appointment);
+    if (appointment?.bills?.length) {
+      setViewBillAppointmentId(appointment.bills[0].id);
+    }
+    else toast.message("No bill Created for this appointment");
   };
 
   return (

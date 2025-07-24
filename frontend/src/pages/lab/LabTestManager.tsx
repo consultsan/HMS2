@@ -19,12 +19,8 @@ import { LabTestStatus, AppointmentAttachType } from "@/types/types";
 import ViewTestResult from "./ViewTestResult";
 import TestParameters from "./TestParamters";
 
-interface LabTestManagerProps {
-    title: string;
-    testFilter: (test: any) => boolean;
-}
 
-export default function LabTestManager({ title, testFilter }: LabTestManagerProps) {
+export default function LabTestManager({ filter }: { filter: string }) {
     const queryClient = useQueryClient();
     const [tentativeDates, setTentativeDates] = useState<{ [key: string]: { date: string, status: string } }>({});
     const [editingTestId, setEditingTestId] = useState<string | null>(null);
@@ -41,15 +37,21 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
     const [isUploading, setIsUploading] = useState(false);
     const [parametersComplete, setParametersComplete] = useState(false);
     const { searchQuery, setSearchQuery } = useSearch();
-    const { data: labTests } = useQuery<any>({
-        queryKey: ['lab-tests'],
+
+    const { data: labOrders } = useQuery<any>({
+        queryKey: ['lab-orders', filter],
         queryFn: async () => {
-            const response = await labApi.getOrderedTestsByHospital();
-            return response.data?.data;
+            if (filter === "FromDoctor") {
+                const response = await labApi.getInternalLabOrders();
+                return response.data?.data;
+            }
+            else if (filter === "FromReceptionist") {
+                const response = await labApi.getExternalLabOrders();
+                return response.data?.data;
+            }
+            return [];
         },
     });
-
-    const filteredTests = labTests?.filter(testFilter);
 
     const updateTestStatusMutation = useMutation({
         mutationFn: async ({ testId, status, tentativeReportDate }: { testId: string; status: LabTestStatus; tentativeReportDate?: string }) => {
@@ -60,7 +62,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             return response.data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['lab-tests'] });
+            queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
             toast.success('Test status updated successfully');
         },
         onError: (error) => {
@@ -75,7 +77,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             return response.data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['lab-tests'] });
+            queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
             setIsExternalLabDialogOpen(false);
             setExternalLabName('');
             setSelectedTestId(null);
@@ -96,7 +98,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             return response.data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['lab-tests'] });
+            queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
             setIsDialogOpen(false);
             setEditingTestId(null);
             toast.success('Tentative date updated successfully');
@@ -109,7 +111,11 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
 
     const updateExternalStatusMutation = useMutation({
         mutationFn: async ({ testId, isExternal }: { testId: string; isExternal: boolean }) => {
-            const test = labTests?.find((t: any) => t.id === testId);
+            // Find the test across all lab orders
+            const allTests = labOrders?.flatMap((order: any) =>
+                order.appointmentLabTests?.map((test: any) => ({ ...test, labOrderId: order.id }))
+            ) || [];
+            const test = allTests.find((t: any) => t.id === testId);
             if (!test) throw new Error('Test not found');
 
             let status = test.status;
@@ -128,7 +134,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             return response.data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['lab-tests'] });
+            queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
             toast.success('External status updated successfully');
         },
         onError: (error) => {
@@ -166,9 +172,10 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
         const file = event.target.files?.[0];
         if (!file) return;
 
-        const test = labTests?.find((t: any) => t.id === selectedTestForCompletion?.id);
-        if (!test?.appointmentId) {
-            toast.error('No appointment found for this test');
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === selectedTestForCompletion?.id);
+        if (!test) {
+            toast.error('No test found');
             return;
         }
 
@@ -181,7 +188,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
     };
 
     const handleStatusUpdate = (testId: string) => {
-        const test = labTests?.find((t: any) => t.id === testId);
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === testId);
         if (!test) return;
 
         if (test.status === 'PENDING') {
@@ -197,7 +205,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
     };
 
     const handleTentativeDateChange = (testId: string, date: string, status: string) => {
-        const test = labTests?.find((t: any) => t.id === testId);
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === testId);
         if (!test) return;
 
         if (test.status === "PENDING") {
@@ -218,7 +227,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             toast.error('Please select a tentative date');
             return;
         }
-        const test = labTests?.find((t: any) => t.id === testId);
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === testId);
         if (!test) return;
 
         if (test.status === "PENDING") {
@@ -235,7 +245,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
     const handleEditClick = (testId: string) => {
         setEditingTestId(testId);
         setIsDialogOpen(true);
-        const test = labTests?.find((t: any) => t.id === testId);
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === testId);
         if (test?.tentativeReportDate) {
             setTentativeDates(prev => ({
                 ...prev,
@@ -279,7 +290,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
 
     const handleCompleteTest = () => {
         if (selectedTestForCompletion) {
-            const test = labTests?.find((t: any) => t.id === selectedTestForCompletion.id);
+            const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+            const test = allTests.find((t: any) => t.id === selectedTestForCompletion.id);
             if (!test) return;
 
             // Check if parameters are complete and at least one document is uploaded
@@ -306,7 +318,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
     };
 
     const handleViewParameters = (testId: string, labTestId: string) => {
-        const test = labTests?.find((t: any) => t.id === testId);
+        const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
+        const test = allTests.find((t: any) => t.id === testId);
         setSelectedTestForView({ id: testId, labTestId, testName: test?.labTest?.name });
         setIsViewParametersDialogOpen(true);
     };
@@ -318,48 +331,50 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
         setParametersComplete(false);
     };
 
-    const searchFilteredTests = filteredTests?.filter((test: any) => {
-        const searchLower = searchQuery.toLowerCase();
-        const statusMatch = statusFilter === 'all' || test.status === statusFilter;
-        if (!searchQuery || searchQuery === '') { return statusMatch; }
-        const patientInfo = test.patient || test.appointment?.patient;
-        return statusMatch && (
-            patientInfo?.name?.toLowerCase().includes(searchLower) ||
-            test.labTest.name.toLowerCase().includes(searchLower) ||
-            test.status.toLowerCase().includes(searchLower) ||
-            patientInfo?.phone?.toLowerCase().includes(searchLower)
-        );
-    });
+    // Filter lab orders based on search and status
+    const filteredLabOrders = labOrders?.filter((order: any) => {
+        if (!order.appointmentLabTests || order.appointmentLabTests.length === 0) return false;
 
-    // Group tests by patient
-    const groupedTestsByPatient = searchFilteredTests?.reduce((groups: any, test: any) => {
-        const patient = test.patient || test.appointment?.patient;
-        const patientKey = patient?.id || 'unknown';
-        const patientName = patient?.name || 'Unknown Patient';
-
-        if (!groups[patientKey]) {
-            groups[patientKey] = {
-                patient: {
-                    id: patientKey,
-                    name: patientName,
-                    phone: patient?.phone,
-                    gender: patient?.gender,
-                    age: patient?.dob ? new Date().getFullYear() - new Date(patient.dob).getFullYear() : null
-                },
-                tests: []
-            };
+        // Apply filter based on test type
+        let relevantTests = order.appointmentLabTests;
+        if (filter === "FromDoctor") {
+            relevantTests = order.appointmentLabTests.filter((test: any) => !test.referredFromOutside);
+        } else if (filter === "FromReceptionist") {
+            relevantTests = order.appointmentLabTests.filter((test: any) => test.isSentExternal);
         }
 
-        groups[patientKey].tests.push(test);
-        return groups;
-    }, {}) || {};
+        if (relevantTests.length === 0) return false;
 
-    const patientsWithTests = Object.values(groupedTestsByPatient);
+        // Apply status filter
+        if (statusFilter !== 'all') {
+            relevantTests = relevantTests.filter((test: any) => test.status === statusFilter);
+            if (relevantTests.length === 0) return false;
+        }
+
+        // Apply search filter
+        if (searchQuery && searchQuery.trim()) {
+            const searchLower = searchQuery.toLowerCase();
+            const patientMatch = order.patient?.name?.toLowerCase().includes(searchLower) ||
+                order.patient?.phone?.toLowerCase().includes(searchLower);
+            const testMatch = relevantTests.some((test: any) =>
+                test.labTest?.name?.toLowerCase().includes(searchLower) ||
+                test.status?.toLowerCase().includes(searchLower)
+            );
+
+            if (!patientMatch && !testMatch) return false;
+        }
+
+        // Update the order to only include relevant tests
+        order.filteredTests = relevantTests;
+        return true;
+    }) || [];
+
+    console.log('Filtered Lab Orders:', filteredLabOrders);
 
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">{filter === "FromDoctor" ? "Tests From Doctors" : "Tests From Receptionist"}</h1>
             </div>
 
             <div className="flex gap-4 mb-6">
@@ -388,26 +403,25 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
             </div>
 
             <div className="space-y-6">
-                {patientsWithTests.length > 0 ? (
-                    patientsWithTests.map((patientGroup: any) => (
-                        <div key={patientGroup.patient.id} className="bg-white rounded-lg shadow border border-gray-200">
-                            {/* Patient Header */}
+                {filteredLabOrders.length > 0 ? (
+                    filteredLabOrders.map((labOrder: any) => (
+                        <div key={labOrder.id} className="bg-white rounded-lg shadow border border-gray-200">
+                            {/* Lab Order Header */}
                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h3 className="text-lg font-semibold text-gray-900">
-                                            {patientGroup.patient.name}
+                                            {labOrder.patient?.name}
                                         </h3>
                                         <div className="flex items-center gap-4 text-sm text-gray-600">
-                                            <span>📞 {patientGroup.patient.phone || 'N/A'}</span>
-                                            <span>👤 {patientGroup.patient.gender || 'N/A'}</span>
-                                            {patientGroup.patient.age && (
-                                                <span>🎂 {patientGroup.patient.age} years</span>
-                                            )}
+                                            <span>📞 {labOrder.patient?.phone || 'N/A'}</span>
+                                            <span>🆔 {labOrder.patient?.patientUniqueId || 'N/A'}</span>
+                                            <span>📅 {new Date(labOrder.createdAt).toLocaleDateString()}</span>
+                                            <span>🏷️ Order: {labOrder.id}</span>
                                         </div>
                                     </div>
                                     <div className="text-sm text-gray-500">
-                                        {patientGroup.tests.length} test{patientGroup.tests.length !== 1 ? 's' : ''}
+                                        {labOrder.filteredTests?.length || 0} test{(labOrder.filteredTests?.length || 0) !== 1 ? 's' : ''}
                                     </div>
                                 </div>
                             </div>
@@ -425,34 +439,34 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {patientGroup.tests.map((test: any) => (
-                                            <tr key={test.id} className="hover:bg-gray-50">
+                                        {labOrder.filteredTests?.map((test: any) => (
+                                            <tr key={test?.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-medium text-gray-900">{test.labTest.name}</div>
-                                                    <div className="text-sm text-gray-500">{test.labTest.sampleType || 'N/A'}</div>
+                                                    <div className="text-sm font-medium text-gray-900">{test?.labTest?.name}</div>
+                                                    <div className="text-sm text-gray-500">{test?.labTest?.sampleType || 'N/A'}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${test.status === 'COMPLETED'
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${test?.status === 'COMPLETED'
                                                         ? 'bg-green-100 text-green-800'
-                                                        : test.status === 'PROCESSING'
+                                                        : test?.status === 'PROCESSING'
                                                             ? 'bg-blue-100 text-blue-800'
-                                                            : test.status === 'SENT_EXTERNAL'
+                                                            : test?.status === 'SENT_EXTERNAL'
                                                                 ? 'bg-purple-100 text-purple-800'
                                                                 : 'bg-yellow-100 text-yellow-800'
                                                         }`}>
-                                                        {test.status}
+                                                        {test?.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {test.tentativeReportDate
-                                                        ? new Date(test.tentativeReportDate).toLocaleDateString()
+                                                    {test?.tentativeReportDate
+                                                        ? new Date(test?.tentativeReportDate).toLocaleDateString()
                                                         : (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleEditClick(test.id)}
+                                                                onClick={() => handleEditClick(test?.id)}
                                                                 className="text-blue-600 hover:text-blue-700"
-                                                                disabled={test.status === 'COMPLETED' || test.status === 'PENDING'}
+                                                                disabled={test?.status === 'COMPLETED' || test?.status === 'PENDING'}
                                                             >
                                                                 Set Date
                                                             </Button>
@@ -461,10 +475,10 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <select
-                                                        value={test.isSentExternal ? 'yes' : 'no'}
-                                                        onChange={(e) => handleExternalChange(test.id, e.target.value)}
+                                                        value={test?.isSentExternal ? 'yes' : 'no'}
+                                                        onChange={(e) => handleExternalChange(test?.id, e.target.value)}
                                                         className="text-sm border border-gray-300 rounded px-2 py-1"
-                                                        disabled={test.status === 'COMPLETED' || test.status === 'PENDING'}
+                                                        disabled={test?.status === 'COMPLETED' || test?.status === 'PENDING'}
                                                     >
                                                         <option value="no">Internal</option>
                                                         <option value="yes">External</option>
@@ -472,40 +486,40 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                     <div className="flex gap-2">
-                                                        {test.status === 'PENDING' && (
+                                                        {test?.status === 'PENDING' && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleStatusUpdate(test.id)}
-                                                                disabled={updateTestStatusMutation.isPending || test.status === 'PENDING'}
+                                                                onClick={() => handleStatusUpdate(test?.id)}
+                                                                disabled={updateTestStatusMutation.isPending || test?.status === 'PENDING'}
                                                             >
                                                                 Start Processing
                                                             </Button>
                                                         )}
-                                                        {test.status === 'PROCESSING' && (
+                                                        {test?.status === 'PROCESSING' && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleStatusUpdate(test.id)}
+                                                                onClick={() => handleStatusUpdate(test?.id)}
                                                                 disabled={updateTestStatusMutation.isPending}
                                                             >
                                                                 Complete Test
                                                             </Button>
                                                         )}
-                                                        {test.status === 'COMPLETED' && (
+                                                        {test?.status === 'COMPLETED' && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleViewParameters(test.id, test.labTestId)}
+                                                                onClick={() => handleViewParameters(test?.id, test?.labTestId)}
                                                             >
                                                                 View Report
                                                             </Button>
                                                         )}
-                                                        {test.tentativeReportDate && test.status !== 'COMPLETED' && (
+                                                        {test?.tentativeReportDate && test?.status !== 'COMPLETED' && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleEditClick(test.id)}
+                                                                onClick={() => handleEditClick(test?.id)}
                                                                 className="text-gray-600"
                                                             >
                                                                 Edit Date
@@ -522,7 +536,7 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                     ))
                 ) : (
                     <div className="text-center py-12">
-                        <div className="text-gray-500">No lab tests found matching your criteria</div>
+                        <div className="text-gray-500">No lab orders found matching your criteria</div>
                     </div>
                 )}
             </div>
@@ -601,7 +615,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                             {/* Test Information */}
                             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                                 <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                                    Test: {labTests?.find((t: any) => t.id === selectedTestForCompletion.id)?.labTest?.name}
+                                    Test: {labOrders?.flatMap((order: any) => order.appointmentLabTests)
+                                        .find((t: any) => t?.id === selectedTestForCompletion?.id)?.labTest?.name}
                                 </h3>
                                 <p className="text-sm text-blue-700">
                                     Please enter all test parameter values and upload the lab report documents to complete this test.
@@ -614,8 +629,8 @@ export default function LabTestManager({ title, testFilter }: LabTestManagerProp
                                     📊 Test Parameters
                                 </h3>
                                 <TestParameters
-                                    testId={selectedTestForCompletion.labTestId}
-                                    appointmentLabTestId={selectedTestForCompletion.id}
+                                    testId={selectedTestForCompletion?.labTestId}
+                                    appointmentLabTestId={selectedTestForCompletion?.id}
                                     canEdit={true}
                                     onParametersComplete={setParametersComplete}
                                 />

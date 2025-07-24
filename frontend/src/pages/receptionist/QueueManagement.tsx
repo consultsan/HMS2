@@ -29,7 +29,7 @@ import ViewBill from '@/components/billing/ViewBill';
 
 export default function QueueManagement() {
     const [activeTab, setActiveTab] = useState<'queue' | 'today'>('queue');
-    const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
+    const [selectedDoctor, setSelectedDoctor] = useState<string>('');
     const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
     const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
     const [isViewBillDialogOpen, setIsViewBillDialogOpen] = useState(false);
@@ -66,7 +66,14 @@ export default function QueueManagement() {
     // Fetch doctors using React Query
     const { data: doctors = [] } = useQuery<any[]>({
         queryKey: ['doctors'],
-        queryFn: () => api.get('/api/doctor/get-by-hospital').then(res => res.data.data),
+        queryFn: () => api.get('/api/doctor/get-by-hospital').then(res => {
+            const doctorsData = res.data.data;
+            // Set the first doctor as default if we have doctors and no selection yet
+            if (doctorsData?.length > 0 && !selectedDoctor) {
+                setSelectedDoctor(doctorsData[0].id);
+            }
+            return doctorsData;
+        }),
         staleTime: 300000, // Consider doctors data fresh for 5 minutes
     });
 
@@ -112,18 +119,11 @@ export default function QueueManagement() {
         setSelectedBillId("");
     };
 
-    const handlePaymentSuccess = async () => {
-        // Invalidate appointments to reflect any payment status changes
-        await queryClient.invalidateQueries({
-            queryKey: ['appointments', 'today', today]
-        });
-        toast.success('Payment processed successfully!');
-    };
 
     // Filter appointments
     const confirmedAppointments = appointments?.filter((appointment: Appointment) =>
         appointment.status === 'CONFIRMED' &&
-        (selectedDoctor === 'all' || appointment.doctor.id === selectedDoctor)
+        (selectedDoctor === appointment.doctor.id)
     );
 
     const todayScheduledAppointments = appointments?.filter((appointment: Appointment) =>
@@ -163,8 +163,7 @@ export default function QueueManagement() {
     // Calculate stats
     const totalScheduled = todayScheduledAppointments?.length || 0;
     const totalInQueue = confirmedAppointments?.length || 0;
-    const selectedDoctorName = selectedDoctor === 'all' ? 'All Doctors' :
-        doctors?.find(d => d.id === selectedDoctor)?.name || '';
+    const selectedDoctorName = doctors?.find(d => d.id === selectedDoctor)?.name || '';
 
     if (appointmentsLoading) {
         return (
@@ -402,10 +401,9 @@ export default function QueueManagement() {
                         </div>
                         <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
                             <SelectTrigger className="w-[250px]">
-                                <SelectValue placeholder="Filter by Doctor" />
+                                <SelectValue placeholder="Select a Doctor" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Doctors</SelectItem>
                                 {doctors?.map((doctor) => (
                                     <SelectItem key={doctor.id} value={doctor.id}>
                                         {doctor.name}

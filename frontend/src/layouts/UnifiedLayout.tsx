@@ -63,8 +63,7 @@ const roleConfigs = {
       { name: 'Appointments', path: '/sales-person/appointments' },
       { name: 'Follow Ups', path: '/sales-person/follow-ups' },
       { name: 'Surgical Appointments', path: '/sales-person/surgical-appointments' },
-      { name: 'Create Test Order', path: '/sales-person/create-test' },
-    ],
+      ],
     searchPlaceholders: {
       appointments: 'Search appointments',
       patients: 'Search patients',

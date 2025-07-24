@@ -77,10 +77,15 @@ router.patch(
 	appointmentController.updateAppointmentSchedule.bind(appointmentController)
 );
 
-// Get appointment by ID
+// Specific routes first
 router.get(
-	"/:id",
-	appointmentController.getAppointmentById.bind(appointmentController)
+	"/get-created-appointments",
+	appointmentController.getCreatedAppointments.bind(appointmentController)
+);
+
+router.get(
+	"/get-created-appointments-by-date",
+	appointmentController.getCreatedAppointmentsByDate.bind(appointmentController)
 );
 
 // Appointment billing routes
@@ -91,6 +96,12 @@ router.post(
 router.get(
 	"/:appointmentId/billing",
 	appointmentController.getAppointmentBilling.bind(appointmentController)
+);
+
+// Generic ID route last
+router.get(
+	"/:id",
+	appointmentController.getAppointmentById.bind(appointmentController)
 );
 
 export default router;

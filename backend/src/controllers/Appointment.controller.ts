@@ -147,34 +147,84 @@ export class AppointmentController {
 					>;
 
 				// Validate required fields
-				if (!appointmentId || !category) {
-					throw new AppError("Missing required fields", 400);
+				if (!appointmentId) {
+					return res.status(400).json(new ApiResponse("Appointment ID is required", null));
 				}
 
-				// Check if appointment exists
-				const appointment = await prisma.appointment.findUnique({
-					where: { id: appointmentId }
+				if (!category) {
+					return res.status(400).json(new ApiResponse("Surgery category is required", null));
+				}
+
+				// Check if appointment exists and belongs to the hospital
+				const appointment = await prisma.appointment.findFirst({
+					where: {
+						id: appointmentId,
+						hospitalId: req.user.hospitalId
+					}
 				});
 
 				if (!appointment) {
-					throw new AppError("Appointment not found", 404);
+					return res.status(404).json(new ApiResponse("Appointment not found or unauthorized", null));
+				}
+
+				// Check if surgery already exists for this appointment
+				const existingSurgery = await prisma.surgery.findFirst({
+					where: { appointmentId }
+				});
+
+				if (existingSurgery) {
+					return res.status(400).json(new ApiResponse("Surgery already exists for this appointment", null));
+				}
+
+				// Create surgery data object
+				const surgeryData = {
+					appointmentId,
+					category,
+					description: description?.trim() || "No description provided",
+					status: status || "NOT_CONFIRMED"
+				} as any; // Using any temporarily to avoid TS errors
+
+				// Add scheduledAt if provided and valid
+				if (scheduledAt) {
+					const parsedDate = new Date(scheduledAt);
+					if (!isNaN(parsedDate.getTime())) {
+						surgeryData.scheduledAt = parsedDate;
+					} else {
+						return res.status(400).json(new ApiResponse("Invalid surgery date", null));
+					}
 				}
 
 				const surgery = await prisma.surgery.create({
-					data: {
-						appointmentId,
-						category,
-						scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-						description: description || "No description provided",
-						status: status || "NOT_CONFIRMED"
+					data: surgeryData,
+					include: {
+						appointment: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										patientUniqueId: true
+									}
+								},
+								doctor: {
+									select: {
+										id: true,
+										name: true,
+										specialisation: true
+									}
+								}
+							}
+						}
 					}
 				});
-				res.status(200).json(new ApiResponse("Surgery added", surgery));
+
+				return res.status(201).json(new ApiResponse("Surgery added successfully", surgery));
 			} catch (error: any) {
+				console.error("Error adding surgery:", error);
 				errorHandler(error, res);
 			}
 		} else {
-			res.status(403).json(new ApiResponse("Unauthorized access", null));
+			return res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
 	}
 
@@ -239,6 +289,7 @@ export class AppointmentController {
 						visitType,
 						doctorId,
 						status: status || AppointmentStatus.SCHEDULED,
+						createdBy: req.user.id as string,
 						vitals: {
 							create: new Array<Vital>()
 						},
@@ -336,6 +387,119 @@ export class AppointmentController {
 				res
 					.status(200)
 					.json(new ApiResponse("Fetched appointments", appointments));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
+		}
+	}
+	async getCreatedAppointments(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const userId = req.user.id as string;
+				const appointments = await prisma.appointment.findMany({
+					where: { createdBy: userId },
+					orderBy: {
+						scheduledAt: "desc"
+					},
+					include: {
+						patient: true,
+						doctor: true,
+						diagnosisRecord: true,
+						bills: true,
+						labTests: true
+					}
+				});
+				if (!appointments) throw new AppError("No appointments found", 404);
+				res.status(200).json(new ApiResponse("Fetched appointments", appointments));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		}
+	}
+
+	async getCreatedAppointmentsByDate(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { date } = req.query;
+				const userId = req.user.id as string;
+
+				if (!date || typeof date !== 'string') {
+					throw new AppError("Valid date is required", 400);
+				}
+
+				// Parse the date string safely
+				let queryDate: Date;
+				try {
+					// Try to parse as ISO string first
+					queryDate = new Date(date);
+
+					// If invalid date, try dd/MM/yyyy format
+					if (isNaN(queryDate.getTime())) {
+						const [day, month, year] = date.split('/');
+						queryDate = new Date(`${year}-${month}-${day}`);
+					}
+
+					// Final validation
+					if (isNaN(queryDate.getTime())) {
+						throw new Error('Invalid date format');
+					}
+				} catch (error) {
+					throw new AppError("Invalid date format. Use ISO or DD/MM/YYYY format", 400);
+				}
+
+				// Create date range in local timezone
+				const startOfDay = new Date(queryDate);
+				startOfDay.setHours(0, 0, 0, 0);
+
+				const endOfDay = new Date(queryDate);
+				endOfDay.setHours(23, 59, 59, 999);
+
+				try {
+					const appointments = await prisma.appointment.findMany({
+						where: {
+							createdBy: userId,
+							scheduledAt: {
+								gte: startOfDay,
+								lte: endOfDay
+							}
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						},
+						include: {
+							patient: {
+								select: {
+									id: true,
+									name: true,
+									patientUniqueId: true,
+									phone: true
+								}
+							},
+							doctor: {
+								select: {
+									id: true,
+									name: true,
+									specialisation: true
+								}
+							},
+							diagnosisRecord: true,
+							bills: true,
+							labTests: true
+						}
+					});
+
+					return res.status(200).json(
+						new ApiResponse(
+							appointments.length ? "Fetched appointments" : "No appointments found",
+							appointments
+						)
+					);
+				} catch (dbError) {
+					console.error("Database error:", dbError);
+					throw new AppError("Failed to fetch appointments from database", 500);
+				}
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -919,6 +1083,103 @@ export class AppointmentController {
 					totalFollowUps,
 					totalCancelledAppointments,
 					totalCompletedAppointments
+				};
+
+				res.status(200).json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
+		}
+	}
+	async getDoctorKpisByInterval(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { doctorId } = req.params;
+				const { startDate, endDate } = req.query;
+				const hospitalId = req.user.hospitalId;
+
+				if (!hospitalId) {
+					throw new AppError("User isn't linked to any hospital", 403);
+				}
+
+				if (!startDate || !endDate) {
+					throw new AppError("Start date and end date are required", 400);
+				}
+
+				const startDateTime = new Date(startDate as string);
+				const endDateTime = new Date(endDate as string);
+
+				// Set end time to end of day
+				endDateTime.setHours(23, 59, 59, 999);
+
+				// Get all appointments for the doctor within date range
+				const appointments = await prisma.appointment.findMany({
+					where: {
+						doctorId,
+						hospitalId,
+						scheduledAt: {
+							gte: startDateTime,
+							lte: endDateTime
+						}
+					},
+					include: {
+						bills: {
+							include: {
+								billItems: true
+							}
+						},
+						diagnosisRecord: {
+							include: {
+								followUpAppointment: true
+							}
+						}
+					}
+				});
+
+				// Calculate KPIs
+				const totalAppointments = appointments.length;
+
+				// Count completed appointments (diagnosed status)
+				const totalCompletedAppointments = appointments.filter(
+					apt => apt.status === AppointmentStatus.DIAGNOSED
+				).length;
+
+				// Count cancelled appointments
+				const totalCancelledAppointments = appointments.filter(
+					apt => apt.status === AppointmentStatus.CANCELLED
+				).length;
+
+				// Calculate total revenue from bills
+				const totalRevenue = appointments.reduce((sum, apt) => {
+					const billTotal = apt.bills.reduce((billSum, bill) => billSum + bill.totalAmount, 0);
+					return sum + billTotal;
+				}, 0);
+
+				// Count unique patients
+				const uniquePatients = new Set(appointments.map(apt => apt.patientId));
+				const totalPatients = uniquePatients.size;
+
+				// Count follow-up appointments (appointments that have a diagnosis with follow-up)
+				const totalFollowUps = appointments.filter(
+					apt => apt.diagnosisRecord?.followUpAppointment
+				).length;
+
+				const kpis = {
+					id: `${doctorId}-${hospitalId}-${startDateTime.toISOString()}-${endDateTime.toISOString()}`, // Composite ID with date range
+					doctorId,
+					hospitalId,
+					totalAppointments,
+					totalRevenue,
+					totalPatients,
+					totalFollowUps,
+					totalCancelledAppointments,
+					totalCompletedAppointments,
+					period: {
+						start: startDateTime,
+						end: endDateTime
+					}
 				};
 
 				res.status(200).json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
     Table,
@@ -9,76 +9,53 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Patient } from '../consultation/interfaces/PatinetInterface';
 import { useSearch } from '@/contexts/SearchContext';
 import { Button } from '@/components/ui/button';
 import { appointmentApi } from '@/api/appointment';
-import { AppointmentStatus, VisitType } from '@/types/types';
+import { AppointmentStatus, VisitType, Appointment as AppointmentType } from '@/types/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import UpdateAppointment from '@/components/appointment/UpdateAppointment';
 
-interface Appointment {
-    id: string;
-    scheduledAt: string;
-    visitType: 'OPD' | 'IPD' | 'EMERGENCY' | 'FOLLOW_UP';
-    status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'DIAGNOSED' | 'PENDING';
-    patient: Patient
-    doctor: {
-        name: string;
-        id: string;
-    };
-}
+type Appointment = AppointmentType;
 
 export default function FollowUpsSection() {
     const { searchQuery } = useSearch();
     const [activeTab, setActiveTab] = useState('pending');
-    const [confirmingIds, setConfirmingIds] = useState<Set<string>>(new Set());
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const queryClient = useQueryClient();
 
-    const [appointments, setAppointments] = useState<Appointment[] | undefined>(undefined);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    // Fetch follow-up appointments using React Query
+    const { data: appointments, isLoading } = useQuery({
+        queryKey: ['followUpAppointments'],
+        queryFn: async () => {
+            const response = await appointmentApi.getAppointmentsByHospitalAndVisitType(VisitType.FOLLOW_UP);
+            return response.data?.data ?? [];
+        },
+        refetchInterval: 30000, // Refetch every 30 seconds
+        refetchOnWindowFocus: true,
+        staleTime: 10000 // Consider data fresh for 10 seconds
+    });
 
-    const fetchAppointments = async () => {
-        setIsLoading(true);
-        try {
-            const response = await appointmentApi.getAppointmentsByHospitalAndVisitType(VisitType.FOLLOW_UP);   
-            const allAppointments = response.data?.data ?? [];
-            setAppointments(allAppointments);
-        } catch (error) {
-            setAppointments([]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchAppointments();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const refetch = fetchAppointments;
-
-
-    const handleConfirmFollowUp = async (appointmentId: string) => {
-        setConfirmingIds(prev => new Set([...prev, appointmentId]));
-
-        try {
-            await appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.SCHEDULED);
+    // Mutation for confirming follow-up appointments
+    const confirmFollowUpMutation = useMutation({
+        mutationFn: async (appointmentId: string) => {
+            return await appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.SCHEDULED);
+        },
+        onSuccess: () => {
             toast.success('Follow-up appointment confirmed');
-            refetch(); // Refresh the data to update the UI
-        } catch (error) {
+            queryClient.invalidateQueries({ queryKey: ['followUpAppointments'] });
+        },
+        onError: () => {
             toast.error('Failed to confirm follow-up appointment');
-        } finally {
-            setConfirmingIds(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(appointmentId);
-                return newSet;
-            });
         }
-    }
+    });
+
+    const handleConfirmFollowUp = (appointmentId: string) => {
+        confirmFollowUpMutation.mutate(appointmentId);
+    };
 
     const handleEditAppointment = (appointment: Appointment) => {
         setSelectedAppointment(appointment);
@@ -90,25 +67,25 @@ export default function FollowUpsSection() {
     }
 
     // Filter appointments based on search query
-    const filteredAppointments = appointments?.filter((appointment) => {
+    const filteredAppointments = appointments?.filter((appointment: Appointment) => {
         if (!searchQuery) { return true; }
         const searchLower = searchQuery.toLowerCase();
         return (
-            appointment.patient.name.toLowerCase().includes(searchLower) ||
-            appointment.patient.phone.toLowerCase().includes(searchLower) ||
-            appointment.doctor.name.toLowerCase().includes(searchLower) ||
+            appointment?.patient?.name?.toLowerCase().includes(searchLower) ||
+            appointment?.patient?.phone?.toLowerCase().includes(searchLower) ||
+            appointment?.doctor?.name?.toLowerCase().includes(searchLower) ||
             appointment.visitType.toLowerCase().includes(searchLower) ||
             appointment.status.toLowerCase().includes(searchLower)
         );
     }) || [];
 
     // Separate appointments into confirmed and pending
-    const confirmedFollowUps = filteredAppointments.filter(apt =>
-        apt.visitType === VisitType.FOLLOW_UP && (apt.status === 'CONFIRMED' || apt.status === 'SCHEDULED')
+    const confirmedFollowUps = filteredAppointments.filter((apt: Appointment) =>
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.CONFIRMED || apt.status === AppointmentStatus.SCHEDULED)
     );
 
-    const pendingFollowUps = filteredAppointments.filter(apt =>
-        apt.visitType === VisitType.FOLLOW_UP && (apt.status === 'DIAGNOSED' || apt.status === 'PENDING')
+    const pendingFollowUps = filteredAppointments.filter((apt: Appointment) =>
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.DIAGNOSED || apt.status === AppointmentStatus.PENDING)
     );
 
     const renderAppointmentTable = (appointments: Appointment[], showConfirmButton: boolean = false) => (
@@ -128,9 +105,9 @@ export default function FollowUpsSection() {
                 {appointments && appointments.length > 0 ? (
                     appointments.map((appointment) => (
                         <TableRow key={appointment.id}>
-                            <TableCell className="font-medium">{appointment.patient.name}</TableCell>
-                            <TableCell className="font-medium">{appointment.patient.phone}</TableCell>
-                            <TableCell>{appointment.doctor.name}</TableCell>
+                            <TableCell className="font-medium">{appointment?.patient?.name}</TableCell>
+                            <TableCell className="font-medium">{appointment?.patient?.phone}</TableCell>
+                            <TableCell>{appointment?.doctor?.name}</TableCell>
                             <TableCell>{appointment.visitType}</TableCell>
                             <TableCell>
                                 {new Date(appointment.scheduledAt).toLocaleString('en-GB', {
@@ -144,13 +121,13 @@ export default function FollowUpsSection() {
                             </TableCell>
                             <TableCell>
                                 <span
-                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${appointment.status === 'COMPLETED'
+                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${appointment.status === AppointmentStatus.DIAGNOSED
                                         ? 'bg-green-100 text-green-800'
-                                        : appointment.status === 'CANCELLED'
+                                        : appointment.status === AppointmentStatus.CANCELLED
                                             ? 'bg-red-100 text-red-800'
-                                            : appointment.status === 'CONFIRMED'
+                                            : appointment.status === AppointmentStatus.CONFIRMED
                                                 ? 'bg-blue-100 text-blue-800'
-                                                : appointment.status === 'SCHEDULED'
+                                                : appointment.status === AppointmentStatus.SCHEDULED
                                                     ? 'bg-green-100 text-green-800'
                                                     : 'bg-yellow-100 text-yellow-800'
                                         }`}
@@ -172,9 +149,11 @@ export default function FollowUpsSection() {
                                             onClick={() => handleConfirmFollowUp(appointment.id)}
                                             size="sm"
                                             variant="outline"
-                                            disabled={confirmingIds.has(appointment.id)}
+                                            disabled={confirmFollowUpMutation.isPending && confirmFollowUpMutation.variables === appointment.id}
                                         >
-                                            {confirmingIds.has(appointment.id) ? 'Confirming...' : 'Confirm Follow up'}
+                                            {confirmFollowUpMutation.isPending && confirmFollowUpMutation.variables === appointment.id
+                                                ? 'Confirming...'
+                                                : 'Confirm Follow up'}
                                         </Button>
                                     )}
                                 </div>
@@ -191,7 +170,7 @@ export default function FollowUpsSection() {
             </TableBody>
         </Table>
     );
-    
+
     return (
         <div className="p-6">
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">Follow Up Appointments</h1>
@@ -243,20 +222,12 @@ export default function FollowUpsSection() {
 
             {selectedAppointment && (
                 <UpdateAppointment
-                    appointment={{
-                        ...selectedAppointment,
-                        id: selectedAppointment.id,
-                        scheduledAt: selectedAppointment.scheduledAt,
-                        status: selectedAppointment.status,
-                        patientId: selectedAppointment.patient.id,
-                        doctorId: selectedAppointment.doctor.id,
-                        visitType: selectedAppointment.visitType === 'FOLLOW_UP' ? 'OPD' : selectedAppointment.visitType as 'OPD' | 'IPD' | 'EMERGENCY',
-                    }}
+                    appointment={selectedAppointment}
                     isOpen={isUpdateDialogOpen}
                     onClose={() => {
                         setIsUpdateDialogOpen(false);
                         setSelectedAppointment(null);
-                        refetch(); // Refresh data when dialog closes
+                        queryClient.invalidateQueries({ queryKey: ['followUpAppointments'] });
                     }}
                 />
             )}
