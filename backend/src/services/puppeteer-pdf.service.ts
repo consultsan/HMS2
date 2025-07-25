@@ -2,6 +2,7 @@ import puppeteer from "puppeteer";
 import * as handlebars from "handlebars";
 import * as fs from "fs";
 import * as path from "path";
+import { format } from "date-fns";
 import {
     Appointment,
     DiagnosisRecord,
@@ -13,8 +14,8 @@ import {
     BillItem,
     Payment
 } from "@prisma/client";
-import { format } from "date-fns";
 
+// Interface definitions (same as existing PDFService)
 export interface VisitWithRelations extends Appointment {
     diagnosisRecord?: DiagnosisRecord | null;
     vitals: Vital[];
@@ -61,7 +62,7 @@ export interface BillWithRelations extends Bill {
     };
 }
 
-export class PDFService {
+export class PuppeteerPDFService {
     private static templatesPath = path.join(__dirname, '../templates');
 
     // Register Handlebars helpers
@@ -125,48 +126,27 @@ export class PDFService {
             return a !== b;
         });
 
-        // Replace helper
-        handlebars.registerHelper('replace', (str: string, find: string, replace: string) => {
-            if (!str) return str;
-            return str.replace(new RegExp(find, 'g'), replace);
+        // If length helper - basic check
+        handlebars.registerHelper('hasLength', (array: any[]) => {
+            return array && array.length > 0;
         });
     }
 
-    // Initialize browser instance with better error handling
+    // Initialize browser instance
     private static async getBrowser() {
-        try {
-            return await puppeteer.launch({
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--disable-extensions',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--disable-dev-tools',
-                    '--js-flags=--max-old-space-size=4096', // Increase memory limit
-                    '--deterministic-fetch', // Ensure consistent page loads
-                    '--enable-precise-memory-info',
-                    '--enable-low-end-device-mode' // Optimize for low memory
-                ],
-                timeout: 60000,
-                handleSIGINT: true,
-                handleSIGTERM: true,
-                handleSIGHUP: true,
-                pipe: true // Use pipe instead of WebSocket
-            });
-        } catch (error) {
-            console.error('Failed to launch browser:', error);
-            throw new Error('Failed to initialize PDF browser');
-        }
+        return await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu'
+            ]
+        });
     }
 
     // Load and compile template
@@ -181,91 +161,39 @@ export class PDFService {
         return handlebars.compile(templateSource);
     }
 
-    // Generate PDF from HTML template with improved error handling
+    // Generate PDF from HTML template
     private static async generatePDFFromHTML(html: string): Promise<Buffer> {
-        let browser;
+        const browser = await this.getBrowser();
         let page;
-        let retries = 3; // Add retry mechanism
 
-        while (retries > 0) {
-            try {
-                browser = await this.getBrowser();
-                page = await browser.newPage();
+        try {
+            page = await browser.newPage();
 
-                // Optimize memory usage
-                await page.setCacheEnabled(false);
-                const client = await page.target().createCDPSession();
-                await client.send('Network.enable');
-                await client.send('Network.setBypassServiceWorker', { bypass: true });
+            // Set viewport and content
+            await page.setViewport({ width: 1200, height: 800 });
+            await page.setContent(html, {
+                waitUntil: 'networkidle0',
+                timeout: 30000
+            });
 
-                // Set page configuration
-                await page.setDefaultNavigationTimeout(30000);
-                await page.setViewport({ width: 1200, height: 800 });
+            // Generate PDF
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '20px',
+                    right: '20px',
+                    bottom: '20px',
+                    left: '20px'
+                },
+                preferCSSPageSize: true
+            });
 
-                // Wait for network to be idle before proceeding
-                await page.setContent(html, {
-                    waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
-                    timeout: 30000
-                });
-
-                // Add a small delay to ensure content is fully rendered
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Generate PDF with error handling and increased timeout
-                const pdfBuffer = await page.pdf({
-                    format: 'A4',
-                    printBackground: true,
-                    margin: {
-                        top: '20px',
-                        right: '20px',
-                        bottom: '20px',
-                        left: '20px'
-                    },
-                    preferCSSPageSize: true,
-                    timeout: 60000
-                });
-
-                return Buffer.from(pdfBuffer);
-            } catch (error: unknown) {
-                retries--;
-                console.error(`Error in PDF generation (retries left: ${retries}):`, error);
-
-                // Clean up resources before retry
-                try {
-                    if (page && !page.isClosed()) {
-                        await page.close().catch(() => { });
-                    }
-                    if (browser && browser.connected) {
-                        await browser.close().catch(() => { });
-                    }
-                } catch (cleanupError) {
-                    console.warn('Error during cleanup:', cleanupError);
-                }
-
-                if (retries === 0) {
-                    if (error instanceof Error) {
-                        throw new Error(`PDF generation failed after all retries: ${error.message}`);
-                    }
-                    throw new Error('PDF generation failed with unknown error after all retries');
-                }
-
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } finally {
-                try {
-                    if (page && !page.isClosed()) {
-                        await page.close().catch(() => { });
-                    }
-                    if (browser && browser.connected) {
-                        await browser.close().catch(() => { });
-                    }
-                } catch (closeError) {
-                    console.warn('Error during cleanup:', closeError);
-                }
-            }
+            return Buffer.from(pdfBuffer);
+        } finally {
+            if (page) await page.close();
+            await browser.close();
         }
-
-        throw new Error('PDF generation failed: Maximum retries reached');
     }
 
     // Calculate age helper
@@ -282,32 +210,19 @@ export class PDFService {
         return age;
     }
 
-    // Generate Bill PDF using Puppeteer
+    // Generate Bill PDF
     static async generateBillPDF(bill: BillWithRelations): Promise<Buffer> {
         this.registerHelpers();
 
         try {
             const template = this.loadTemplate('bill-template');
 
-            // Get the absolute path to the logo from backend's public directory
-            const logoPath = path.join(process.cwd(), 'public', 'True-Hospital-Logo(White).png');
-            console.log('Loading logo from:', logoPath);
-
-            let logoUrl = '';
-            try {
-                const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-                logoUrl = `data:image/png;base64,${logoBase64}`;
-
-            } catch (logoError) {
-                console.error('Error reading logo file:', logoError);
-                // Continue without the logo if file cannot be read
-            }
-
             // Prepare template data
             const templateData = {
                 ...bill,
                 currentDate: new Date(),
-                logoUrl
+                formatDate: (date: Date) => format(new Date(date), 'dd MMM yyyy'),
+                formatDateTime: (date: Date) => format(new Date(date), 'dd MMM yyyy, hh:mm a'),
             };
 
             // Generate HTML
@@ -321,7 +236,7 @@ export class PDFService {
         }
     }
 
-    // Generate Diagnosis Record PDF using Puppeteer
+    // Generate Diagnosis Record PDF
     static async generateDiagnosisRecord(
         diagnosisRecord: any,
         labTests: any[],
@@ -331,16 +246,13 @@ export class PDFService {
 
         try {
             const template = this.loadTemplate('diagnosis-template');
-            const logoPath = path.join(process.cwd(), 'public', 'True-Hospital-Logo(White).png');
-            const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-            const logoUrl = `data:image/png;base64,${logoBase64}`;
+
             // Prepare template data
             const templateData = {
                 ...diagnosisRecord,
                 labTests: labTests || [],
                 surgicalInfo,
                 currentDate: new Date(),
-                logoUrl,
                 patient: {
                     ...diagnosisRecord.appointment?.patient,
                     age: diagnosisRecord.appointment?.patient?.dob
@@ -366,7 +278,7 @@ export class PDFService {
         }
     }
 
-    // Generate Clinical Summary PDF using Puppeteer
+    // Generate Clinical Summary PDF
     static async generateClinicalSummary(
         appointment: Appointment,
         visit: VisitWithRelations
@@ -431,18 +343,4 @@ export class PDFService {
 
         return await this.generatePDFFromHTML(testHTML);
     }
-}
-
-// Helper function to calculate age (keeping for backward compatibility)
-function calculateAge(dob: Date | string) {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
-
-    return age;
 } 

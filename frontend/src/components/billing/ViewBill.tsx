@@ -14,7 +14,7 @@ import {
     User,
     Building2,
     FlaskConical,
-    DollarSign,
+    IndianRupee,
     CreditCard,
     Wallet,
     Download,
@@ -298,12 +298,12 @@ export default function ViewBill({
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800">Bill #{bill.billNumber}</h3>
+                                    <h3 className="text-lg font-bold text-gray-800">{bill.billNumber}</h3>
                                     <p className="text-sm text-gray-600">Generated on {formatDate(bill.billDate)}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(bill.status)}`}>
-                                        {bill.status}
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(bill.status).replace(/_/g, ' ')}`}>
+                                        {bill.status.replace(/_/g, ' ')}
                                     </span>
                                     <Button
                                         onClick={handleDownloadBill}
@@ -455,7 +455,7 @@ export default function ViewBill({
                         {/* Payment Summary with Discount Info */}
                         <div className="bg-blue-50 p-4 rounded-lg">
                             <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                                <DollarSign className="h-4 w-4" />
+                                <IndianRupee className="h-4 w-4" />
                                 Payment Summary
                             </h4>
 
@@ -490,7 +490,7 @@ export default function ViewBill({
                         {bill.payments && bill.payments.length > 0 && (
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
-                                    <DollarSign className="h-5 w-5 text-green-600" />
+                                    <IndianRupee className="h-5 w-5 text-green-600" />
                                     <h4 className="font-semibold text-gray-700">Payment History</h4>
                                 </div>
                                 <div className="space-y-3">
@@ -566,7 +566,7 @@ export default function ViewBill({
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-                                <DollarSign className="h-5 w-5" />
+                                <IndianRupee className="h-5 w-5" />
                                 {paymentType === 'full' ? 'Pay Full Amount' : 'Pay Partial Amount'}
                             </DialogTitle>
                         </DialogHeader>

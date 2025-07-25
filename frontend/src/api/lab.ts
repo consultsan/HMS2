@@ -51,5 +51,17 @@ export const labApi = {
     },
 
     getLabTestAttachments: (appointmentLabTestId: string) => api.get(`/api/lab/attachments/${appointmentLabTestId}`),
-}
+
+    // Get internal lab orders
+    getInternalLabOrders: () =>
+        api.get('/api/lab/lab-orders-by-hospital'),
+
+    // Get external lab orders
+    getExternalLabOrders: () =>
+        api.get('/api/lab/external-lab-orders-by-hospital'),
+
+    // Generate lab test bill
+    generateLabTestBill: (appointmentLabTestId: string, data: any) =>
+        api.post(`/api/lab/orders/${appointmentLabTestId}/generate-bill`, data),
+};
 

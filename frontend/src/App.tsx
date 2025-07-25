@@ -119,7 +119,6 @@ export default function App() {
             <Route path="appointments" element={<AppointmentManagement />} />
             <Route path="follow-ups" element={<FollowUpsSection />} />
             <Route path="surgical-appointments" element={<SurgicalAppointments />} />
-            <Route path="create-test" element={<CreateLabTestAppointment />} />
           </Route>
 
           {/* Doctor Routes */}

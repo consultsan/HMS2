@@ -207,12 +207,13 @@ model HospitalStaff {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  shifts       Shift[]
-  templates    DiseaseTemplate[]
-  appointments Appointment[]
-  opdCharge    OpdCharge?
-  slots        Slot[]
-  tempShifts   TempShift[]
+  shifts              Shift[]
+  templates           DiseaseTemplate[]
+  appointments        Appointment[]     @relation("DoctorAppointments")
+  opdCharge           OpdCharge?
+  slots               Slot[]
+  tempShifts          TempShift[]
+  createdAppointments Appointment[]     @relation("AppointmentCreator")
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -351,6 +352,8 @@ model Appointment {
   status      AppointmentStatus @default(SCHEDULED)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  createdBy   String? 
+  creator     HospitalStaff?    @relation("AppointmentCreator", fields: [createdBy], references: [id])
 
   vitals          Vital[]
   attachments     AppointmentAttachment[]
@@ -362,7 +365,7 @@ model Appointment {
 
   patient    Patient       @relation(fields: [patientId], references: [id])
   patientId  String
-  doctor     HospitalStaff @relation(fields: [doctorId], references: [id])
+  doctor     HospitalStaff @relation("DoctorAppointments", fields: [doctorId], references: [id])
   doctorId   String
   hospital   Hospital      @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -374,6 +377,7 @@ model Appointment {
   @@index([patientId])
   @@index([doctorId])
   @@index([hospitalId])
+  @@index([createdBy])
 }
 
 /// — Lab order to group multiple lab tests ordered together —

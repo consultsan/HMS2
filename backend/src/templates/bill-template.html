@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill - {{billNumber}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1E40AF, #3B82F6);
+            color: white;
+            padding: 20px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .hospital-logo {
+            flex-shrink: 0;
+        }
+
+        .hospital-logo img {
+            height: 80px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .hospital-details {
+            text-align: right;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .hospital-details div {
+            margin-bottom: 4px;
+        }
+
+        .hospital-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .bill-details {
+            margin-top: 20px;
+            padding: 15px;
+            background: #F9FAFB;
+            border-radius: 6px;
+            width: 100%;
+            color: #1F2937;
+        }
+
+        .bill-details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .bill-detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .bill-detail-label {
+            font-weight: bold;
+            color: #4B5563;
+        }
+
+
+
+        .bill-info {
+            text-align: right;
+        }
+
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1E40AF;
+            border-bottom: 2px solid #E5E7EB;
+            padding-bottom: 5px;
+        }
+
+        .patient-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background: #F9FAFB;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .info-item {
+            display: flex;
+            margin-bottom: 8px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            min-width: 120px;
+            color: #374151;
+        }
+
+        .info-value {
+            color: #1F2937;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .items-table th {
+            background: #F3F4F6;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #E5E7EB;
+            font-size: 11px;
+        }
+
+        .items-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #E5E7EB;
+            font-size: 11px;
+        }
+
+        .items-table tr:nth-child(even) {
+            background: #F9FAFB;
+        }
+
+        .items-table tr:hover {
+            background: #F3F4F6;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .payment-summary {
+            background: #F9FAFB;
+            padding: 20px;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+
+        .summary-item.total {
+            border-top: 2px solid #E5E7EB;
+            padding-top: 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .status.paid {
+            background: #DEF7EC;
+            color: #047857;
+        }
+
+        .status.partially-paid {
+            background: #DBEAFE;
+            color: #1D4ED8;
+        }
+
+        .status.unpaid {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .payment-history {
+            margin-top: 25px;
+        }
+
+        .notes-section {
+            background: #F9FAFB;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #FCD34D;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #E5E7EB;
+            color: #6B7280;
+            font-size: 10px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .signature {
+            text-align: right;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid #9CA3AF;
+            width: 150px;
+            margin: 10px 0 5px auto;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+            }
+
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 15px;
+            }
+
+            .header {
+                margin: -15px -15px 15px -15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="hospital-logo">
+                    {{#if logoUrl}}
+                    <img src="{{logoUrl}}" alt="Hospital Logo">
+                    {{/if}}
+                </div>
+                <div class="hospital-details">
+                    {{#if hospital.name}}
+                    <div class="hospital-name">{{hospital.name}}</div>
+                    {{/if}}
+                    {{#if hospital.address}}
+                    <div>{{hospital.address}}</div>
+                    {{/if}}
+                    {{#if hospital.phone}}
+                    <div>Phone: {{hospital.phone}}</div>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bill Details Section -->
+        <div class="bill-details">
+            <div class="bill-details-grid">
+                <div class="bill-detail-item">
+                    <span class="bill-detail-label">Bill #</span>
+                    <span>{{billNumber}}</span>
+                </div>
+                <div class="bill-detail-item">
+                    <span class="bill-detail-label">Date</span>
+                    <span>{{formatDate billDate}}</span>
+                </div>
+                <div class="bill-detail-item">
+                    <span class="bill-detail-label">Status</span>
+                    <span class="status {{statusClass status}}">{{replace status "_" " "}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patient Information -->
+        <div class="section">
+            <div class="section-title">PATIENT INFORMATION</div>
+            <div class="patient-info">
+                <div>
+                    <div class="info-item">
+                        <span class="info-label">Patient Name:</span>
+                        <span class="info-value">{{patient.name}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Patient ID:</span>
+                        <span class="info-value">{{patient.patientUniqueId}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone:</span>
+                        <span class="info-value">{{patient.phone}}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="info-item">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{{patient.email}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Due Date:</span>
+                        <span class="info-value">{{formatDate dueDate}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Created:</span>
+                        <span class="info-value">{{formatDate createdAt}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bill Items -->
+        <div class="section">
+            <div class="section-title">BILL ITEMS</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Description</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-right">Unit Price</th>
+                        <th class="text-right">Discount</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each billItems}}
+                    <tr>
+                        <td class="text-center">{{inc @index}}</td>
+                        <td>{{description}}</td>
+                        <td class="text-center">{{quantity}}</td>
+                        <td class="text-right">₹{{formatCurrency unitPrice}}</td>
+                        <td class="text-right">₹{{formatCurrency discountAmount}}</td>
+                        <td class="text-right">₹{{formatCurrency totalPrice}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="section">
+            <div class="section-title">PAYMENT SUMMARY</div>
+            <div class="payment-summary w-full">
+                <div class="summary-item">
+                    <span>Total Amount:</span>
+                    <span>₹{{formatCurrency totalAmount}}</span>
+                </div>
+                <div class="summary-item">
+                    <span>Amount Paid:</span>
+                    <span>₹{{formatCurrency paidAmount}}</span>
+                </div>
+                <div class="summary-item">
+                    <span>Amount Due:</span>
+                    <span>₹{{formatCurrency dueAmount}}</span>
+                </div>
+                <div class="summary-item total">
+                    <span>Status:</span>
+                    <span class="status {{statusClass status}}">{{replace status "_" " "}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        {{#if payments.length}}
+        <div class="section payment-history">
+            <div class="section-title">PAYMENT HISTORY</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th class="text-right">Amount</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each payments}}
+                    <tr>
+                        <td>{{formatDate paymentDate}}</td>
+                        <td class="text-right">₹{{formatCurrency amount}}</td>
+                        <td>{{replace paymentMethod "_" " "}}</td>
+                        <td>{{replace status "_" " "}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+        {{/if}}
+
+        <!-- Notes -->
+        {{#if notes}}
+        <div class="section">
+            <div class="section-title">NOTES</div>
+            <div class="notes-section">
+                {{notes}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div>
+                    <div>Generated on: {{formatDateTime currentDate}}</div>
+                    <div>Hospital: {{hospital.name}}</div>
+                    {{#if hospital.address}}
+                    <div>Address: {{hospital.address}}</div>
+                    {{/if}}
+                </div>
+                <div class="signature">
+                    <div>Authorized Signature</div>
+                    <div class="signature-line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

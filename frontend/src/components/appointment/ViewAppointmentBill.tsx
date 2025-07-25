@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, DollarSign, User, Stethoscope, Receipt, FlaskConical, Clock, CheckCircle, CreditCard, Wallet, Download, CodeSquare } from "lucide-react";
+import { Loader2, IndianRupee, User, Stethoscope, Receipt, FlaskConical, Clock, CheckCircle, CreditCard, Wallet, Download, CodeSquare } from "lucide-react";
 import { toast } from 'sonner';
 import { billingApi } from "@/api/billing";
 import { labApi } from "@/api/lab";

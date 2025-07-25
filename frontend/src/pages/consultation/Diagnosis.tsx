@@ -24,11 +24,6 @@ const Diagnosis: React.FC<DiagnosisProps> = ({ value, onChange }) => {
                     </div>
                 )}
             </div>
-
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span>Be specific and include relevant clinical findings</span>
-            </div>
-
             {value && (
                 <div className="bg-green-50 border border-green-100 rounded-md p-2">
                     <div className="flex items-center gap-2 text-green-700">

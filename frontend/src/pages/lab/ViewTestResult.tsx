@@ -11,8 +11,28 @@ interface ViewTestResultProps {
 }
 
 export default function ViewTestResult({ appointmentLabTestId, testName }: ViewTestResultProps) {
-    // Fetch test results (parameters with values)
-    const { data: testResults, isLoading: resultsLoading } = useQuery<any>({
+    // First, get the test order details to get the labTestId
+    const { data: testOrder, isLoading: orderLoading } = useQuery<any>({
+        queryKey: ['test-order', appointmentLabTestId],
+        queryFn: async () => {
+            const response = await labApi.getOrderedTestById(appointmentLabTestId);
+            return response.data?.data;
+        },
+        enabled: !!appointmentLabTestId,
+    });
+
+    // Get the lab test parameters based on the labTestId from the order
+    const { data: labTestParameters, isLoading: parametersLoading } = useQuery<any>({
+        queryKey: ['lab-test-parameters', testOrder?.labTestId],
+        queryFn: async () => {
+            const response = await labApi.getParametersByLabTest(testOrder.labTestId);
+            return response.data?.data;
+        },
+        enabled: !!testOrder?.labTestId,
+    });
+
+    // Fetch saved test results (if any)
+    const { data: savedResults, isLoading: resultsLoading } = useQuery<any>({
         queryKey: ['test-results', appointmentLabTestId],
         queryFn: async () => {
             const response = await labApi.getResultsByOrder(appointmentLabTestId);
@@ -31,6 +51,18 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
         enabled: !!appointmentLabTestId,
     });
 
+    // Combine parameters with saved results
+    const combinedResults = labTestParameters?.map((parameter: any) => {
+        const savedResult = savedResults?.find((result: any) => result.parameterId === parameter.id);
+        return {
+            id: savedResult?.id || `param-${parameter.id}`,
+            parameter: parameter,
+            value: savedResult?.value || null,
+            unitOverride: savedResult?.unitOverride || null,
+            hasSavedValue: !!savedResult
+        };
+    }) || [];
+
     const handleOpenAttachment = (url: string) => {
         window.open(url, '_blank');
     };
@@ -47,7 +79,9 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
         return 'NORMAL';
     };
 
-    if (resultsLoading || attachmentsLoading) {
+    const isLoading = orderLoading || parametersLoading || resultsLoading || attachmentsLoading;
+
+    if (isLoading) {
         return (
             <div className="space-y-4">
                 <div className="flex items-center justify-center py-8">
@@ -74,7 +108,7 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {testResults && testResults.length > 0 ? (
+                    {combinedResults && combinedResults.length > 0 ? (
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
@@ -84,19 +118,21 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                                         <TableHead>Unit</TableHead>
                                         <TableHead>Reference Range</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Notes</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {testResults.map((result: any) => {
+                                    {combinedResults.map((result: any, index: number) => {
                                         const parameter = result.parameter;
-                                        const status = getStatusText(result.value, parameter?.lowerLimit, parameter?.upperLimit);
-                                        const statusColor = getStatusColor(result.value, parameter?.lowerLimit, parameter?.upperLimit);
+                                        const value = result.value ? parseFloat(result.value) : null;
+                                        const status = value !== null && !isNaN(value) ? getStatusText(value, parameter?.lowerLimit, parameter?.upperLimit) : 'N/A';
+                                        const statusColor = value !== null && !isNaN(value) ? getStatusColor(value, parameter?.lowerLimit, parameter?.upperLimit) : 'text-gray-500';
 
                                         return (
                                             <TableRow key={result.id}>
                                                 <TableCell className="font-medium">{parameter?.name || 'Unknown Parameter'}</TableCell>
-                                                <TableCell className="font-semibold">{result.value}</TableCell>
+                                                <TableCell className={`font-semibold ${result.hasSavedValue ? 'text-green-600' : 'text-gray-400'}`}>
+                                                    {result.value || 'Not entered'}
+                                                </TableCell>
                                                 <TableCell>{result.unitOverride || parameter?.unit || 'N/A'}</TableCell>
                                                 <TableCell>
                                                     {parameter?.lowerLimit !== undefined && parameter?.upperLimit !== undefined
@@ -113,7 +149,6 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                                                         {status}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell>{result.notes || '-'}</TableCell>
                                             </TableRow>
                                         );
                                     })}
@@ -123,8 +158,10 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                     ) : (
                         <div className="text-center py-8">
                             <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-500">No test results found</p>
-                            <p className="text-sm text-gray-400">Test parameters may not have been completed yet</p>
+                            <p className="text-gray-500">No test parameters found</p>
+                            <p className="text-sm text-gray-400">
+                                {!testOrder?.labTestId ? 'Could not determine lab test type' : 'This test type has no parameters defined'}
+                            </p>
                         </div>
                     )}
                 </CardContent>
@@ -151,7 +188,7 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                                 >
                                     <FileText className="h-4 w-4 mr-2" />
                                     <span className="flex-1 text-left">
-                                        {attachment.name || `Document ${index + 1}`}
+                                        {attachment.name || attachment.url?.split('/').pop() || `Document ${index + 1}`}
                                     </span>
                                     <ExternalLink className="h-3 w-3 ml-2" />
                                 </Button>

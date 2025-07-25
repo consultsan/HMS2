@@ -52,4 +52,10 @@ export const hospitalAdminApi = {
 
     // KPIs
     getKpis: () => api.get<ApiResponse<HospitalAdminKpis>>('/api/hospital-admin/kpis').then(res => res.data.data),
+
+    // Get hospital KPIs by date range
+    getKpisByDate: (startDate: string, endDate: string) =>
+        api.get<ApiResponse<HospitalAdminKpis>>('/api/hospital-admin/kpis-by-interval', {
+            params: { startDate, endDate }
+        }).then(res => res.data.data),
 };

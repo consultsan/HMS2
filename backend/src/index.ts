@@ -21,6 +21,7 @@ import billingRoute from "./routes/billing.route";
 import paymentRoute from "./routes/payment.route";
 import insuranceRoute from "./routes/insurance.route";
 import discountRoute from "./routes/discount.route";
+import testPdfRoute from "./routes/test-pdf.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
@@ -124,6 +125,9 @@ app.use("/api/billing", authMiddleware, billingRoute);
 app.use("/api/payment", authMiddleware, paymentRoute);
 app.use("/api/insurance", authMiddleware, insuranceRoute);
 app.use("/api/discount", authMiddleware, discountRoute);
+
+// Test route for Puppeteer PDF generation (no auth for testing)
+app.use("/api/test", testPdfRoute);
 
 app.post("/api/whatsapp", (req, res) => {
 	try {

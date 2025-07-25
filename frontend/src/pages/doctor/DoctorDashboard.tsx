@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Users,
@@ -10,10 +9,14 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  DollarSign,
+  IndianRupee,
   Activity
 } from 'lucide-react';
 import { doctorApi } from '@/api/doctor';
+import { TimeIntervalFilter } from '@/components/TimeIntervalFilter';
+import { format } from 'date-fns';
+
+type IntervalOption = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom_month' | 'custom_year';
 
 interface DoctorKpis {
   id: string;
@@ -25,18 +28,50 @@ interface DoctorKpis {
   totalFollowUps: number;
   totalCancelledAppointments: number;
   totalCompletedAppointments: number;
+  period?: {
+    start: string;
+    end: string;
+  };
 }
 
 function DoctorDashboard() {
   const { user } = useAuth();
   const doctorId = user?.id;
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [selectedInterval, setSelectedInterval] = useState<IntervalOption>('today');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const handleTimeIntervalChange = React.useCallback((start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  }, []);
+
+  const handleIntervalChange = React.useCallback((interval: IntervalOption) => {
+    setSelectedInterval(interval);
+  }, []);
+
+  const handleMonthChange = React.useCallback((month: number) => {
+    setSelectedMonth(month);
+  }, []);
+
+  const handleYearChange = React.useCallback((year: number) => {
+    setSelectedYear(year);
+  }, []);
 
   const { data: kpis, isLoading, error } = useQuery<DoctorKpis>({
-    queryKey: ['doctor-kpis', doctorId],
+    queryKey: ['doctor-kpis', doctorId, startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
       if (!doctorId) throw new Error('Doctor ID is required');
-      const response = await doctorApi.getDoctorKpis(doctorId);
-      return response;
+      if (startDate && endDate) {
+        return await doctorApi.getDoctorKpisByDate(
+          doctorId,
+          startDate.toISOString(),
+          endDate.toISOString()
+        );
+      }
+      return await doctorApi.getDoctorKpis(doctorId);
     },
     enabled: !!doctorId,
   });
@@ -86,7 +121,7 @@ function DoctorDashboard() {
     {
       title: 'Total Revenue',
       value: `₹${(kpis?.totalRevenue || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: IndianRupee,
       color: 'bg-emerald-500',
       description: 'Revenue generated'
     },
@@ -121,16 +156,34 @@ function DoctorDashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Doctor Dashboard</h1>
           <p className="text-gray-600 mt-1">Overview of your practice performance</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Activity className="w-4 h-4" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <TimeIntervalFilter
+            onTimeIntervalChange={handleTimeIntervalChange}
+            selectedInterval={selectedInterval}
+            onIntervalChange={handleIntervalChange}
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            selectedYear={selectedYear}
+            onYearChange={handleYearChange}
+          />
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Activity className="w-4 h-4" />
+            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
+
+      {/* Date Range Info */}
+      {kpis?.period && (
+        <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-sm">
+          Showing data from {format(new Date(kpis.period.start), 'PPP')} to {format(new Date(kpis.period.end), 'PPP')}
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
