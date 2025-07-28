@@ -55,7 +55,25 @@ interface PrescriptionSectionProps {
     }) => void;
 }
 
-const FREQUENCY_OPTIONS = ['Once a day', 'Twice a day', 'Thrice a day'] as const;
+const FREQUENCY_OPTIONS = [
+    'Once a day',
+    'Twice a day',
+    'Three times a day',
+    'Four times a day',
+    'Every 4 hours',
+    'Every 6 hours',
+    'Every 8 hours',
+    'Every 12 hours',
+    'After meals',
+    'Before meals',
+    'With meals',
+    'At bedtime',
+    'As needed',
+    'Twice a week',
+    'Three times a week',
+    'Once weekly',
+    'Twice weekly'
+] as const;
 
 const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptionChange }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -558,10 +576,10 @@ const PrescriptionSection: React.FC<PrescriptionSectionProps> = ({ onPrescriptio
                             onChange={(e) => setCustomMedicine(prev => ({ ...prev, name: e.target.value }))}
                         />
                         <input
-                            type="text"
-                            placeholder="Duration"
+                            placeholder="Duration in days"
                             className="col-span-2 p-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
                             value={customMedicine.duration}
+                            type="number"
                             onChange={(e) => setCustomMedicine(prev => ({ ...prev, duration: e.target.value }))}
                         />
                         <select

@@ -23,6 +23,10 @@ router.post(
 	upload.single("file"),
 	patientController.uploadDocument.bind(patientController)
 );
+router.get(
+	"/get-documents/:patientId",
+	patientController.listDocuments.bind(patientController)
+);
 router.post(
 	"/add-vitals/:appointmentId",
 	patientController.addVitals.bind(patientController)

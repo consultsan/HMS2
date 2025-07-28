@@ -29,10 +29,10 @@ import DepartmentManagement from './pages/hospital-admin/DepartmentManagement';
 import CompletedTests from './pages/lab/CompletedTests';
 import TestsFromReceptionist from './pages/lab/TestsFromReceptionist';
 import TestFromDoctors from './pages/lab/TestFromDoctors';
-import Retests from './pages/lab/Retests';
 import CreateLabTest from './pages/lab/CreateLabTest';
 import CreateLabTestAppointment from './pages/receptionist/CreateLabTestAppointment';
 import PendingLabBills from './pages/receptionist/PendingLabBills';
+
 
 export default function App() {
   return (
@@ -80,7 +80,7 @@ export default function App() {
             path="/patient/:patientId"
             element={
               <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'RECEPTIONIST', 'SALES_PERSON', 'DOCTOR']}>
-                <PatientDetails />
+                <PatientDetails patientId='' />
               </ProtectedRoute>
             }
           />
@@ -155,7 +155,6 @@ export default function App() {
             <Route path="from-doctors" element={<TestFromDoctors />} />
             <Route path="from-receptionist" element={<TestsFromReceptionist />} />
             <Route path="completed-tests" element={<CompletedTests />} />
-            <Route path="retests" element={<Retests />} />
             <Route path="create" element={<CreateLabTest />} />
           </Route>
 

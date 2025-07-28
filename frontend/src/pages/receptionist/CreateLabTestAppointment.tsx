@@ -230,7 +230,7 @@ export default function CreateLabTestAppointment() {
                 </Table>
             </div>
 
-            {/* Create Lab Order Dialog */}
+            {/* Create Lab Omrder Dialog */}
             <CreateLabOrderDialog
                 open={createLabOrderDialogOpen}
                 onOpenChange={setCreateLabOrderDialogOpen}

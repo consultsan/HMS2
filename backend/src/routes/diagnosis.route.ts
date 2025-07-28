@@ -4,7 +4,8 @@ import {
 	createDiagnosisRecord,
 	getDiagnosisRecord,
 	downloadDiagnosisPDF,
-	getDiagnosisByDate
+	getDiagnosisByDate,
+	getHtmlTemplate
 } from "../controllers/diagnosis.controller";
 
 const router = Router();
@@ -13,5 +14,6 @@ router.post("/add-diagnosis", createDiagnosisRecord);
 router.get("/get-by-appointment/:appointmentId", getDiagnosisRecord);
 router.get("/download-pdf/:appointmentId", downloadDiagnosisPDF);
 router.get("/get-by-date", getDiagnosisByDate);
+router.get("/get-html/:appointmentId", getHtmlTemplate);
 
 export default router;

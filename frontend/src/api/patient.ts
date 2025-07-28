@@ -3,6 +3,7 @@ import {
     Patient, FamilyLink, VitalsData, PatientUpdateData,
     PatientCreateData, DocumentUploadData, FamilyLinkCreateData
 } from '@/types/types';
+import { get } from 'lodash';
 
 
 
@@ -30,19 +31,24 @@ export const patientApi = {
         api.get<ApiResponse<Patient[]>>(`/api/patient/get-by-phone?phone=${(phoneNumber)}`).then(res => res.data.data),
 
     // Upload document for patient
-    uploadDocument: (data: DocumentUploadData) => {
+    uploadDocument: (data: { file: File; patientId: string; type: string }) => {
         const formData = new FormData();
         formData.append('file', data.file);
-        if (data.patientId) formData.append('patientId', data.patientId);
-        if (data.documentType) formData.append('documentType', data.documentType);
-        if (data.description) formData.append('description', data.description);
-
-        return api.post<ApiResponse<any>>('/api/patient/upload-doc', formData, {
+        formData.append('patientId', data.patientId);
+        formData.append('type', data.type);
+        return api.post(`/api/patient/upload-doc`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
-        }).then(res => res.data.data);
+        });
     },
+
+    getDocuments: (patientId: string) =>
+        api.get<ApiResponse<DocumentUploadData[]>>(`/api/patient/get-documents/${patientId}`).then(res => res.data.data),
+
+    // Delete a patient document
+    deleteDocument: (documentId: string) =>
+        api.delete<ApiResponse<void>>(`/api/patient/delete-document/${documentId}`).then(res => res.data),
 
     // Add vitals to appointment
     addVitals: (appointmentId: string, vitals: VitalsData) =>

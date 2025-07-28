@@ -47,6 +47,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
             }
             else if (filter === "FromReceptionist") {
                 const response = await labApi.getExternalLabOrders();
+                console.log("external from receptionist", response);
                 return response.data?.data;
             }
             return [];
@@ -169,7 +170,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
     });
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
+        const file = event.target.files?.[0]; 
         if (!file) return;
 
         const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
@@ -340,7 +341,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
         if (filter === "FromDoctor") {
             relevantTests = order.appointmentLabTests.filter((test: any) => !test.referredFromOutside);
         } else if (filter === "FromReceptionist") {
-            relevantTests = order.appointmentLabTests.filter((test: any) => test.isSentExternal);
+            relevantTests = order.appointmentLabTests.filter((test: any) => test.referredFromOutside);
         }
 
         if (relevantTests.length === 0) return false;

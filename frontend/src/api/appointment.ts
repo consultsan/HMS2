@@ -38,7 +38,7 @@ export const appointmentApi = {
     // Delete attachment
     deleteAttachment: (id: string) =>
         api.delete(`/api/appointment/delete-attachment/${id}`),
-
+ 
     // Update appointment status
     updateAppointmentStatus: (id: string, status: AppointmentStatus) =>
         api.patch(`/api/appointment/update-status/${id}`, { status }),

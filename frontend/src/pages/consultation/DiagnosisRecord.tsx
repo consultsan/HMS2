@@ -73,6 +73,40 @@ function DiagnosisRecord() {
         enabled: !!diagnosisRecord?.appointment?.hospitalId,
     });
 
+    const handlePrint = async () => {
+        if (!appointmentId) return;
+
+        try {
+            const response = await api.get(`/api/diagnosis/get-html/${appointmentId}`, {
+                responseType: 'text'
+            });
+
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                toast.error('Please allow popups to print');
+                return;
+            }
+
+            // Write the HTML content to the new window
+            printWindow.document.write(response.data);
+            printWindow.document.close();
+
+            // Wait for all images to load before printing
+            printWindow.onload = function () {
+                printWindow.focus();
+                printWindow.print();
+                // Close the window after printing (optional)
+                printWindow.onafterprint = function () {
+                    printWindow.close();
+                };
+            };
+        } catch (error) {
+            console.error('Error getting print template:', error);
+            toast.error('Failed to prepare document for printing');
+        }
+    };
+
     const handleDownloadPDF = async () => {
         if (!appointmentId) return;
 
@@ -154,7 +188,7 @@ function DiagnosisRecord() {
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl mx-auto">
                 {/* Header with Back Button and Download Button */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8 print:hidden">
                     <div className="flex items-center gap-4">
                         <Button
                             onClick={() => navigate(-1)}
@@ -164,17 +198,68 @@ function DiagnosisRecord() {
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back
                         </Button>
-                        <Button
-                            onClick={handleDownloadPDF}
-                            variant="outline"
-                            className="flex items-center text-blue-600 hover:text-blue-700"
-                            disabled={isDownloading}
-                        >
-                            <Download className="h-4 w-4 mr-2" />
-                            {isDownloading ? 'Downloading...' : 'Download PDF'}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={handleDownloadPDF}
+                                variant="outline"
+                                className="flex items-center text-blue-600 hover:text-blue-700"
+                                disabled={isDownloading}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                {isDownloading ? 'Downloading...' : 'Download PDF'}
+                            </Button>
+                            <Button
+                                onClick={handlePrint}
+                                variant="outline"
+                                className="flex items-center text-green-600 hover:text-green-700 print:hidden"
+                                title="Print using the formatted template"
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Print Record
+                            </Button>
+                        </div>
                     </div>
                 </div>
+
+                {/* Print Styles */}
+                <style type="text/css" media="print">{`
+                    @page {
+                        margin: 0;
+                        size: A4;
+                    }
+                    body {
+                        margin: 1.6cm;
+                    }
+                    .print:hidden {
+                        display: none !important;
+                    }
+                    nav, footer, .no-print {
+                        display: none !important;
+                    }
+                    .bg-gradient-to-r {
+                        background: white !important;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    .shadow-lg {
+                        box-shadow: none !important;
+                    }
+                    .bg-gray-50, .bg-gray-100 {
+                        background-color: white !important;
+                    }
+                    table {
+                        break-inside: auto !important;
+                    }
+                    tr {
+                        break-inside: avoid !important;
+                        break-after: auto !important;
+                    }
+                    thead {
+                        display: table-header-group;
+                    }
+                    tfoot {
+                        display: table-footer-group;
+                    }
+                `}</style>
 
                 {/* Medical Record Document */}
                 <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -184,7 +269,7 @@ function DiagnosisRecord() {
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-3">
                                     <img src="/True-Hospital-Logo(White).png" className='h-16' />
-                                    </div>
+                                </div>
                             </div>
                             <div className="text-right text-sm">
                                 <p className="text-blue-100">{hospital?.address}</p>

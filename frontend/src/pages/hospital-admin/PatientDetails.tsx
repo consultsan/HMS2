@@ -6,13 +6,11 @@ import { MedicalInformation } from '@/components/patient/MedicalInformation';
 import { DocumentsList } from '@/components/patient/DocumentsList';
 import { FamilyLinks } from '@/components/patient/FamilyLinks';
 import { usePatientForm } from '@/components/patient/usePatientForm';
-import { ArrowLeft } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { patientApi } from '@/api/patient';
 
-export default function PatientDetails() {
-    const { patientId = '' } = useParams();
+export default function PatientDetails({ patientId }: { patientId: string }) {
 
-    // console.log(patientId);
-    const navigate = useNavigate();
     const {
         formData,
         isEditing,
@@ -23,6 +21,28 @@ export default function PatientDetails() {
         isLoading,
         error
     } = usePatientForm(patientId);
+
+    console.log("Patient ID in PatientDetails:", patientId);
+    const { data: documents, isError, error: documentsError } = useQuery({
+        queryKey: ['documents', patientId],
+        queryFn: async () => {
+            if (!patientId) return [];
+            try {
+                const response = await patientApi.getDocuments(patientId);
+                console.log("Documents from API:", response);
+                return Array.isArray(response) ? response : [];
+            } catch (error) {
+                console.error("Error fetching documents:", error);
+                throw error;
+            }
+        },
+        enabled: Boolean(patientId),
+        initialData: []
+    });
+
+    console.log("Documents in component:", documents);
+    if (documentsError) console.error("Documents error:", documentsError);
+
 
     const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -46,10 +66,6 @@ export default function PatientDetails() {
         <div className="container mx-auto p-6 max-w-4xl">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate(-1)} className="flex items-center gap-2">
-                        <ArrowLeft className="h-4 w-4" />
-                        Back
-                    </Button>
                     <h1 className="text-2xl font-semibold">Patient Details</h1>
                 </div>
                 {!isEditing ? (
@@ -85,8 +101,9 @@ export default function PatientDetails() {
                 />
 
                 <DocumentsList
-                    documents={formData.documents}
+                    documents={documents || []}
                     backendBaseUrl={backendBaseUrl}
+                    patientId={patientId}
                 />
 
                 <FamilyLinks
@@ -95,4 +112,5 @@ export default function PatientDetails() {
             </form>
         </div>
     );
-} 
+}
+

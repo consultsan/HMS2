@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -24,6 +25,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearch } from '@/contexts/SearchContext';
 import { labApi } from '@/api/lab';
+
+const FREQUENCY_OPTIONS = [
+    'Once a day ',
+    'Twice a day ',
+    'Three times a day ',
+    'Four times a day ',
+    'Every 4 hours ',
+    'Every 6 hours ',
+    'Every 8 hours ',
+    'Every 12 hours ',
+    'After meals ',
+    'Before meals ',
+    'With meals',
+    'At bedtime ',
+    'As needed ',
+    'Twice a week',
+    'Three times a week',
+    'Once weekly',
+    'Twice weekly'
+] as const;
 
 interface Medicine {
     name: string;
@@ -96,7 +117,7 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
     const addMedicine = () => {
         setFormData(prev => ({
             ...prev,
-            medicines: [...prev.medicines, { name: '', frequency: '', duration: '' }]
+            medicines: [...prev.medicines, { name: '', frequency: 'Once a day', duration: '' }]
         }));
     };
 
@@ -193,14 +214,25 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
                                 value={medicine.name}
                                 onChange={(e) => updateMedicine(index, 'name', e.target.value)}
                             />
-                            <Input
-                                placeholder="Frequency"
+                            <Select
                                 value={medicine.frequency}
-                                onChange={(e) => updateMedicine(index, 'frequency', e.target.value)}
-                            />
+                                onValueChange={(value) => updateMedicine(index, 'frequency', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select frequency" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
+                                    {FREQUENCY_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option}>
+                                            {option}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <Input
-                                placeholder="Duration"
+                                placeholder="Duration in days"
                                 value={medicine.duration}
+                                type="number"
                                 onChange={(e) => updateMedicine(index, 'duration', e.target.value)}
                             />
                             <Button
@@ -338,7 +370,7 @@ export default function DiseaseTemplate() {
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const doctorId = user?.id;
-    const { searchQuery} = useSearch();
+    const { searchQuery } = useSearch();
 
     const createMutation = useMutation({
         mutationFn: (data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] }) =>

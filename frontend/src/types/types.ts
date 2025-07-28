@@ -36,11 +36,6 @@ export enum Status {
     INACTIVE = "INACTIVE"
 }
 
-export enum PatientDoc {
-    PHOTO = "PHOTO",
-    ID_PROOF = "ID_PROOF",
-    INSURANCE_CARD = "INSURANCE_CARD"
-}
 
 export enum Relation {
     PARENT_CHILD = "PARENT_CHILD",
@@ -86,6 +81,14 @@ export enum AppointmentAttachType {
     LAB_REPORT = "LAB_REPORT",
     MEDICAL_REPORT = "MEDICAL_REPORT",
     OTHER = "OTHER"
+}
+export enum PatientDoc {
+  PHOTO = "PHOTO",
+  ID_PROOF = "ID_PROOF",    
+  INSURANCE_CARD = "INSURANCE_CARD",
+  PRESCRIPTION = "PRESCRIPTION",
+  LAB_REPORT = "LAB_REPORT",
+  OTHER = "OTHER",
 }
 
 export enum ShiftName {
@@ -495,7 +498,9 @@ export interface FamilyLinkCreateData {
 }
 export interface DocumentUploadData {
     file: File;
-    patientId?: string;
+    patientId?: string; 
+    type: DocumentType; // Type of document (e.g., PHOTO, ID_PROOF, INSURANCE_CARD)
+    appointmentId?: string; // Optional, if the document is related to an appointment
     documentType?: string;
     description?: string;
 }

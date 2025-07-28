@@ -38,7 +38,8 @@ export const labApi = {
     getResultById: (id: string) => api.get(`/api/lab/results/${id}`),
     updateTestResult: (id: string, result: Partial<Pick<AppointmentLabTestResult, 'value' | 'unitOverride' | 'notes' | 'attachmentId'>>) => api.patch(`/api/lab/results/${id}`, result),
     deleteTestResult: (id: string) => api.delete(`/api/lab/results/${id}`),
-
+    // Lab Test KPI APIs
+    getLabKpisByInterval: (startDate: string, endDate: string) => api.get(`/api/lab/kpis?startDate=${startDate}&endDate=${endDate}`),
     // Lab Test Attachment APIs
     uploadLabTestAttachment: (data: { file: File; appointmentLabTestId: string }) => {
         const formData = new FormData();
@@ -46,7 +47,7 @@ export const labApi = {
         return api.post(`/api/lab/upload/attachment?appointmentLabTestId=${data.appointmentLabTestId}`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
-            },
+            },   
         });
     },
 

@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import ViewDiagnosisRecordButton from './viewDiagnosisRecord';
-import { AppointmentStatus, Slot, VisitType } from '@/types/types';
+import { AppointmentStatus, Slot, VisitType, SurgicalStatus } from '@/types/types';
 import { CheckCircle, ArrowLeft, Clock, FileText, Stethoscope, Calendar, Save } from 'lucide-react';
 import { doctorApi } from '@/api/doctor';
 import { appointmentApi } from '@/api/appointment';
@@ -150,19 +150,20 @@ function ConsultationPage() {
         const surgeryData = {
             appointmentId,
             category: followUpData.surgicalCategory,
-            scheduledAt: followUpData.surgeryDate ? new Date(followUpData.surgeryDate).toISOString() : undefined,
-            status: followUpData.surgicalStatus,
+            scheduledAt: followUpData.surgeryDate ? new Date(followUpData.surgeryDate) : undefined,
+            status: followUpData.surgicalStatus as SurgicalStatus,
             description: followUpData.surgicalDescription || 'No description provided'
         };
 
-        const response = await api.post('/api/appointment/add-surgery', surgeryData);
+        const response = await appointmentApi.addSurgery(surgeryData);
 
-        if (response.data.data.success) {
+        // If we get here without an exception, the surgery was created successfully
+        if (response.data) {
             toast.success('Surgery appointment scheduled');
-            return response.data.data.id;
+            return response.data.id || response.data.data?.id;
         }
 
-        throw new Error(response.data.message || 'Failed to schedule surgery');
+        throw new Error('Failed to schedule surgery');
     }, [appointmentId, followUpData]);
 
     const diagnosisMutation = useMutation({
@@ -258,10 +259,12 @@ function ConsultationPage() {
             toast.error('Diagnosis is required');
             return false;
         }
-        if (!prescriptionData.medicines.length) {
-            toast.error('At least one medicine is required');
+
+        else if (!diagnosisText.trim() && !prescriptionData.medicines.length && !prescriptionData.tests.length) {
+            toast.error('Fill in at least one diagnosis or prescription');
             return false;
         }
+        
         return true;
     }, [appointmentId, diagnosisText, prescriptionData.medicines]);
 
@@ -282,7 +285,6 @@ function ConsultationPage() {
             followUpAppointmentId: followUpData.followUpAppointmentId,
             appointmentId
         };
-        console.log("diagnosisData", diagnosisData);
 
         diagnosisMutation.mutate(diagnosisData);
     }, [validateForm, diagnosisText, notesText, prescriptionData, appointmentId, diagnosisMutation]);
