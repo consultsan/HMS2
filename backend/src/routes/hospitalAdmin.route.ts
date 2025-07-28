@@ -64,7 +64,6 @@ router.post("/shift/create-temp", shiftController.createTempShift.bind(shiftCont
 router.get("/shift/temp-shift/:staffId", shiftController.getTempShiftByStaff.bind(shiftController));
 router.get("/shift/temp-shift", shiftController.getTempShiftsByHospital.bind(shiftController));
 router.delete("/shift/temp-shift/delete/:id", shiftController.deleteTempShift.bind(shiftController));
-router.get("/kpis", hospitalController.getHospitalKpis.bind(hospitalController));
 router.get("/kpis-by-interval", hospitalController.getHospitalKpisByInterval.bind(hospitalController));
 
 export default router;

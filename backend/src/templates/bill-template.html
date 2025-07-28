@@ -155,6 +155,7 @@
         .items-table td {
             padding: 10px 8px;
             border-bottom: 1px solid #E5E7EB;
+            text-align: left;
             font-size: 11px;
         }
 
@@ -188,6 +189,7 @@
             margin-bottom: 10px;
             padding: 5px 0;
         }
+
 
         .summary-item.total {
             border-top: 2px solid #E5E7EB;
@@ -356,21 +358,21 @@
                     <tr>
                         <th>S.No</th>
                         <th>Description</th>
-                        <th class="text-center">Qty</th>
-                        <th class="text-right">Unit Price</th>
-                        <th class="text-right">Discount</th>
-                        <th class="text-right">Total</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Discount</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     {{#each billItems}}
                     <tr>
-                        <td class="text-center">{{inc @index}}</td>
+                        <td>{{inc @index}}</td>
                         <td>{{description}}</td>
-                        <td class="text-center">{{quantity}}</td>
-                        <td class="text-right">₹{{formatCurrency unitPrice}}</td>
-                        <td class="text-right">₹{{formatCurrency discountAmount}}</td>
-                        <td class="text-right">₹{{formatCurrency totalPrice}}</td>
+                        <td>{{quantity}}</td>
+                        <td>₹{{formatCurrency unitPrice}}</td>
+                        <td>₹{{formatCurrency discountAmount}}</td>
+                        <td>₹{{formatCurrency totalPrice}}</td>
                     </tr>
                     {{/each}}
                 </tbody>
@@ -408,7 +410,7 @@
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th class="text-right">Amount</th>
+                        <th>Amount</th>
                         <th>Method</th>
                         <th>Status</th>
                     </tr>
@@ -417,7 +419,7 @@
                     {{#each payments}}
                     <tr>
                         <td>{{formatDate paymentDate}}</td>
-                        <td class="text-right">₹{{formatCurrency amount}}</td>
+                        <td>₹{{formatCurrency amount}}</td>
                         <td>{{replace paymentMethod "_" " "}}</td>
                         <td>{{replace status "_" " "}}</td>
                     </tr>

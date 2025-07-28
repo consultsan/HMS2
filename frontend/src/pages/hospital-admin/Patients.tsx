@@ -24,6 +24,8 @@ import { Patient, PatientCreateData, User } from '@/types/types';
 import { UserRole } from '@/types/types';
 import { calculateAge } from '@/utils/dateUtils';
 import { patientApi } from '@/api/patient';
+import PatientDetails from './PatientDetails';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   UserPlus,
   Search,
@@ -61,6 +63,8 @@ export default function Patients() {
   };
   const allowedAddRoles = ['HOSPITAL_ADMIN', 'RECEPTIONIST', 'SALES_PERSON'];
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [searchValue, setSearchValue] = useState('');
   const [searchResult, setSearchResult] = useState<Patient | null>(null);
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
@@ -359,7 +363,15 @@ export default function Patients() {
                       <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                         <div className="flex items-center gap-2">
                           <UserIcon className="h-5 w-5 text-gray-500" />
-                          <span className="font-semibold text-blue-900 text-lg">{patient.name}</span>
+                          <span
+                            className="font-semibold text-blue-900 text-lg cursor-pointer hover:underline"
+                            onClick={() => {
+                              setSelectedPatientId(patient.id);
+                              setIsDetailsDialogOpen(true);
+                            }}
+                          >
+                            {patient.name}
+                          </span>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <Badge variant="outline">{patient.gender}</Badge>
@@ -543,6 +555,14 @@ export default function Patients() {
             </Button>
           </div>
         </FormDialog>
+        {/* Patient Details Dialog */}
+        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+          <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {isDetailsDialogOpen && selectedPatientId && (
+              <PatientDetails patientId={selectedPatientId} />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

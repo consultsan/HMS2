@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { PatientRepository } from "../repositories/Patient.repository";
 import fs from "fs";
 import prisma from "../utils/dbConfig";
-import s3client from "../services/s3client";
+import s3 from "../services/s3client";
 import {
 	Patient,
 	Vital,
@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import ApiResponse from "../utils/ApiResponse";
 import AppError from "../utils/AppError";
+import errorHandler from "../utils/errorHandler";
 
 interface Document {
 	type: PatientDoc;
@@ -262,26 +263,30 @@ export class PatientController {
 	async uploadDocument(req: Request, res: Response) {
 		if (req.user && req.user.role == "RECEPTIONIST") {
 			try {
-				const { patientId } = req.query as { patientId: string };
+				// For multipart/form-data, fields are in req.body
+				const { patientId, type } = req.body as { patientId: string; type: string };
 				if (!patientId) throw new AppError("Patient ID is required", 400);
+				if (!type) throw new AppError("Document type is required", 400);
 
-				const { type } = req.body as Document;
+				const file = req.file;
+				if (!file) {
+					return res.status(400).json({ error: "No file uploaded" });
+				}
 
-				if (!req.file) throw new AppError("File is missing", 400);
-
-				const url = await s3client.uploadStream(
-					req.file.stream,
-					req.file.originalname,
-					req.file.mimetype
+				const url = await s3.uploadStream(
+					file.buffer,
+					file.originalname,
+					file.mimetype
 				);
 
-				if (!url) throw new AppError("Unable to upload file", 500);
-				fs.unlinkSync(req.file.path);
+				file.buffer = Buffer.alloc(0);
+
+				// if (!url) throw new AppError("Unable to upload file", 500);
 
 				const doc = await prisma.patientDocument.create({
 					data: {
 						patientId,
-						type,
+						type: type as PatientDoc,
 						url
 					}
 				});
@@ -289,8 +294,21 @@ export class PatientController {
 					.status(201)
 					.json(new ApiResponse("Document uploaded successfully", doc));
 			} catch (error: any) {
+				let statusCode = 500;
+				if (error instanceof AppError) {
+					statusCode = error.code || 400;
+				} else if (error.code?.startsWith('P')) {
+					// Handle Prisma errors
+					switch (error.code) {
+						case 'P2003': // Foreign key constraint failed
+							statusCode = 400;
+							break;
+						default:
+							statusCode = 500;
+					}
+				}
 				res
-					.status(error.code || 500)
+					.status(statusCode)
 					.json(new ApiResponse(error.message || "Internal Server Error"));
 			}
 		} else {
@@ -339,12 +357,15 @@ export class PatientController {
 	// List patient documents
 	async listDocuments(req: Request, res: Response) {
 		try {
-			const { id } = req.params;
+			const { patientId } = req.params;
+			console.log("Listing documents for patient:", patientId);
 			const docs = await prisma.patientDocument.findMany({
-				where: { patientId: id },
+				where: { patientId: patientId },
 				orderBy: { uploadedAt: "desc" }
 			});
-			res.json(docs);
+			console.log(docs);
+
+			res.status(200).json(new ApiResponse("Documents retrieved successfully", docs));
 		} catch (error: any) {
 			console.error("Error listing documents:", error);
 			res
@@ -352,7 +373,24 @@ export class PatientController {
 				.json(new ApiResponse(error.message || "Internal Server Error"));
 		}
 	}
+	
+	async deleteAttachment(req: Request, res: Response) {
+		try {
+			const { documentId } = req.params;
 
+			const attachment = await prisma.patientDocument.findUnique({
+				where: { id: documentId },
+				select: { url: true }
+			});
+			if (!attachment) throw new AppError("Attachment not found", 404);
+			await s3.deleteFile(attachment.url);
+			await prisma.appointmentAttachment.delete({ where: { id: documentId } });
+
+			res.status(200).json(new ApiResponse("Attachment deleted successfully"));
+		} catch (error: any) {
+			errorHandler(error, res);
+		}
+	}
 	// Add family link
 	async addFamilyLink(req: Request, res: Response) {
 		try {

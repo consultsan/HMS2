@@ -40,6 +40,9 @@ enum PatientDoc {
   PHOTO
   ID_PROOF
   INSURANCE_CARD
+  PRESCRIPTION
+  LAB_REPORT
+  OTHER
 }
 
 enum Relation {

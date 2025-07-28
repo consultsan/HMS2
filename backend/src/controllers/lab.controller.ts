@@ -214,7 +214,8 @@ const createLabOrder = async (req: Request, res: Response) => {
 					}
 				},
 				data: {
-					labOrderId: labOrder.id
+					labOrderId: labOrder.id,
+					patientId: patientId // Ensure patientId is set for each lab test
 				}
 			});
 		}
@@ -436,7 +437,7 @@ const orderLabTest = async (req: Request, res: Response) => {
 		if (referredFromOutside) {
 			const order = await prisma.appointmentLabTest.create({
 				data: {
-					patientId,
+					patientId, 
 					labTestId,
 					referredFromOutside
 				},
@@ -966,6 +967,85 @@ const getLabTestBilling = async (req: Request, res: Response) => {
 		errorHandler(error, res);
 	}
 };
+//Lab Kpis
+const getLabKpisByInterval = async (req: Request, res: Response) => {
+	try {
+		const { hospitalId } = req.user as { hospitalId: string };
+		const { startDate, endDate } = req.query as { startDate: string, endDate: string };
+		const startDateTime = new Date(startDate);
+		const endDateTime = new Date(endDate as string);
+		startDateTime.setUTCHours(0, 0, 0, 0);
+		endDateTime.setUTCHours(23, 59, 59, 999);
+		const [
+			internalTests,
+			externalTests,
+			pendingTests,
+			processingTests,
+			completedTests
+		] = await Promise.all([
+			// Internal tests: appointmentId is not null
+			prisma.appointmentLabTest.count({
+				where: {
+					AND: [
+						{ appointment: { hospitalId } },
+						{ createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) } }
+					],
+					appointmentId: { not: null }
+				}
+			}),
+			// External tests: appointmentId is null or referredFromOutside is true
+			prisma.appointmentLabTest.count({
+				where: {
+					AND: [
+						{ patient: { hospitalId } },
+						{ createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) } }
+					],
+					OR: [
+						{ appointmentId: null },
+						{ referredFromOutside: true }
+					]
+				}
+			}),
+			// Pending tests
+			prisma.appointmentLabTest.count({
+				where: {
+					patient: { hospitalId },
+					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) },
+					status: "PENDING"
+				}
+			}),
+			// Processing tests
+			prisma.appointmentLabTest.count({
+				where: {
+					patient: { hospitalId },
+					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) },
+					status: "PROCESSING"
+				}
+			}),
+			// Completed tests
+			prisma.appointmentLabTest.count({
+				where: {
+					patient: { hospitalId },
+					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime)},
+					status: "COMPLETED"
+				}
+				
+			})
+		]);
+
+		const kpis = {
+			internalTests,
+			externalTests,
+			pendingTests,
+			processingTests,
+			completedTests
+		};
+
+		res.status(200).json(new ApiResponse("Lab KPIs fetched successfully", kpis));
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
 
 export {
 	// Lab Test Controllers
@@ -1011,5 +1091,7 @@ export {
 
 	// Lab Test Billing Controllers
 	generateLabTestBill,
-	getLabTestBilling
+	getLabTestBilling,
+	// Lab Test KPIs	
+	getLabKpisByInterval
 };

@@ -43,7 +43,10 @@ import {
 	// Lab Test Billing Controllers
 	generateLabTestBill,
 	getLabTestBilling,
-	updateLabOrder
+	updateLabOrder,
+
+	//Lab Test kpis
+	getLabKpisByInterval
 } from "../controllers/lab.controller";
 import { upload } from "../services/upload.service";
 
@@ -81,9 +84,9 @@ router.get("/hospitals/orders", getOrderedTestByHospital);
 
 // Lab Test Attachment Routes
 router.post(
-	"/upload/attachment",
-	upload.single("file"),
-	uploadLabTestAttachment
+	"/upload/attachment", 
+	upload.single("file"), 
+	uploadLabTestAttachment 
 );
 router.get("/attachments/:id", getLabTestAttachmentsByAppointmentLabTestId);
 
@@ -97,5 +100,8 @@ router.delete("/results/:id", deleteTestResult);
 // Lab Test Billing Routes
 router.post("/orders/:appointmentLabTestId/generate-bill", generateLabTestBill);
 router.get("/orders/:appointmentLabTestId/billing", getLabTestBilling);
+
+// Lab Test KPI Routes
+router.get("/kpis", getLabKpisByInterval);
 
 export default router;

@@ -1,18 +1,20 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { PatientDocument } from './types';
-import { appointmentApi } from '@/api/appointment';
+import { labApi } from '@/api/lab';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
-import { AppointmentAttachType } from '@/types/types';
+import { PatientDoc, AppointmentAttachType } from '@/types/types';
 import { Upload, FileText, Image, FileCheck, Trash2, Search, Download, AlertCircle } from 'lucide-react';
+import { appointmentApi } from '@/api/appointment';
+import { patientApi } from '@/api/patient';
 
 interface DocumentsListProps {
-    documents: PatientDocument[];
+    documents: any[];
     backendBaseUrl: string;
-    appointmentId?: string;
+    patientId?: string;
     onDocumentsUpdate?: (documents: PatientDocument[]) => void;
     maxFileSize?: number; // in MB
     allowedFileTypes?: string[];
@@ -21,24 +23,24 @@ interface DocumentsListProps {
 export function DocumentsList({
     documents: initialDocuments,
     backendBaseUrl,
-    appointmentId,
+    patientId,
     onDocumentsUpdate,
     maxFileSize = 10,
     allowedFileTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
 }: DocumentsListProps) {
     const [documents, setDocuments] = useState<PatientDocument[]>(initialDocuments || []);
     const [isUploading, setIsUploading] = useState(false);
-    const [documentType, setDocumentType] = useState<AppointmentAttachType | ''>('');
+    const [documentType, setDocumentType] = useState<PatientDoc | ''>('');
     const [searchTerm, setSearchTerm] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const documentTypes = [
-        { value: AppointmentAttachType.MEDICAL_REPORT, label: 'Medical Report' },
-        { value: AppointmentAttachType.LAB_REPORT, label: 'Lab Report' },
-        { value: AppointmentAttachType.PRESCRIPTION, label: 'Prescription' },
-        { value: AppointmentAttachType.OTHER, label: 'Other' }
+        { value: PatientDoc.INSURANCE_CARD, label: 'Medical Report' },
+        { value: PatientDoc.LAB_REPORT, label: 'Lab Report' },
+        { value: PatientDoc.PRESCRIPTION, label: 'Prescription' },
+        { value: PatientDoc.OTHER, label: 'Other' }
     ];
 
     // Filter documents based on search term
@@ -83,9 +85,12 @@ export function DocumentsList({
 
         return null;
     };
+    // Handle file upload
 
-    const handleFileUpload = async (file: File) => {
-        if (!appointmentId || !documentType) {
+
+    // Upload multiple files one by one using labApi.uploadLabTestAttachment
+    const handleFileUpload = async (files: FileList | File[]) => {
+        if (!patientId || !documentType) {
             toast({
                 title: "Error",
                 description: "Please select a document type",
@@ -94,60 +99,72 @@ export function DocumentsList({
             return;
         }
 
-        const validationError = validateFile(file);
-        if (validationError) {
-            toast({
-                title: "Invalid File",
-                description: validationError,
-                variant: "destructive"
-            });
-            return;
-        }
 
+        const fileArray = Array.from(files);
         setIsUploading(true);
-        try {
-            const response = await appointmentApi.uploadAttachment({
-                file,
-                type: documentType,
-                appointmentId
-            });
-
-            const newDocument: PatientDocument = {
-                id: response.data.id,
-                type: documentType,
-                url: response.data.url,
-                uploadedAt: new Date()
-            };
-
-            const updatedDocuments = [...documents, newDocument];
-            setDocuments(updatedDocuments);
-            onDocumentsUpdate?.(updatedDocuments);
-
-            toast({
-                title: "Success",
-                description: `Document uploaded successfully (${formatFileSize(file.size)})`,
-            });
-
-            // Reset form
-            setDocumentType('');
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
+        let anyError = false;
+        for (const file of fileArray) {
+            const validationError = validateFile(file);
+            console.log("Validating file:", file, "Validation error:", validationError);
+            if (validationError) {
+                console.log("Validation error for file:", file.name, "Error:", validationError),
+                    toast({
+                        title: "Invalid File",
+                        description: validationError,
+                        variant: "destructive"
+                    });
+                anyError = true;
+                continue;
             }
-        } catch (error) {
-            toast({
-                title: "Upload Failed",
-                description: "Failed to upload document. Please try again.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsUploading(false);
+            try {
+                // Use patientApi.uploadDocument with FormData
+                const docResponse: any = await patientApi.uploadDocument({
+                    file: file,
+                    patientId: patientId,
+                    type: documentType
+                });
+
+                console.log("Upload response data:", docResponse.data.data);
+
+
+
+                const newDocument: PatientDocument = {
+                    id: docResponse.data.data.id || Math.random().toString(),
+                    type: documentType,
+                    url: docResponse.data.data.url,
+                    uploadedAt: new Date()
+                };
+                const updatedDocuments = [...documents, newDocument];
+                setDocuments(updatedDocuments);
+                onDocumentsUpdate?.(updatedDocuments);
+                toast({
+                    title: "Success",
+                    description: `Document uploaded successfully (${formatFileSize(file.size)})`,
+                });
+            } catch (error) {
+                anyError = true;
+                toast({
+                    title: "Upload Failed",
+                    description: "Failed to upload document. Please try again.",
+                    variant: "destructive"
+                });
+            }
+        }
+        setIsUploading(false);
+        // Reset form
+        setDocumentType('');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+        if (!anyError) {
+            // Optionally: show a summary toast
         }
     };
 
     const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            await handleFileUpload(file);
+        const files = event.target.files;
+        if (files && files.length > 0) {
+            await handleFileUpload(files);
         }
     };
 
@@ -168,13 +185,14 @@ export function DocumentsList({
 
         const files = Array.from(e.dataTransfer.files);
         if (files.length > 0) {
-            await handleFileUpload(files[0]);
+            await handleFileUpload([files[0]]);
         }
-    }, [appointmentId, documentType]);
+    }, [patientId, documentType]);
 
     const handleDeleteDocument = async (documentId: string) => {
         try {
-            await appointmentApi.deleteAttachment(documentId);
+            // Use patientApi for patient documents and appointmentApi for appointment attachments
+            await patientApi.deleteDocument(documentId);
 
             const updatedDocuments = documents.filter(doc => doc.id !== documentId);
             setDocuments(updatedDocuments);
@@ -185,6 +203,7 @@ export function DocumentsList({
                 description: "Document deleted successfully"
             });
         } catch (error) {
+            console.error('Error deleting document:', error);
             toast({
                 title: "Error",
                 description: "Failed to delete document",
@@ -195,15 +214,6 @@ export function DocumentsList({
         }
     };
 
-    const handleDownload = (doc: PatientDocument) => {
-        const link = document.createElement('a');
-        link.href = `${backendBaseUrl}${doc.url}`;
-        link.download = `${doc.type}_${new Date(doc.uploadedAt || '').toLocaleDateString()}`;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-lg">
@@ -237,7 +247,7 @@ export function DocumentsList({
                 {/* Document Type Selection */}
                 <div className="mb-4">
                     <label className="block text-sm font-medium mb-2 text-gray-700">Document Type</label>
-                    <Select value={documentType} onValueChange={(value: string) => setDocumentType(value as AppointmentAttachType)}>
+                    <Select value={documentType} onValueChange={(value: string) => setDocumentType(value as PatientDoc)}>
                         <SelectTrigger className="bg-white">
                             <SelectValue placeholder="Select document type" />
                         </SelectTrigger>
@@ -343,15 +353,6 @@ export function DocumentsList({
                                     className="text-blue-600 hover:text-blue-700"
                                 >
                                     View
-                                </Button>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDownload(doc)}
-                                    className="text-green-600 hover:text-green-700"
-                                >
-                                    <Download className="w-4 h-4" />
                                 </Button>
 
                                 <Dialog open={deleteConfirmId === doc.id} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>

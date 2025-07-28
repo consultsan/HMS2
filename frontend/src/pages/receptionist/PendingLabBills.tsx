@@ -17,6 +17,7 @@ import { labApi } from "@/api/lab";
 import CreateLabOrderBill from "@/components/lab/CreateLabOrderBill";
 import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 
+
 export default function PendingLabBills() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
   const [selectedLabOrder, setSelectedLabOrder] = useState<LabOrder | null>(null);
@@ -127,6 +128,7 @@ export default function PendingLabBills() {
     );
   }
 
+
   return (
     <div className="p-6">
       <div>
@@ -158,9 +160,10 @@ export default function PendingLabBills() {
                     <TableCell>
                       {order.appointmentId && (
                         <ViewAppointmentLabtests appointmentId={order.appointmentId} />
-                      )}</TableCell>
+                      )}
+                    </TableCell>
                     <TableCell>
-                      {new Date(order.createdAt).toLocaleString('en-IN', {
+                      {new Date(order.createdAt).toLocaleString('en-GB', {
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
@@ -241,7 +244,6 @@ export default function PendingLabBills() {
           isOpen={!!selectedLabOrder}
           onClose={() => setSelectedLabOrder(null)}
           onSuccess={() => {
-            // Invalidate queries will happen automatically through React Query
             setSelectedLabOrder(null);
           }}
         />

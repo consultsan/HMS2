@@ -183,6 +183,7 @@
         .lab-tests-table td {
             padding: 12px 10px;
             border-bottom: 1px solid #E5E7EB;
+            text-align: left;
             font-size: 11px;
             vertical-align: top;
         }
@@ -337,7 +338,8 @@
 
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Header - hidden in print -->
+        {{#unless isPrinting}}
         <div class="header">
             <div class="header-content">
                 <div class="hospital-logo">
@@ -358,6 +360,7 @@
                 </div>
             </div>
         </div>
+        {{/unless}}
 
         <!-- Patient Information -->
         <div class="patient-section">
@@ -414,10 +417,10 @@
             <tbody>
                 {{#each medicines}}
                 <tr>
-                    <td class="text-center">{{inc @index}}</td>
+                    <td>{{inc @index}}</td>
                     <td class="medicine-name">{{name}}</td>
                     <td>{{frequency}}</td>
-                    <td class="text-center">{{duration}}</td>
+                    <td>{{duration}}</td>
                 </tr>
                 {{/each}}
             </tbody>
@@ -517,7 +520,8 @@
         </div>
         {{/if}}
 
-        <!-- Footer -->
+        <!-- Footer - hidden in print -->
+        {{#unless isPrinting}}
         <div class="footer">
             <div class="footer-content">
                 <div>
@@ -530,6 +534,16 @@
                 </div>
             </div>
         </div>
+        {{/unless}}
+
+        <!-- Print-only signature section -->
+        {{#if isPrinting}}
+        <div style="margin-top: 20px; text-align: right;">
+            <div style="border-bottom: 1px solid #000; width: 200px; display: inline-block;"></div>
+            <div style="margin-top: 5px; font-size: 12px;">Doctor's Signature</div>
+            <div style="margin-top: 2px; font-size: 11px;">Dr. {{doctor.name}}</div>
+        </div>
+        {{/if}}
     </div>
 </body>
 

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useMutation, UseMutationResult, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { labApi } from "@/api/lab";
+import { patientApi } from "@/api/patient";
 
 interface Patient {
     id: string;
@@ -42,8 +43,8 @@ export default function CreateLabOrderDialog({
     const { data: patients, isLoading } = useQuery<Patient[]>({
         queryKey: ['hospital-patients'],
         queryFn: async () => {
-            const response = await api.get('/api/patient');
-            return response.data?.data;
+            const response = await patientApi.getAllPatients();
+            return response;   
         },
     });
     

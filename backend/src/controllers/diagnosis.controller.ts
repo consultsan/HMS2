@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
 import prisma from "../utils/dbConfig";
 import {
-	AppointmentAttachType,
-	AppointmentStatus,
 	DiagnosisRecord,
 	DiseaseTemplate,
-	LabTest,
 	LabTestStatus,
 	Prisma,
 	Surgery,
@@ -15,11 +12,144 @@ import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import s3client from "../services/s3client";
 import { PDFService } from "../services/pdf.service";
+import { readFileSync } from "fs";
+import { join } from "path";
+import Handlebars from "handlebars";
 import { log } from "console";
+
+const calculateAge = (dob: Date): number => {
+	const today = new Date();
+	const birthDate = new Date(dob);
+	let age = today.getFullYear() - birthDate.getFullYear();
+	const m = today.getMonth() - birthDate.getMonth();
+	if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+		age--;
+	}
+	return age;
+};
 
 interface SurgeryStatus {
 	status: SurgicalStatus;
 }
+
+export const getHtmlTemplate = async (req: Request, res: Response) => {
+	try {
+		const { appointmentId } = req.params;
+
+		// Get diagnosis record with all related data
+		const diagnosisRecord = await prisma.diagnosisRecord.findFirst({
+			where: { appointmentId },
+			include: {
+				appointment: {
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true,
+						labTests: {
+							include: {
+								labTest: true
+							}
+						}
+					}
+				},
+				followUpAppointment: {
+					include: {
+						doctor: true
+					}
+				}
+			}
+		});
+
+		if (!diagnosisRecord) {
+			throw new AppError("Diagnosis record not found", 404);
+		}
+
+		// Get surgical information
+		const surgicalInfo = await prisma.surgery.findFirst({
+			where: { appointmentId }
+		});
+
+		// Read the template file
+		const templatePath = join(__dirname, "../templates/diagnosis-template.html");
+		let templateContent = readFileSync(templatePath, "utf-8");
+
+		// Add print-specific styles to hide header and footer
+		const printStyles = `
+		<style>
+			@media print {
+				.header { display: none !important; }
+				.footer { display: none !important; }
+				.container { padding-top: 2cm !important; }
+				.patient-section { margin-top: 1cm !important; }
+				@page { margin: 0.5cm; margin-top: 2cm; }
+				body { margin: 0 !important; }
+			}
+		</style>`;
+
+		// Insert print styles before </head>
+		templateContent = templateContent.replace('</head>', `${printStyles}</head>`);
+
+		// Register helper functions
+		Handlebars.registerHelper('formatDate', function (date: Date) {
+			return new Date(date).toLocaleDateString('en-IN');
+		});
+
+		Handlebars.registerHelper('formatDateTime', function (date: Date) {
+			return new Date(date).toLocaleString('en-IN');
+		});
+
+		Handlebars.registerHelper('inc', function (value: number) {
+			return value + 1;
+		});
+
+		Handlebars.registerHelper('eq', function (a: any, b: any) {
+			return a === b;
+		});
+
+		Handlebars.registerHelper('ne', function (a: any, b: any) {
+			return a !== b;
+		});
+
+		Handlebars.registerHelper('lowercase', function (str: string) {
+			return str.toLowerCase();
+		});
+
+		// Compile template
+		const template = Handlebars.compile(templateContent);
+
+		// Prepare data for template
+		const data = {
+			hospital: diagnosisRecord.appointment.hospital,
+			isPrinting: true, // Flag to indicate print view
+			patient: {
+				...diagnosisRecord.appointment.patient,
+				age: calculateAge(diagnosisRecord.appointment.patient.dob)
+			},
+			medicines: diagnosisRecord.medicines,
+			diagnosis: diagnosisRecord.diagnosis,
+			notes: diagnosisRecord.notes,
+			labTests: diagnosisRecord.appointment.labTests,
+			followUpAppointment: diagnosisRecord.followUpAppointment,
+			surgicalInfo,
+			doctor: diagnosisRecord.appointment.doctor,
+			createdAt: diagnosisRecord.createdAt,
+			logoUrl: "/True-Hospital-Logo(White).png"
+		};
+
+		// Generate HTML
+		const html = template(data);
+
+		// Send HTML response
+		res.setHeader('Content-Type', 'text/html');
+		res.send(html);
+
+	} catch (error: any) {
+		console.error("Error generating HTML:", error);
+		res.status(error.statusCode || 500).json(
+			new ApiResponse(error.message || "Error generating HTML")
+		);
+	}
+};
 
 export const createDiagnosisRecord = async (req: Request, res: Response) => {
 	if (req.user && req.user.role == "DOCTOR") {
@@ -59,7 +189,8 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 								data: {
 									appointmentId,
 									labTestId: test.id,
-									status: LabTestStatus.PENDING
+									status: LabTestStatus.PENDING,
+									patientId: appointment.patientId // Ensure patientId is set
 								},
 							})
 						)
