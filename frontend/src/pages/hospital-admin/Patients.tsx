@@ -25,7 +25,7 @@ import { UserRole } from '@/types/types';
 import { calculateAge } from '@/utils/dateUtils';
 import { patientApi } from '@/api/patient';
 import PatientDetails from './PatientDetails';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 import {
   UserPlus,
   Search,
@@ -37,6 +37,7 @@ import {
   User as UserIcon,
   MapPin
 } from 'lucide-react';
+import { Description, DialogTitle } from '@radix-ui/react-dialog';
 
 // Registration mode and source enums
 const REGISTRATION_MODES = [
@@ -99,7 +100,6 @@ export default function Patients() {
       registrationSource: string;
       registrationSourceDetails?: string;
     }) => {
-      console.log(data);
       const response = await patientApi.createPatient(data as unknown as PatientCreateData);
       return response;
     },
@@ -129,7 +129,6 @@ export default function Patients() {
       let res;
       if (searchTerm.length === 10 && !isNaN(Number(searchTerm))) {
         res = await patientApi.getPatientByPhone(searchTerm);
-        console.log("Search result", res);
         if (res.length > 0) {
           setSearchResults(res);
           setPatientExists(true);
@@ -145,7 +144,6 @@ export default function Patients() {
         }
       } else {
         res = await patientApi.getPatientByName(searchTerm);
-        console.log("Search result by name", res);
         if (res.length > 0) {
           setSearchResults(res);
           setPatientExists(true);
@@ -558,10 +556,14 @@ export default function Patients() {
         {/* Patient Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <DialogTitle>
+          </DialogTitle>
             {isDetailsDialogOpen && selectedPatientId && (
               <PatientDetails patientId={selectedPatientId} />
             )}
           </DialogContent>
+          <Description>
+          </Description>
         </Dialog>
       </div>
     </div>

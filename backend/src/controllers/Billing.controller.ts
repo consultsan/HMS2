@@ -3,10 +3,82 @@ import { PrismaClient, BillStatus, BillType } from "@prisma/client";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import { PDFService } from "../services/pdf.service";
+import { join } from "path";
+import { readFileSync } from "fs";
+import { format } from "date-fns";
+import Handlebars from "handlebars";
+
 
 const prisma = new PrismaClient();
 
 export class BillingController {
+	 // Register Handlebars helpers
+		private static registerHelpers() {
+			// Date formatting helpers
+			Handlebars.registerHelper('formatDate', (date: Date | string) => {
+				if (!date) return 'N/A';
+				return format(new Date(date), 'dd MMM yyyy');
+			});
+	
+			Handlebars.registerHelper('formatDateTime', (date: Date | string) => {
+				if (!date) return 'N/A';
+				return format(new Date(date), 'dd MMM yyyy, hh:mm a');
+			});
+	
+			Handlebars.registerHelper('formatDateFull', (date: Date | string) => {
+				if (!date) return 'N/A';
+				return format(new Date(date), 'PPP');
+			});
+	
+			Handlebars.registerHelper('formatDateTimeFull', (date: Date | string) => {
+				if (!date) return 'N/A';
+				return format(new Date(date), 'PPpp');
+			});
+	
+			// Currency formatting
+			Handlebars.registerHelper('formatCurrency', (amount: number) => {
+				if (typeof amount !== 'number') return '0.00';
+				return amount.toFixed(2);
+			});
+	
+			// Status class helper
+			Handlebars.registerHelper('statusClass', (status: string) => {
+				switch (status?.toLowerCase()) {
+					case 'paid':
+						return 'paid';
+					case 'partially_paid':
+						return 'partially-paid';
+					default:
+						return 'unpaid';
+				}
+			});
+	
+			// Increment helper for array indices
+			Handlebars.registerHelper('inc', (value: number) => {
+				return parseInt(value.toString()) + 1;
+			});
+	
+			// Lowercase helper
+			Handlebars.registerHelper('lowercase', (str: string) => {
+				return str?.toLowerCase() || '';
+			});
+	
+			// Equality helper
+			Handlebars.registerHelper('eq', (a: any, b: any) => {
+				return a === b;
+			});
+	
+			// Not equal helper
+			Handlebars.registerHelper('ne', (a: any, b: any) => {
+				return a !== b;
+			});
+	
+			// Replace helper
+			Handlebars.registerHelper('replace', (str: string, find: string, replace: string) => {
+				if (!str) return str;
+				return str.replace(new RegExp(find, 'g'), replace);
+			});
+		}
 	// Generate unique bill number
 	private generateBillNumber(): string {
 		const timestamp = Date.now().toString();
@@ -569,4 +641,115 @@ export class BillingController {
 				);
 		}
 	};
+
+	getHtmlTemplate = async (req: Request, res: Response) => {
+		BillingController.registerHelpers(); // Register Handlebars helpers
+		try {
+			const { id } = req.params;
+
+			// Get bill with all related data
+			const bill = await prisma.bill.findUnique({
+				where: { id },
+				include: {
+					patient: {
+						select: {
+							id: true,
+							name: true,
+							patientUniqueId: true,
+							phone: true,
+							email: true
+						}
+					},
+					hospital: {
+						select: {
+							id: true,
+							name: true,
+							address: true
+						}
+					},
+					billItems: {
+						include: {
+							labTest: {
+								include: {
+									labTest: true
+								}
+							},
+							surgery: true
+						}
+					},
+					payments: {
+						orderBy: {
+							paymentDate: "desc"
+						}
+					},
+					appointment: {
+						select: {
+							id: true,
+							scheduledAt: true,
+							visitType: true,
+							doctor: {
+								select: {
+									id: true,
+									name: true,
+									specialisation: true
+								}
+							}
+						}
+					}
+				}
+			});
+
+			if (!bill) {
+				throw new AppError("Bill not found", 404);
+			}
+
+
+			// Read the template file
+			const templatePath = join(__dirname, "../templates/bill-template.html");
+			let templateContent = readFileSync(templatePath, "utf-8");
+
+			// Add print-specific styles to hide header and footer
+			const printStyles = `
+		<style>
+			@media print {
+				.header { display: none !important; }
+				.footer { display: none !important; }
+				.container { padding-top: 2cm !important; }
+				.patient-section { margin-top: 1cm !important; }
+				@page { margin: 0.5cm; margin-top: 2cm; }
+				body { margin: 0 !important; }
+			}
+		</style>`;
+
+			// Insert print styles before </head>
+			templateContent = templateContent.replace('</head>', `${printStyles}</head>`);
+
+			// Compile template
+			const template = Handlebars.compile(templateContent);
+
+			// Prepare data for template
+			const logoUrl = "/True-Hospital-Logo(White).png";
+
+			const templateData = {
+				...bill,
+				currentDate: new Date(),
+				logoUrl
+			};
+
+
+			// Generate HTML
+			const html = template(templateData);
+			console.log("Generated HTML for bill ID:", id);
+
+			// Send HTML response
+			res.setHeader('Content-Type', 'text/html');
+			res.send(html);
+
+		} catch (error: any) {
+			console.error("Error generating HTML:", error);
+			res.status(error.statusCode || 500).json(
+				new ApiResponse(error.message || "Error generating HTML")
+			);
+		}
+	}
 }

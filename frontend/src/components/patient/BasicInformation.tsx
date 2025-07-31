@@ -101,7 +101,7 @@ export function BasicInformation({ formData, isEditing, onInputChange, onSelectC
                             </SelectContent>
                         </Select>
                     ) : (
-                        <p className="text-gray-700">{formData.registrationMode}</p>
+                        <p className="text-gray-700">{(formData.registrationMode).replace(/_/g, ' ')}</p>
                     )}
                 </div>
                 <div>
@@ -121,7 +121,7 @@ export function BasicInformation({ formData, isEditing, onInputChange, onSelectC
                             </SelectContent>
                         </Select>
                     ) : (
-                        <p className="text-gray-700">{formData.registrationSource}</p>
+                        <p className="text-gray-700">{(formData.registrationSource).replace(/_/g, ' ')}</p>
                     )}
                 </div>
             </div>

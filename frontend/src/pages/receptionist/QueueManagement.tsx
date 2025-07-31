@@ -25,6 +25,7 @@ import { appointmentApi } from '@/api/appointment';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ViewBill from '@/components/billing/ViewBill';
+import { useSearch } from '@/contexts/SearchContext';
 
 
 export default function QueueManagement() {
@@ -62,6 +63,21 @@ export default function QueueManagement() {
         refetchInterval: 60000, // Auto-refetch every minute
         refetchOnWindowFocus: true, // Refetch when window gains focus
     });
+
+    const { searchQuery } = useSearch();
+
+    const filteredAppointments = appointments?.filter((appointment: Appointment) => {
+        if (!searchQuery) { return true; }
+        const searchLower = searchQuery.toLowerCase();
+        return (
+            appointment?.patient?.name?.toLowerCase().includes(searchLower) ||
+            appointment?.patient?.phone?.toLowerCase().includes(searchLower) ||
+            appointment?.doctor?.name?.toLowerCase().includes(searchLower) ||
+            appointment.visitType.toLowerCase().includes(searchLower) ||
+            appointment.status.toLowerCase().includes(searchLower)
+        );
+    }) || [];
+    
 
     // Fetch doctors using React Query
     const { data: doctors = [] } = useQuery<any[]>({
@@ -121,14 +137,16 @@ export default function QueueManagement() {
 
 
     // Filter appointments
-    const confirmedAppointments = appointments?.filter((appointment: Appointment) =>
+    const confirmedAppointments = filteredAppointments?.filter((appointment: Appointment) =>
         appointment.status === 'CONFIRMED' &&
         (selectedDoctor === appointment.doctor.id)
     );
 
-    const todayScheduledAppointments = appointments?.filter((appointment: Appointment) =>
+    const todayScheduledAppointments = filteredAppointments?.filter((appointment: Appointment) =>
         appointment.status !== 'CONFIRMED'
     );
+
+    
 
     // Function to assign queue numbers
     const assignQueueNumbers = (appointments: Appointment[] | undefined) => {
@@ -314,7 +332,6 @@ export default function QueueManagement() {
             </CardContent>
         </Card>
     );
-
     return (
         <div className="p-6 space-y-6">
             {/* Header with Stats */}

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { BillingController } from "../controllers/Billing.controller";
 
+
 const router = Router();
 const billingController = new BillingController();
 
@@ -29,6 +30,8 @@ router.get(
 	"/stats/overview",
 	billingController.getBillingStats.bind(billingController)
 );
+// HTML template generation
+router.get("/get-html/:id", billingController.getHtmlTemplate.bind(billingController));
 
 // Export routes
 router.get("/:id/export/pdf", billingController.exportBillPDF.bind(billingController));

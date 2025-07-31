@@ -57,9 +57,7 @@ export class PatientController {
 	async getPatientById(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "HOSPITAL_ADMIN" ||
-				req.user.role == "RECEPTIONIST" ||
-				req.user.role == "DOCTOR")
+			roles.includes(req.user.role)
 		) {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
@@ -81,8 +79,7 @@ export class PatientController {
 	async getPatientByName(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "HOSPITAL_ADMIN" || req.user.role == "RECEPTIONIST" || req.user.role == "SALES_PERSON"
-			)
+			roles.includes(req.user.role)
 		) {
 			try {
 				const { name } = req.query as Pick<Patient, "name">;
@@ -110,9 +107,7 @@ export class PatientController {
 	async getPatientByPhone(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "HOSPITAL_ADMIN" ||
-				req.user.role == "RECEPTIONIST" ||
-				req.user.role == "SALES_PERSON")
+			roles.includes(req.user.role)
 		) {
 			try {
 				const { phone } = req.query as Pick<Patient, "phone">;
@@ -166,7 +161,7 @@ export class PatientController {
 	async createPatient(req: Request, res: Response) {
 		if (
 			req.user &&
-			(req.user.role == "SALES_PERSON" || req.user.role == "RECEPTIONIST")
+			roles.includes(req.user.role)
 		) {
 			try {
 				const {
@@ -220,7 +215,7 @@ export class PatientController {
 	}
 
 	async updatePatientDetails(req: Request, res: Response) {
-		if (req.user && req.user.role == "RECEPTIONIST") {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
 				const body = req.body as Omit<
@@ -261,7 +256,7 @@ export class PatientController {
 
 	// Upload patient document
 	async uploadDocument(req: Request, res: Response) {
-		if (req.user && req.user.role == "RECEPTIONIST") {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				// For multipart/form-data, fields are in req.body
 				const { patientId, type } = req.body as { patientId: string; type: string };
@@ -316,6 +311,32 @@ export class PatientController {
 		}
 	}
 
+	async deleteDocument(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { documentId } = req.params;
+				if (!documentId) throw new AppError("Document ID is required", 400);
+
+				const document = await prisma.patientDocument.findUnique({
+					where: { id: documentId }
+				});
+				if (!document) throw new AppError("Document not found", 404);
+
+				await s3.deleteFile(document.url);
+				await prisma.patientDocument.delete({ where: { id: documentId } });
+
+				res.status(200).json(new ApiResponse("Document deleted successfully"));
+			} catch (error: any) {
+				console.error("Error deleting document:", error);
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
 	async addVitals(req: Request, res: Response) {
 		if (req.user && req.user.role !== "NURSE") {
 			try {
@@ -358,12 +379,10 @@ export class PatientController {
 	async listDocuments(req: Request, res: Response) {
 		try {
 			const { patientId } = req.params;
-			console.log("Listing documents for patient:", patientId);
 			const docs = await prisma.patientDocument.findMany({
 				where: { patientId: patientId },
 				orderBy: { uploadedAt: "desc" }
 			});
-			console.log(docs);
 
 			res.status(200).json(new ApiResponse("Documents retrieved successfully", docs));
 		} catch (error: any) {
