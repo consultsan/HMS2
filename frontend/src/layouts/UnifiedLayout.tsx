@@ -24,10 +24,10 @@ const roleConfigs = {
     basePath: '/hospital-admin',
     sections: [
       { name: 'Dashboard', path: '/hospital-admin/dashboard' },
+      { name: 'Department Management', path: '/hospital-admin/department' },
       { name: 'User Management', path: '/hospital-admin/users' },
       { name: 'Shift Management', path: '/hospital-admin/shifts' },
       { name: 'Doctor OPD Fees', path: '/hospital-admin/opd-fees' },
-      { name: 'Department Management', path: '/hospital-admin/department' },
       { name: 'Manage Patients', path: '/hospital-admin/patients' },
     ],
     searchPlaceholders: {

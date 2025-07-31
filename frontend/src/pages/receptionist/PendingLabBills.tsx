@@ -12,7 +12,7 @@ import { useState, useMemo } from "react";
 import { useSearch } from "@/contexts/SearchContext";
 import ViewBill from "@/components/billing/ViewBill";
 import { Button } from "@/components/ui/button";
-import { LabTestStatus, LabOrderStatus, LabOrder } from "@/types/types";
+import { LabOrderStatus, LabOrder } from "@/types/types";
 import { labApi } from "@/api/lab";
 import CreateLabOrderBill from "@/components/lab/CreateLabOrderBill";
 import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";

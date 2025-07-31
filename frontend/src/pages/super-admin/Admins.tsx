@@ -150,11 +150,6 @@ export default function Admins() {
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this admin?')) {
-      deleteMutation.mutate(id);
-    }
-  };
 
   const toggleAdminStatus = (admin: Admin) => {
     const newStatus = admin.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
@@ -186,7 +181,7 @@ export default function Admins() {
         <h1 className="text-2xl font-semibold text-gray-900">Hospital Admins</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>Add Admin</Button>
+            <Button disabled={createMutation.isPending}>Add Admin</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

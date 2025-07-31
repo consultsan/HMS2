@@ -49,11 +49,15 @@ export default function HospitalDashboard() {
   const { data: kpis, isLoading, error } = useQuery<HospitalAdminKpis>({
     queryKey: ['hospital-admin-kpis', startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
-      if (startDate && endDate) {
-        return await hospitalAdminApi.getKpisByDate(startDate.toISOString(), endDate.toISOString());
+
+    if (startDate && endDate) {
+      return await hospitalAdminApi.getKpisByDate(startDate.toISOString(), endDate.toISOString());
       }
-      return await hospitalAdminApi.getKpis();
-    },
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setHours(23, 59, 59));
+    return await hospitalAdminApi.getKpisByDate(startOfDay.toISOString(), endOfDay.toISOString());
+    }
   });
 
   if (isLoading) {

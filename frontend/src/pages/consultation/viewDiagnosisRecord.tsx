@@ -1,18 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 
 export default function ViewDiagnosisRecordButton({ appointmentId }: { appointmentId: string }) {
-    const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     return (
         <>

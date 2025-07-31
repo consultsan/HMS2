@@ -43,8 +43,6 @@ export default function Hospitals() {
     queryKey: ['hospitals'],
     queryFn: async () => {
       const response = await api.get('/api/super-admin/hospital/fetch-all');
-      // console.log('Hospitals response:', response.data);
-      // const hospitalsData = response.data?.data || response.data;
       return response.data?.data;
     },
   });
@@ -52,7 +50,6 @@ export default function Hospitals() {
   const createMutation = useMutation({
     mutationFn: async (data: Omit<Hospital, 'id' | 'status'>) => {
       const response = await api.post('/api/super-admin/hospital/create', data);
-      console.log('Create hospital response:', response.data);
       return response.data;
     },
     onSuccess: () => {

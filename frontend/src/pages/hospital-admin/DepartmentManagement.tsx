@@ -19,7 +19,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { hospitalAdminApi, Department } from '@/api/hospitalAdmin';
+import { hospitalAdminApi } from '@/api/hospitalAdmin';
+import { Department } from '@/types/types';
 
 export default function DepartmentManagement() {
     const { searchQuery, setSearchQuery } = useSearch();
@@ -69,7 +70,6 @@ export default function DepartmentManagement() {
     }
         return department.name.toLowerCase().includes(searchQuery.toLowerCase())
     });
-    console.log(filteredDepartments);
     return (
         <div className="container mx-auto py-10">
             <div className="flex justify-between items-center mb-6">

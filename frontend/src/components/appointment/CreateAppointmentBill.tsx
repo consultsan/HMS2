@@ -30,7 +30,6 @@ export default function CreateAppointmentBill({
     onClose,
     onSuccess
 }: CreateAppointmentBillProps) {
-    console.log("appointmentId", appointmentId);
     if (appointmentId === "" || !isOpen || !appointmentId) return;
     const [opdCharge, setOpdCharge] = useState<number>(0);
     const [discountPercentage, setDiscountPercentage] = useState<number>(0);

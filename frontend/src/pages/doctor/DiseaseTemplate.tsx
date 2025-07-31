@@ -17,7 +17,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Trash2, Search } from 'lucide-react';
@@ -183,7 +182,6 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
             toast.error('Please fill in all required fields (name, medicines, and lab tests)');
             return;
         }
-        console.log(formData);
         onSubmit(formData);
     };
 

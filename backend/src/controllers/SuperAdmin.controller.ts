@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { SuperAdminRepository } from "../repositories/SuperAdmin.repository";
 import AppError from "../utils/AppError";
+import ApiResponse from "../utils/ApiResponse";
+import prisma from "../utils/dbConfig";
+import { previousSaturday } from "date-fns";
+import { fetchHospitalKpisByInterval } from "../utils/hospitalKpiHelper";
 
 export class SuperAdminController {
 	private superAdminRepository: SuperAdminRepository;
@@ -54,68 +58,57 @@ export class SuperAdminController {
 	}
 
 	// Admin Management
-	async getAllAdmins(req: Request, res: Response) {
+	async countAllAdmins(req: Request, res: Response) {
 		try {
-			const admins = await this.superAdminRepository.getAllAdmins();
-			res.json(admins);
+			const adminCount = await prisma.hospitalAdmin.count();
+			return res.status(200).json({ count: adminCount });
 		} catch (error) {
-			console.error("Error fetching admins:", error);
-			throw new AppError("Error fetching admins", 500);
+			console.error("Failed to count hospital admins:", error);
+			// Send a proper error response instead of throwing
+			return res.status(500).json({
+				message: "Internal Server Error: Unable to fetch admin count",
+				error: error instanceof Error ? error.message : error
+			});
 		}
 	}
 
-	async createHospitalAdmin(req: Request, res: Response) {
-		try {
-			const admin = await this.superAdminRepository.createHospitalAdmin(
-				req.body
-			);
-			res.status(201).json(admin);
-		} catch (error) {
-			console.error("Error creating hospital admin:", error);
-			throw new AppError("Error creating hospital admin", 500);
-		}
-	}
 
-	async updateHospitalAdmin(req: Request, res: Response) {
-		try {
-			const admin = await this.superAdminRepository.updateHospitalAdmin(
-				req.params.id,
-				req.body
-			);
-			res.json(admin);
-		} catch (error) {
-			console.error("Error updating hospital admin:", error);
-			throw new AppError("Error updating hospital admin", 500);
-		}
-	}
+	async getKpisByInterval(req: Request, res: Response) {
+  if (req.user && req.user.role === "SUPER_ADMIN") {
+    try {
+      const { startDate, endDate } = req.query;
 
-	async deleteHospitalAdmin(req: Request, res: Response) {
-		try {
-			await this.superAdminRepository.deleteHospitalAdmin(req.params.id);
-			res.status(204).send();
-		} catch (error) {
-			console.error("Error deleting hospital admin:", error);
-			throw new AppError("Error deleting hospital admin", 500);
-		}
-	}
+      if (!startDate || !endDate) {
+        throw new AppError("Start date and end date are required", 400);
+      }
 
-	// KPI Endpoints
-	async getSystemKPIs(req: Request, res: Response) {
-		try {
-			const kpis = await this.superAdminRepository.getSystemKPIs();
-			res.json(kpis);
-		} catch (error) {
-			console.error("Error fetching system KPIs:", error);
-			throw new AppError("Error fetching system KPIs", 500);
-		}
-	}
+      const startDateTime = new Date(startDate as string);
+      const endDateTime = new Date(endDate as string);
+      endDateTime.setHours(23, 59, 59, 999);
 
-	async getHospitalKPIs(req: Request, res: Response) {
-		try {
-			const kpis = await this.superAdminRepository.getSystemKPIs();
-			res.json(kpis);
-		} catch (error) {
-			res.status(500).json({ message: "Error fetching hospital KPIs" });
-		}
-	}
+      const totalAdmins = await prisma.hospitalAdmin.count();
+      const hospitals = await prisma.hospital.findMany();
+      const hospitalDetailsList: Record<string, any> = {};
+
+      for (const hospital of hospitals) {
+        const kpis = await fetchHospitalKpisByInterval(hospital.id, startDateTime, endDateTime);
+        hospitalDetailsList[hospital.name] = kpis;
+      }
+
+      res.status(200).json(
+        new ApiResponse("Super Admin KPIs retrieved successfully", {
+          totalAdmins,
+          hospitalDetails: hospitalDetailsList,
+          period: { start: startDateTime, end: endDateTime }
+        })
+      );
+    } catch (error: any) {
+      res.status(error.code || 500).json(
+        new ApiResponse(error.message || "Failed to retrieve hospital KPIs by date")
+      );
+    }
+  } else {
+    res.status(403).json(new ApiResponse("Unauthorized access", null));
+  }
+}
 }

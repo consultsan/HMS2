@@ -36,7 +36,7 @@ export const hospitalAdminApi = {
 
     // Shifts
     getShifts: () => api.get<ApiResponse<Shift[]>>('/api/hospital-admin/shifts').then(res => res.data.data),
-    createShift: (data: Omit<Shift, 'id' | 'status'>) =>
+    createShift: (data: any) =>
         api.post<ApiResponse<Shift>>('/api/hospital-admin/shift/create', data).then(res => res.data.data),
     updateShift: (id: string, data: Partial<Omit<Shift, 'id' | 'status'>>) =>
         api.patch<ApiResponse<Shift>>(`/api/hospital-admin/shift/update/${id}`, data).then(res => res.data.data),
@@ -49,9 +49,6 @@ export const hospitalAdminApi = {
         api.post<ApiResponse<TempShift>>('/api/hospital-admin/shift/create-temp', data).then(res => res.data.data),
     deleteTempShift: (id: string) =>
         api.delete<ApiResponse<void>>(`/api/hospital-admin/shift/temp-shift/${id}`).then(res => res.data.data),
-
-    // KPIs
-    getKpis: () => api.get<ApiResponse<HospitalAdminKpis>>('/api/hospital-admin/kpis').then(res => res.data.data),
 
     // Get hospital KPIs by date range
     getKpisByDate: (startDate: string, endDate: string) =>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeIntervalFilter } from '@/components/TimeIntervalFilter';
 import { format } from 'date-fns';
 import { labApi } from '@/api/lab';
-import { FlaskConical, FlaskRound, Clock, CheckCircle, RefreshCw, XCircle } from 'lucide-react';
+import { FlaskConical, FlaskRound, Clock, CheckCircle, RefreshCw } from 'lucide-react';
 
 type IntervalOption = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom_month' | 'custom_year';
 
@@ -54,7 +54,9 @@ const LabDashboard: React.FC = () => {
     enabled: !!hospitalId && !!startDate && !!endDate,
   });
 
-  console.log("labkpis", kpis);
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   const kpiCards = [
     {

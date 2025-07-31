@@ -110,8 +110,7 @@ export default function OpdFees() {
     }
   };
 
-  if (isError || isStaffError || !opdFees || !staff) return <div>Error loading data</div>;
-
+  
   if (isLoading || isStaffLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -119,6 +118,8 @@ export default function OpdFees() {
       </div>
     );
   }
+  
+  if (isError || isStaffError || !opdFees || !staff) return <div>Error loading data</div>;
   const filteredOpdFees = opdFees?.filter((opdfee) => {
     if (!searchQuery) return true;
     try {
@@ -132,8 +133,6 @@ export default function OpdFees() {
       return true; // Include the item if there's an error filtering
     }
   }) || [];
-
-  // console.log(opdFees);
 
   return (
     <div className="p-6">

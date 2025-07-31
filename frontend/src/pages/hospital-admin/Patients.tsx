@@ -1,13 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FormDialog } from '@/components/ui/form-dialog';
@@ -18,14 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { useSearch } from '@/contexts/SearchContext';
 import AddAppointment from '@/components/appointment/AddAppointment';
 import { Patient, PatientCreateData, User } from '@/types/types';
 import { UserRole } from '@/types/types';
 import { calculateAge } from '@/utils/dateUtils';
 import { patientApi } from '@/api/patient';
 import PatientDetails from './PatientDetails';
-import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   UserPlus,
   Search,
@@ -33,9 +24,7 @@ import {
   Calendar,
   Users,
   AlertCircle,
-  CheckCircle,
   User as UserIcon,
-  MapPin
 } from 'lucide-react';
 import { Description, DialogTitle } from '@radix-ui/react-dialog';
 

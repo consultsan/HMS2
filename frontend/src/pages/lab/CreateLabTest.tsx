@@ -36,7 +36,6 @@ interface LabTestParameter {
 }
 
 export default function CreateLabTest() {
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isParametersDialogOpen, setIsParametersDialogOpen] = useState(false);

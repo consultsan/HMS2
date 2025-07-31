@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { AdminController } from "../controllers/HospitalAdmin.controller";
+import { AdminController } from "../controllers/HospitalAdmin.controller"
+import { SuperAdminController } from "../controllers/SuperAdmin.controller";
 import { HospitalController } from "../controllers/Hospital.controller";
 const router = Router();
+const superAdminController = new SuperAdminController();
 const adminController = new AdminController();
 const hospitalController = new HospitalController();
 
@@ -35,6 +37,10 @@ router.patch(
 router.delete(
 	"/admin/delete/:id",
 	adminController.deleteAdmin.bind(adminController)
+);
+router.get(
+	"/kpis-by-interval",
+	superAdminController.getKpisByInterval.bind(superAdminController)
 );
 
 export default router;

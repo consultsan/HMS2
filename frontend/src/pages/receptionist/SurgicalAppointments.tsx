@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import {useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
     Table,
@@ -10,11 +10,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Patient, Surgery } from '@/components/patient/types';
+import { Surgery } from '@/components/patient/types';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import DoctorSlots from '@/components/DoctorSlots';
 import { Calendar, Stethoscope } from 'lucide-react';
@@ -38,7 +37,6 @@ export default function SurgicalAppointments() {
         try {
             const response = await api.get('/api/appointment/get-surgery-by-hospital-id');
             const allSurgeries = response.data?.data ?? [];
-            console.log('allSurgeries', allSurgeries);
             setSurgeries(
                 allSurgeries.filter(
                     (surgery: Surgery) =>

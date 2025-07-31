@@ -207,7 +207,7 @@ export class HospitalController {
 	}
 
 	async getHospitalKpisByInterval(req: Request, res: Response) {
-		if (req.user && req.user.role == "HOSPITAL_ADMIN") {
+		if (req.user && (req.user.role == "HOSPITAL_ADMIN" || req.user.role == "SUPER_ADMIN")) {
 			try {
 				const hospitalId = req.user.hospitalId;
 				const { startDate, endDate } = req.query;
