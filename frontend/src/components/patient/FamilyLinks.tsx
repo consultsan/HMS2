@@ -54,7 +54,6 @@ export function FamilyLinks({ patientId }: { patientId: string }) {
       relativeIdSet.add(relative.patient.id);
     }
   });
-  console.log(relativeIdSet);
   const { data: patients, isLoading: isLoadingPatients } = useQuery<Patient[]>({
     queryKey: ['patients'],
     queryFn: async () => {
@@ -172,19 +171,29 @@ export function FamilyLinks({ patientId }: { patientId: string }) {
               type="text"
               placeholder="Type to search patients..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSelectedPatient(null);
+              }
+              }
               className="w-full"
             />
             {searchQuery && (
               <div className="max-h-48 overflow-y-auto border rounded-md mt-2 bg-white">
-                {filteredPatients?.length === 0 ? (
+                {selectedPatient ? (
+                  <div className="p-3 bg-blue-50 border-t border-blue-100">
+                    <div className="font-xs">Selected Patient:</div>
+                    <div className="text-sm text-blue-700">
+                      {selectedPatient.name} - 📞 {selectedPatient.phone}
+                    </div>
+                  </div>
+                ) : filteredPatients?.length === 0 ? (
                   <div className="p-2 text-sm text-gray-500">No patients found</div>
                 ) : (
                   filteredPatients?.map((patient) => (
                     <div
                       key={patient.id}
-                      className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${selectedPatient?.id === patient.id ? 'bg-blue-50' : ''
-                        }`}
+                      className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => setSelectedPatient(patient)}
                     >
                       <div className="font-medium">{patient.name}</div>
@@ -193,6 +202,7 @@ export function FamilyLinks({ patientId }: { patientId: string }) {
                   ))
                 )}
               </div>
+
             )}
           </div>
 

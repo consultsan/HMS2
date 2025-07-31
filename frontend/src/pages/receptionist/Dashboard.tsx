@@ -36,28 +36,6 @@ export default function ReceptionistDashboard() {
     );
   }
 
-  const stats = [
-    {
-      name: 'Total Patients',
-      value: kpis?.totalPatients || 0,
-      icon: UserGroupIcon,
-    },
-    {
-      name: 'Active Appointments',
-      value: kpis?.activeAppointments || 0,
-      icon: ClockIcon,
-    },
-    {
-      name: 'Total Revenue',
-      value: `$${kpis?.totalRevenue?.toLocaleString() || 0}`,
-      icon: CurrencyDollarIcon,
-    },
-    {
-      name: 'Pending Visits',
-      value: kpis?.pendingVisits || 0,
-      icon: UserIcon,
-    },
-  ];
 
   return (
     <div className="p-6">

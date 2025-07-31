@@ -10,7 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 import { patientApi } from '@/api/patient';
 
 export default function PatientDetails({ patientId }: { patientId: string }) {
-
     const {
         formData,
         isEditing,
@@ -22,14 +21,12 @@ export default function PatientDetails({ patientId }: { patientId: string }) {
         error
     } = usePatientForm(patientId);
 
-    console.log("Patient ID in PatientDetails:", patientId);
-    const { data: documents, isError, error: documentsError } = useQuery({
+    const { data: documents, error: documentsError } = useQuery({
         queryKey: ['documents', patientId],
         queryFn: async () => {
             if (!patientId) return [];
             try {
                 const response = await patientApi.getDocuments(patientId);
-                console.log("Documents from API:", response);
                 return Array.isArray(response) ? response : [];
             } catch (error) {
                 console.error("Error fetching documents:", error);
@@ -40,7 +37,6 @@ export default function PatientDetails({ patientId }: { patientId: string }) {
         initialData: []
     });
 
-    console.log("Documents in component:", documents);
     if (documentsError) console.error("Documents error:", documentsError);
 
 
@@ -66,7 +62,7 @@ export default function PatientDetails({ patientId }: { patientId: string }) {
         <div className="container mx-auto p-6 max-w-4xl">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-semibold">Patient Details</h1>
+                    <p className='font-bold text-2xl'>Patient Details</p>
                 </div>
                 {!isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>Edit Details</Button>
@@ -101,7 +97,6 @@ export default function PatientDetails({ patientId }: { patientId: string }) {
                 />
 
                 <DocumentsList
-                    documents={documents || []}
                     backendBaseUrl={backendBaseUrl}
                     patientId={patientId}
                 />

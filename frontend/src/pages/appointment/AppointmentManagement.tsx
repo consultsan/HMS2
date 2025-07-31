@@ -34,17 +34,25 @@ export default function AppointmentManagement() {
   const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
 
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<ApiResponse<Appointment[]>>({
-    queryKey: ["appointments", filterDate],
+    queryKey: ["appointments", filterDate.toISOString().split('T')[0]],
     queryFn: async () => {
+      // Ensure we're using the start of the day in local timezone
+      const date = new Date(filterDate);
+      date.setHours(0, 0, 0, 0);
+
       // Format date as DD/MM/YYYY
-      const formattedDate = filterDate.toLocaleDateString('en-GB', {
+      const formattedDate = date.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
       });
-      const response = await appointmentApi.getCreatedAppointmentsByDate(formattedDate);
+
+      console.log("Fetching appointments for date:", formattedDate);
+      const response = await appointmentApi.getAppointmentsByDate({ date: formattedDate });
+      console.log("Appointments from API:", response.data);
       return response.data;
     },
+    refetchOnWindowFocus: false,
   });
 
   const cancelAppointmentMutation = useMutation({
@@ -62,7 +70,7 @@ export default function AppointmentManagement() {
   });
 
   const filteredAppointments = appointments?.data?.filter((appointment: Appointment) => {
-    if (!searchQuery || searchQuery === '') return true;
+    if (!searchQuery || searchQuery == '') return true;
     return appointment?.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       appointment?.patient?.phone?.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -84,6 +92,8 @@ export default function AppointmentManagement() {
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
       setFilterDate(date);
+      // Force refetch when date changes
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
     }
   };
 
@@ -105,7 +115,7 @@ export default function AppointmentManagement() {
       {/* All Appointments Section */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">All Appointments</h2>
+          <div className="text-xl font-semibold text-gray-800">All Appointments</div>
           <DatePicker
             date={filterDate}
             onDateChange={handleDateChange}
@@ -175,7 +185,7 @@ export default function AppointmentManagement() {
                           </button>
                         )}
                         <ViewAppointmentLabtests appointmentId={appointment?.id} />
-                        {appointment?.status !== 'CANCELLED' && appointment?.status !== 'DIAGNOSED' && appointment?.status !== 'PENDING' && (
+                        {appointment?.status !== 'DIAGNOSED'&& (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
                             className="p-1 hover:bg-gray-100 rounded-full"

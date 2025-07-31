@@ -1,7 +1,9 @@
 import { api } from '@/lib/api';
 import {
     Patient, FamilyLink, VitalsData, PatientUpdateData,
-    PatientCreateData, DocumentUploadData, FamilyLinkCreateData
+    PatientCreateData, DocumentUploadData, FamilyLinkCreateData,
+    PatientDoc,
+    PatientDocument
 } from '@/types/types';
 import { get } from 'lodash';
 
@@ -44,11 +46,11 @@ export const patientApi = {
     },
 
     getDocuments: (patientId: string) =>
-        api.get<ApiResponse<DocumentUploadData[]>>(`/api/patient/get-documents/${patientId}`).then(res => res.data.data),
+        api.get<ApiResponse<PatientDocument[]>>(`/api/patient/get-documents/${patientId}`).then(res => res.data.data),
 
     // Delete a patient document
     deleteDocument: (documentId: string) =>
-        api.delete<ApiResponse<void>>(`/api/patient/delete-document/${documentId}`).then(res => res.data),
+        api.delete<ApiResponse<void>>(`/api/patient/delete-document/${documentId}`).then(res => res.data.data),
 
     // Add vitals to appointment
     addVitals: (appointmentId: string, vitals: VitalsData) =>

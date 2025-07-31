@@ -48,8 +48,6 @@ export default function TestParameters({ testId, appointmentLabTestId, canEdit, 
         enabled: !!testId
     });
 
-    console.log("parameters", parameters);
-
 
     const { data: existingResults } = useQuery<TestResult[]>({
         queryKey: ['test-results', appointmentLabTestId],

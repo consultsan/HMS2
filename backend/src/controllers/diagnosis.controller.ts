@@ -15,7 +15,6 @@ import { PDFService } from "../services/pdf.service";
 import { readFileSync } from "fs";
 import { join } from "path";
 import Handlebars from "handlebars";
-import { log } from "console";
 
 const calculateAge = (dob: Date): number => {
 	const today = new Date();
@@ -35,7 +34,6 @@ interface SurgeryStatus {
 export const getHtmlTemplate = async (req: Request, res: Response) => {
 	try {
 		const { appointmentId } = req.params;
-
 		// Get diagnosis record with all related data
 		const diagnosisRecord = await prisma.diagnosisRecord.findFirst({
 			where: { appointmentId },

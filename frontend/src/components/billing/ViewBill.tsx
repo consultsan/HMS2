@@ -28,6 +28,7 @@ import { billingApi } from "@/api/billing";
 import { paymentApi } from "@/api/payment";
 import { Bill, PaymentMethod, PaymentCreateData, BillStatus, PaymentStatus } from "@/types/types";
 import { formatDate } from "@/utils/dateUtils";
+import { api } from "@/lib/api";
 
 interface ViewBillProps {
     billId: string | null;
@@ -214,6 +215,41 @@ export default function ViewBill({
         }
     };
 
+     const handlePrint = async () => {
+        if (!billId) return;
+
+         try {
+            console.log('Fetching print template for bill ID:', billId);
+            const response = await api.get(`/api/billing/get-html/${billId}`, {
+                responseType: 'text'
+            });
+
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                toast.error('Please allow popups to print');
+                return;
+            }
+
+            // Write the HTML content to the new window
+            printWindow.document.write(response.data);
+            printWindow.document.close();
+
+            // Wait for all images to load before printing
+            printWindow.onload = function () {
+                printWindow.focus();
+                printWindow.print();
+                // Close the window after printing (optional)
+                printWindow.onafterprint = function () {
+                    printWindow.close();
+                };
+            };
+        } catch (error) {
+            console.error('Error getting print template:', error);
+            toast.error('Failed to prepare document for printing');
+        }
+    };
+
     // Safe calculations with proper null checks
     const totalDiscount = bill?.billItems?.reduce((acc: number, item: any) => acc + (item.discountAmount || 0), 0) || 0;
     const totalAmountWithoutDiscount = bill?.billItems?.reduce((acc: number, item: any) => acc + ((item.unitPrice || 0) * (item.quantity || 0)), 0) || 0;
@@ -319,6 +355,16 @@ export default function ViewBill({
                                         )}
                                         {downloadingBill ? 'Downloading...' : 'Download PDF'}
                                     </Button>
+
+                                    <Button
+                                onClick={handlePrint}
+                                variant="outline"
+                                className="flex items-center text-green-600 hover:text-green-700 print:hidden"
+                                title="Print using the formatted template"
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Print Bill
+                            </Button>
                                 </div>
                             </div>
 

@@ -47,7 +47,6 @@ export default function LabTestManager({ filter }: { filter: string }) {
             }
             else if (filter === "FromReceptionist") {
                 const response = await labApi.getExternalLabOrders();
-                console.log("external from receptionist", response);
                 return response.data?.data;
             }
             return [];
@@ -121,7 +120,6 @@ export default function LabTestManager({ filter }: { filter: string }) {
 
             let status = test.status;
             if (!isExternal) {
-                console.log("Not external");
                 if (test.tentativeReportDate) {
                     status = LabTestStatus.PROCESSING;
                 } else {
@@ -199,7 +197,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                 status: LabTestStatus.PROCESSING,
                 tentativeReportDate: test.tentativeReportDate
             });
-        } else if (test.status === 'PROCESSING') {
+        } else if (test.status === 'PROCESSING' || test.status === 'SENT_EXTERNAL') {
             setSelectedTestForCompletion({ id: testId, labTestId: test.labTestId });
             setIsParametersDialogOpen(true);
         }
@@ -370,8 +368,6 @@ export default function LabTestManager({ filter }: { filter: string }) {
         return true;
     }) || [];
 
-    console.log('Filtered Lab Orders:', filteredLabOrders);
-
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
@@ -497,7 +493,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                                                                 Start Processing
                                                             </Button>
                                                         )}
-                                                        {test?.status === 'PROCESSING' && (
+                                                        {(test?.status === 'PROCESSING' || test?.status==='SENT_EXTERNAL') && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"

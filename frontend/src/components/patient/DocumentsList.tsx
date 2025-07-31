@@ -1,18 +1,15 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { PatientDocument } from './types';
-import { labApi } from '@/api/lab';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
-import { PatientDoc, AppointmentAttachType } from '@/types/types';
-import { Upload, FileText, Image, FileCheck, Trash2, Search, Download, AlertCircle } from 'lucide-react';
-import { appointmentApi } from '@/api/appointment';
+import { PatientDoc } from '@/types/types';
+import { Upload, FileText, Image, FileCheck, Trash2, Search, AlertCircle } from 'lucide-react';
 import { patientApi } from '@/api/patient';
 
 interface DocumentsListProps {
-    documents: any[];
     backendBaseUrl: string;
     patientId?: string;
     onDocumentsUpdate?: (documents: PatientDocument[]) => void;
@@ -21,19 +18,19 @@ interface DocumentsListProps {
 }
 
 export function DocumentsList({
-    documents: initialDocuments,
     backendBaseUrl,
     patientId,
     onDocumentsUpdate,
     maxFileSize = 10,
     allowedFileTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
 }: DocumentsListProps) {
-    const [documents, setDocuments] = useState<PatientDocument[]>(initialDocuments || []);
+    const [documents, setDocuments] = useState<PatientDocument[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [documentType, setDocumentType] = useState<PatientDoc | ''>('');
     const [searchTerm, setSearchTerm] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const documentTypes = [
@@ -42,6 +39,28 @@ export function DocumentsList({
         { value: PatientDoc.PRESCRIPTION, label: 'Prescription' },
         { value: PatientDoc.OTHER, label: 'Other' }
     ];
+
+    const fetchPatientDocuments = useCallback(async () => {
+        if (!patientId) return;
+        try {
+            const response = await patientApi.getDocuments(patientId);
+            setDocuments(response);
+            onDocumentsUpdate?.(response);
+            return;
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to fetch patient documents",
+                variant: "destructive",
+                duration: 3000
+            });
+        }
+    }, [patientId, onDocumentsUpdate]);
+
+    React.useEffect(() => {
+        fetchPatientDocuments();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [patientId]);
 
     // Filter documents based on search term
     const filteredDocuments = documents.filter(doc =>
@@ -105,9 +124,7 @@ export function DocumentsList({
         let anyError = false;
         for (const file of fileArray) {
             const validationError = validateFile(file);
-            console.log("Validating file:", file, "Validation error:", validationError);
             if (validationError) {
-                console.log("Validation error for file:", file.name, "Error:", validationError),
                     toast({
                         title: "Invalid File",
                         description: validationError,
@@ -124,8 +141,6 @@ export function DocumentsList({
                     type: documentType
                 });
 
-                console.log("Upload response data:", docResponse.data.data);
-
 
 
                 const newDocument: PatientDocument = {
@@ -140,6 +155,8 @@ export function DocumentsList({
                 toast({
                     title: "Success",
                     description: `Document uploaded successfully (${formatFileSize(file.size)})`,
+                    variant: "default",
+                    duration: 3000,
                 });
             } catch (error) {
                 anyError = true;
@@ -191,6 +208,7 @@ export function DocumentsList({
 
     const handleDeleteDocument = async (documentId: string) => {
         try {
+            setIsDeleting(documentId);
             // Use patientApi for patient documents and appointmentApi for appointment attachments
             await patientApi.deleteDocument(documentId);
 
@@ -200,7 +218,9 @@ export function DocumentsList({
 
             toast({
                 title: "Success",
-                description: "Document deleted successfully"
+                description: "Document deleted successfully",
+                variant: "default",
+                duration: 3000
             });
         } catch (error) {
             console.error('Error deleting document:', error);
@@ -210,8 +230,15 @@ export function DocumentsList({
                 variant: "destructive"
             });
         } finally {
+            setIsDeleting(null);
             setDeleteConfirmId(null);
         }
+    };
+
+
+
+    const handleviewDocument = (url: string) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
 
@@ -242,7 +269,7 @@ export function DocumentsList({
 
             {/* Upload Section */}
             <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
-                <h3 className="text-lg font-medium mb-4 text-gray-800">Upload New Document</h3>
+                <div className="text-lg font-medium mb-4 text-gray-800">Upload New Document</div>
 
                 {/* Document Type Selection */}
                 <div className="mb-4">
@@ -349,7 +376,7 @@ export function DocumentsList({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => window.open(`${backendBaseUrl}${doc.url}`, '_blank')}
+                                    onClick={() => handleviewDocument(doc.url)}
                                     className="text-blue-600 hover:text-blue-700"
                                 >
                                     View
@@ -383,8 +410,16 @@ export function DocumentsList({
                                             <Button
                                                 variant="destructive"
                                                 onClick={() => handleDeleteDocument(doc.id)}
+                                                disabled={isDeleting === doc.id}
                                             >
-                                                Delete
+                                                {isDeleting === doc.id ? (
+                                                    <>
+                                                        <span className="animate-spin mr-2">⌛</span>
+                                                        Deleting...
+                                                    </>
+                                                ) : (
+                                                    'Delete'
+                                                )}
                                             </Button>
                                         </div>
                                     </DialogContent>

@@ -133,9 +133,7 @@ export default function UnifiedLayout() {
         <header className="fixed top-0 left-44 right-0 h-16 bg-[#154D92] px-6 flex justify-between items-center z-10">
           {/* Search (conditionally visible) */}
           <div
-            className={`flex items-center ${location.pathname.includes(`${roleConfig.basePath}/dashboard`)
-                ? 'invisible'
-                : 'visible'
+            className={`flex items-center visible'
               }`}
           >
             <div className="relative">
