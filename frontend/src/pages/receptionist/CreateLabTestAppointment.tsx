@@ -10,16 +10,6 @@ import CreateLabOrderBill from "@/components/lab/CreateLabOrderBill";
 import ViewBill from "@/components/billing/ViewBill";
 import { LabOrderStatus } from "@/types/types";
 
-// Note: The lab order interface should include billId field for PROCESSING orders
-// interface LabOrder {
-//     id: string;
-//     billId?: string; // Added for bill viewing functionality
-//     status: LabOrderStatus;
-//     patient: { ... };
-//     appointmentLabTests: [...];
-//     // ... other fields
-// }
-
 export default function CreateLabTestAppointment() {
     const [searchQueryPatient, setSearchQueryPatient] = useState('');
     const [createLabOrderDialogOpen, setCreateLabOrderDialogOpen] = useState(false);
@@ -67,8 +57,6 @@ export default function CreateLabTestAppointment() {
             return response.data?.data;
         },
     });
-
-    console.log("externalLabOrders", externalLabOrders);
 
 
     return (

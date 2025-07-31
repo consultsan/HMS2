@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { LabTestSearch } from '@/components/LabTestSearch';
-import { Search, Pill, FileText, Plus, X, Save, Stethoscope } from 'lucide-react';
+import { Search, Pill, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Medicine {

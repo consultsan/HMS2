@@ -55,7 +55,6 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
 
     const updateAppointmentMutation = useMutation({
         mutationFn: async (data: { scheduledAt: string }) => {
-            console.log("Data inside update appointment mutation", data);
             // First update the appointment schedule
             await api.patch(`/api/appointment/update-appointment-schedule/${appointment.id}`, data);
 

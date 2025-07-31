@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { calculateAge } from "@/utils/dateUtils";
 import { Pencil, Eye, ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from 'date-fns';
+
 
 type LabTestStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'SENT_EXTERNAL';
 

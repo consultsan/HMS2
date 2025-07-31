@@ -22,10 +22,9 @@ import {
 } from '@/components/ui/table';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useSearch } from '@/contexts/SearchContext';
-import { hospitalAdminApi, Shift, Staff } from '@/api/hospitalAdmin';
+import { hospitalAdminApi } from '@/api/hospitalAdmin';
+import { Staff, Shift } from '@/types/types';
 import ShiftsCalendar from '../../components/shifts/ShiftsCalender';
-
-const DAYS_OF_WEEK = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
 
 export default function ShiftManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -60,7 +59,7 @@ export default function ShiftManagement() {
   });
 
   const updateShiftMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<Shift, 'id' | 'status'>> }) =>
+    mutationFn: ({ id, data }: { id: string; data:any}) =>
       hospitalAdminApi.updateShift(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospital-shifts'] });
@@ -120,10 +119,6 @@ export default function ShiftManagement() {
     }
   };
 
-  const handleViewSchedule = (staffId: string) => {
-    setSelectedStaffId(staffId);
-    setIsScheduleDialogOpen(true);
-  };
 
   const filteredStaffs = staffs?.filter((staff) => {
     if (!searchQuery) return true;
@@ -131,25 +126,6 @@ export default function ShiftManagement() {
       staff.phoneNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       staff.email?.toLowerCase().includes(searchQuery.toLowerCase());
   });
-
-  // Function to get shifts for a specific staff member
-  const getStaffShifts = (staffId: string) => {
-    return shifts?.filter(shift => shift.staffId === staffId) || [];
-  };
-
-  // Function to get shift for a specific day
-  const getShiftForDay = (staffShifts: Shift[], day: string) => {
-    return staffShifts.find(shift => shift.day === day);
-  };
-
-  // Function to format time in 12-hour format
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 || 12;
-    return `${formattedHour}:${minutes} ${ampm}`;
-  };
 
   if (isShiftsLoading || isStaffLoading) {
     return (

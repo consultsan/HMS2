@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HelpCircle, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarSection {
@@ -56,12 +55,6 @@ export function Sidebar({ sections }: SidebarProps) {
 
       {/* Bottom Navigation */}
       <div className="border-gray-200 py-4">
-        <Link
-          to="/help-center"
-          className="pl-2 pr-6 py-3 text-sm font-medium text-gray-700 flex items-center space-x-3 hover:bg-[#EFF6FF]"
-        >
-          <span>Help Center</span>
-        </Link>
         <button
           onClick={handleLogout}
           className="w-full pl-2 pr-6 py-3 text-sm font-medium text-red-600 flex items-center space-x-3 hover:bg-red-50"

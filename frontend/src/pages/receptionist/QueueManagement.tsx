@@ -53,7 +53,6 @@ export default function QueueManagement() {
     } = useQuery({
         queryKey: ['appointments', 'today', today],
         queryFn: async () => {
-            console.log("Fetching appointments for date:", today);
             const response = await appointmentApi.getAppointmentsByDate({
                 date: today
             });
@@ -125,7 +124,6 @@ export default function QueueManagement() {
     };
 
     const handleViewBill = (appointment: Appointment) => {
-        console.log("appointment", appointment);
         setSelectedBillId(appointment.bills?.[0]?.id || '');
         setIsViewBillDialogOpen(true);
     };

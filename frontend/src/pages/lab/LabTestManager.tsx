@@ -1,5 +1,4 @@
 import { labApi } from "@/api/lab";
-import { appointmentApi } from "@/api/appointment";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

@@ -2,8 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
-import PatientBasicDetails from './PatientBasicDetails';
-import { Patient } from './interfaces/PatinetInterface';
 import { labApi } from '@/api/lab';
 import { Button } from "@/components/ui/button";
 import { Eye, ArrowLeft, Clock, CheckCircle, AlertCircle, Download, FileText, ExternalLink, Handshake } from "lucide-react";

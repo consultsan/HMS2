@@ -1,9 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserGroupIcon, ClockIcon, CurrencyDollarIcon, UserIcon } from '@heroicons/react/24/outline';
-import Patients from '../hospital-admin/Patients';
-import AppointmentManagement from '../appointment/AppointmentManagement';
 import QueueManagement from './QueueManagement';
 
 interface KPIs {

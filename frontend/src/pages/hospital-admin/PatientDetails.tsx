@@ -1,4 +1,3 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BasicInformation } from '@/components/patient/BasicInformation';
 import { ContactInformation } from '@/components/patient/ContactInformation';
@@ -6,8 +5,6 @@ import { MedicalInformation } from '@/components/patient/MedicalInformation';
 import { DocumentsList } from '@/components/patient/DocumentsList';
 import { FamilyLinks } from '@/components/patient/FamilyLinks';
 import { usePatientForm } from '@/components/patient/usePatientForm';
-import { useQuery } from '@tanstack/react-query';
-import { patientApi } from '@/api/patient';
 
 export default function PatientDetails({ patientId }: { patientId: string }) {
     const {
@@ -20,25 +17,6 @@ export default function PatientDetails({ patientId }: { patientId: string }) {
         isLoading,
         error
     } = usePatientForm(patientId);
-
-    const { data: documents, error: documentsError } = useQuery({
-        queryKey: ['documents', patientId],
-        queryFn: async () => {
-            if (!patientId) return [];
-            try {
-                const response = await patientApi.getDocuments(patientId);
-                return Array.isArray(response) ? response : [];
-            } catch (error) {
-                console.error("Error fetching documents:", error);
-                throw error;
-            }
-        },
-        enabled: Boolean(patientId),
-        initialData: []
-    });
-
-    if (documentsError) console.error("Documents error:", documentsError);
-
 
     const backendBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 

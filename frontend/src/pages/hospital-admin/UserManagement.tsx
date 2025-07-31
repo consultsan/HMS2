@@ -20,18 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useAuth } from '@/contexts/AuthContext';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useSearch } from '@/contexts/SearchContext';
-import { hospitalAdminApi, Staff, StaffFormData } from '@/api/hospitalAdmin';
+import { hospitalAdminApi } from '@/api/hospitalAdmin';
 import { fomratString } from '@/utils/stringUtils';
 import { surgeriesBySpecialisation } from '@/constants/doctorSpecialization';
 import ShiftsCalendar from '@/components/shifts/ShiftsCalender';
+import { Staff, StaffFormData } from '@/types/types';
 export default function UserManagement() {
   
-  const allowedRoles = ['HOSPITAL_ADMIN', 'RECEPTIONIST', 'SALES_PERSON'];
-  // if (!allowedRoles.includes(user?.role ?? '')) return <div>Not authorized</div>;
-
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
@@ -78,7 +75,6 @@ export default function UserManagement() {
     mutationFn: ({ id, data }: { id: string; data: Partial<StaffFormData> }) =>
       hospitalAdminApi.updateStaff(id, data),
     onSuccess: (data) => {
-      console.log("updated", data)
       queryClient.invalidateQueries({ queryKey: ['hospital-staff'] });
       setIsEditDialogOpen(false);
       toast.success('Staff member updated successfully');
@@ -293,7 +289,6 @@ export default function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <input type="hidden" name="specialisation" value={specialisation} />
             </div>
           )}
           <div className="space-y-2">
