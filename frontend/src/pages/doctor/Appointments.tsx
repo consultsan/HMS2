@@ -76,7 +76,7 @@ function Appointments() {
       appointment?.visitType?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
-
+  console.log(filteredAppointments);
   // Separate appointments into upcoming and completed
   const upcomingAppointments = filteredAppointments?.filter(
     (appointment: Appointment) =>
@@ -87,6 +87,7 @@ function Appointments() {
     (appointment: Appointment) =>
       appointment.status === AppointmentStatus.DIAGNOSED
   ) || [];
+
 
   const AppointmentTable = ({ appointments, title }: { appointments: Appointment[], title: string }) => (
     <div className="mb-8">
@@ -132,8 +133,7 @@ function Appointments() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {(appointment.status === AppointmentStatus.SCHEDULED ||
-                      appointment.status === AppointmentStatus.CONFIRMED) && (
+                    {(appointment.status === AppointmentStatus.CONFIRMED) && (
                         <Link
                           to={`/doctor/consultation/${appointment?.patient?.id}/${appointment?.id}`}
                           className="inline-flex"

@@ -217,14 +217,7 @@ function ConsultationPage() {
     });
 
     // Patient data query
-    const { data: patient, isLoading: isPatientLoading } = useQuery<Patient>({
-        queryKey: ['patient-details', patientId],
-        queryFn: async () => {
-            const response = await api.get(`/api/patient/get/${patientId}`);
-            return response.data.data;
-        },
-        enabled: !!patientId,
-    });
+    
 
     // Check if diagnosis already exists
     const getDiagnosis = async () => {
@@ -264,7 +257,7 @@ function ConsultationPage() {
             toast.error('Fill in at least one diagnosis or prescription');
             return false;
         }
-        
+
         return true;
     }, [appointmentId, diagnosisText, prescriptionData.medicines]);
 
@@ -299,16 +292,7 @@ function ConsultationPage() {
     }, []);
 
     // Loading state
-    if (isPatientLoading || isDiagnosisLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                    <p className="text-gray-600">Loading patient information...</p>
-                </div>
-            </div>
-        );
-    }
+
 
     // Check if diagnosis already exists
     if (existingDiagnosis) {
@@ -400,9 +384,9 @@ function ConsultationPage() {
 
             <div className="w-full px-6 py-8">
                 {/* Patient Information */}
-                {patient && (
+                {patientId && (
                     <div className="mb-8">
-                        <PatientBasicDetails patient={patient} />
+                        <PatientBasicDetails patientId={patientId} />
                     </div>
                 )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,21 +60,33 @@ function DoctorDashboard() {
     setSelectedYear(year);
   }, []);
 
+  const defaultStartDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0); // start of today
+    return d;
+  }, []);
+
+  const defaultEndDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999); // end of today
+    return d;
+  }, []);
+
+  const start = startDate || defaultStartDate;
+  const end = endDate || defaultEndDate;
+
+  const startStr = useMemo(() => start.toISOString(), [start]);
+  const endStr = useMemo(() => end.toISOString(), [end]);
+
   const { data: kpis, isLoading, error } = useQuery<DoctorKpis>({
-    queryKey: ['doctor-kpis', doctorId, startDate?.toISOString(), endDate?.toISOString()],
+    queryKey: ['doctor-kpis', doctorId, startStr, endStr],
     queryFn: async () => {
       if (!doctorId) throw new Error('Doctor ID is required');
-      if (startDate && endDate) {
-        return await doctorApi.getDoctorKpisByDate(
-          doctorId,
-          startDate.toISOString(),
-          endDate.toISOString()
-        );
-      }
-      return await doctorApi.getDoctorKpis(doctorId);
+      return await doctorApi.getDoctorKpisByDate(doctorId, startStr, endStr);
     },
     enabled: !!doctorId,
   });
+
 
   if (isLoading) {
     return (

@@ -21,7 +21,8 @@ interface Document {
 const roles: string[] = [
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.RECEPTIONIST,
-	UserRole.SALES_PERSON
+	UserRole.SALES_PERSON,
+	UserRole.DOCTOR
 ];
 
 export class PatientController {

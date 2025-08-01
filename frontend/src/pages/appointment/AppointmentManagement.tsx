@@ -33,6 +33,7 @@ export default function AppointmentManagement() {
   // Check if user can view bills (receptionist or hospital admin)
   const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
 
+
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<ApiResponse<Appointment[]>>({
     queryKey: ["appointments", filterDate.toISOString().split('T')[0]],
     queryFn: async () => {
@@ -46,9 +47,13 @@ export default function AppointmentManagement() {
         month: '2-digit',
         year: 'numeric'
       });
-
-      console.log("Fetching appointments for date:", formattedDate);
-      const response = await appointmentApi.getAppointmentsByDate({ date: formattedDate });
+      if (user?.role === 'SALES_PERSON') {
+        console.log("Sales appointments appointments for date:", formattedDate);
+        const response = await appointmentApi.getCreatedAppointmentsByDate(formattedDate);
+        return response.data;
+      }
+      
+      const response = await appointmentApi.getAppointmentsByDate({date:formattedDate});
       console.log("Appointments from API:", response.data);
       return response.data;
     },

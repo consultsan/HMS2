@@ -94,7 +94,7 @@ export default function Admins() {
 
   return (
     <div>
-      <div className="sm:flex sm:items-center">
+      <div className="sm:flex sm:items-center bg-re">
         <div className="sm:flex-auto">
           <h1 className="text-2xl font-semibold text-gray-900">Admins</h1>
           <p className="mt-2 text-sm text-gray-700">

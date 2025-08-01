@@ -13,8 +13,9 @@ import ApiResponse from "../utils/ApiResponse";
 import s3client from "../services/s3client";
 import { PDFService } from "../services/pdf.service";
 import { readFileSync } from "fs";
-import { join } from "path";
+import { format } from 'date-fns';
 import Handlebars from "handlebars";
+import { join } from "path";
 
 const calculateAge = (dob: Date): number => {
 	const today = new Date();
@@ -74,13 +75,15 @@ export const getHtmlTemplate = async (req: Request, res: Response) => {
 		// Add print-specific styles to hide header and footer
 		const printStyles = `
 		<style>
-			@media print {
-				.header { display: none !important; }
-				.footer { display: none !important; }
-				.container { padding-top: 2cm !important; }
-				.patient-section { margin-top: 1cm !important; }
-				@page { margin: 0.5cm; margin-top: 2cm; }
-				body { margin: 0 !important; }
+			@page {
+				margin-top: 5.08cm;
+				margin-bottom: 2.54cm;
+				margin-left:1cm;
+				margin-right:2cm;
+			}
+			.header,
+			.footer {
+				display: none !important;
 			}
 		</style>`;
 
@@ -94,6 +97,19 @@ export const getHtmlTemplate = async (req: Request, res: Response) => {
 
 		Handlebars.registerHelper('formatDateTime', function (date: Date) {
 			return new Date(date).toLocaleString('en-IN');
+		});
+		Handlebars.registerHelper('formatDateTimeUTC', (date: Date | string) => {
+			if (!date) return 'N/A';
+
+			const d = new Date(date); // input is assumed to be in ISO UTC like '2025-08-04T09:15:00.000Z'
+
+			const yyyy = d.getUTCFullYear();
+			const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+			const dd = String(d.getUTCDate()).padStart(2, '0');
+			const hours = String(d.getUTCHours()).padStart(2, '0');
+			const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+
+			return `${dd} ${format(d, 'MMM')} ${yyyy}, ${hours}:${minutes}`;
 		});
 
 		Handlebars.registerHelper('inc', function (value: number) {
@@ -474,9 +490,17 @@ export const downloadDiagnosisPDF = async (req: Request, res: Response) => {
 							}
 						}
 					}
+				},
+				followUpAppointment: {
+					include: {
+						patient: true,
+						surgery: true,
+					}
 				}
 			}
 		});
+
+
 
 		if (!diagnosisRecord) {
 			throw new AppError("Diagnosis record not found", 404);
