@@ -1,4 +1,5 @@
 import { PatientFamilyLink } from "@/pages/consultation/interfaces/PatinetInterface";
+import { SurgicalStatus } from "@/types/types";
 
 export interface PatientDocument {
     id: string;
@@ -68,7 +69,7 @@ export interface Surgery {
     category: string;
     description: string;
     scheduledAt: Date;
-    status: 'NOT_CONFIRMED' | 'CONFIRMED';
+    status: SurgicalStatus;
     appointmentId: string;
     appointment: Appointment;
 }

@@ -120,6 +120,7 @@ enum SurgicalStatus {
   NOT_REQUIRED
   NOT_CONFIRMED
   CONFIRMED
+  CANCELLED
 }
 
 enum Gender {
