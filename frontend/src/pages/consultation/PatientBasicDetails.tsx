@@ -3,34 +3,30 @@ import { formatDate, calculateAge } from "../../utils/dateUtils";
 import { api } from "@/lib/api";
 import ViewDiagnosisRecordButton from "./viewDiagnosisRecord";
 import { User, Calendar, Phone, Heart, History, ChevronDown, ChevronUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Patient, RegistrationMode } from "@/types/types";
+import { patientApi } from "@/api/patient";
 
-interface Patient {
-  id: string;
-  name: string;
-  patientUniqueId: string;
-  dob: Date | string;
-  gender: string;
-  phone: string;
-  status: string;
-  registrationMode: string;
-  registrationSource: string;
-  registrationSourceDetails?: string;
-  allergies?: string;
-  chronicDiseases?: string;
-  preExistingConditions?: string;
-}
-
-function PatientBasicDetails({ patient }: { patient: Patient }) {
+function PatientBasicDetails({ patientId }: { patientId: string }) {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const { data: patient, isLoading: isPatientLoading } = useQuery<Patient>({
+        queryKey: ['patient-details', patientId],
+        queryFn: async () => {
+            const response = await patientApi.getPatientById(patientId);
+            return response;
+        },
+        enabled: !!patientId,
+    });
+
   const fetchHistory = async () => {
     try {
       setLoading(true);
       setError("");
-      const response = await api.get(`/api/appointment/history?patientId=${patient.id}`);
+      const response = await api.get(`/api/appointment/history?patientId=${patient?.id}`);
       setHistory(response.data.data);
     } catch (err) {
       setError("Failed to fetch patient history");
@@ -47,7 +43,8 @@ function PatientBasicDetails({ patient }: { patient: Patient }) {
     }
   };
 
-  const getRegistrationModeColor = (mode: string) => {
+  const getRegistrationModeColor = (mode: RegistrationMode | undefined) => {
+    if (mode === undefined) return;
     switch (mode.toLowerCase()) {
       case 'opd':
         return 'bg-blue-100 text-blue-800';
@@ -61,8 +58,8 @@ function PatientBasicDetails({ patient }: { patient: Patient }) {
   };
 
   const getReferredByInfo = () => {
-    if (patient.registrationSource === 'REFERRAL' || patient.registrationSource === 'AFFILIATE') {
-      return patient.registrationSourceDetails || 'Not specified';
+    if (patient?.registrationSource === 'REFERRAL' || patient?.registrationSource === 'AFFILIATE') {
+      return patient?.registrationSourceDetails || 'Not specified';
     }
     return null;
   };
@@ -76,18 +73,18 @@ function PatientBasicDetails({ patient }: { patient: Patient }) {
             <User className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{patient.name}</h2>
+            <h2 className="text-xl font-bold text-gray-900">{patient?.name}</h2>
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                {calculateAge(patient.dob)} years, {patient.gender}
+                {calculateAge(patient?.dob)} years, {patient?.gender}
               </span>
               <span className="flex items-center gap-1">
                 <Phone className="w-3 h-3" />
-                {patient.phone}
+                {patient?.phone}
               </span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRegistrationModeColor(patient.registrationMode)}`}>
-                {patient.registrationMode}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRegistrationModeColor(patient?.registrationMode)}`}>
+                {patient?.registrationMode}
               </span>
             </div>
           </div>
@@ -112,21 +109,21 @@ function PatientBasicDetails({ patient }: { patient: Patient }) {
           {[
             {
               title: 'Allergies',
-              value: patient?.allergies || 'None',
+              value: patient?.allergy || 'None',
               icon: '🤧',
-              isEmpty: !patient?.allergies
+              isEmpty: !patient?.allergy
             },
             {
               title: 'Chronic Diseases',
-              value: patient?.chronicDiseases || 'None',
+              value: patient?.chronicDisease || 'None',
               icon: '🏥',
-              isEmpty: !patient?.chronicDiseases
+              isEmpty: !patient?.chronicDisease
             },
             {
               title: 'Pre-existing Conditions',
-              value: patient?.preExistingConditions || 'None',
+              value: patient?.preExistingCondition || 'None',
               icon: '📋',
-              isEmpty: !patient?.preExistingConditions
+              isEmpty: !patient?.preExistingCondition
             },
           ].map(({ title, value, icon, isEmpty }) => (
             <div key={title} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">

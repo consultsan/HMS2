@@ -14,7 +14,8 @@ export const formatTime = (date: Date) => {
     });
 };
 
-export const calculateAge = (dob: Date | string) => {
+export const calculateAge = (dob: Date | string | undefined) => {
+    if (dob == undefined) return;
     const dobDate = new Date(dob);
     const today = new Date();
     const age = today.getFullYear() - dobDate.getFullYear();

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { startOfDay, endOfDay } from 'date-fns';
 import {
 	AppointmentAttachment,
 	VisitType,
@@ -424,37 +425,36 @@ export class AppointmentController {
 			try {
 				const { date } = req.query;
 				const userId = req.user.id as string;
-
-				if (!date || typeof date !== 'string') {
-					throw new AppError("Valid date is required", 400);
-				}
-
-				// Parse the date string safely
-				let queryDate: Date;
-				try {
-					// Try to parse as ISO string first
-					queryDate = new Date(date);
-
-					// If invalid date, try dd/MM/yyyy format
-					if (isNaN(queryDate.getTime())) {
-						const [day, month, year] = date.split('/');
-						queryDate = new Date(`${year}-${month}-${day}`);
+				let startOfDay, endOfDay;
+				if (typeof date === 'string') {
+					let queryDate;
+					// Try to parse as dd/MM/yyyy
+					const parts = date.split('/');
+					if (parts.length === 3) {
+						const [day, month, year] = parts;
+						queryDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+					} else {
+						// Try to parse as ISO or fallback
+						queryDate = new Date(date);
 					}
-
-					// Final validation
 					if (isNaN(queryDate.getTime())) {
-						throw new Error('Invalid date format');
+						return res.status(400).json(new ApiResponse('Invalid date format', null));
 					}
-				} catch (error) {
-					throw new AppError("Invalid date format. Use ISO or DD/MM/YYYY format", 400);
+					startOfDay = new Date(Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						0, 0, 0, 0
+					));
+					endOfDay = new Date(Date.UTC(
+						queryDate.getUTCFullYear(),
+						queryDate.getUTCMonth(),
+						queryDate.getUTCDate(),
+						23, 59, 59, 999
+					));
+				} else {
+					return res.status(400).json(new ApiResponse('Date is required', null));
 				}
-
-				// Create date range in local timezone
-				const startOfDay = new Date(queryDate);
-				startOfDay.setHours(0, 0, 0, 0);
-
-				const endOfDay = new Date(queryDate);
-				endOfDay.setHours(23, 59, 59, 999);
 
 				try {
 					const appointments = await prisma.appointment.findMany({

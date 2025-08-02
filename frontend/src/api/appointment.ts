@@ -53,7 +53,7 @@ export const appointmentApi = {
 
     getAppointmentsByHospitalAndVisitType: (visitType: VisitType) =>
         api.get(`/api/appointment/get-by-hospital?visitType=${visitType}`),
-
+ 
     // Get appointments by date and patient
     getAppointmentsByDateAndPatient: (query: AppointmentDateQuery) =>
         api.get('/api/appointment/get-by-date-and-patient', { params: query }),

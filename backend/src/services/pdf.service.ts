@@ -77,6 +77,22 @@ export class PDFService {
             return format(new Date(date), 'dd MMM yyyy, hh:mm a');
         });
 
+
+        handlebars.registerHelper('formatDateTimeUTC', (date: Date | string) => {
+        if (!date) return 'N/A';
+
+        const d = new Date(date); // input is assumed to be in ISO UTC like '2025-08-04T09:15:00.000Z'
+
+        const yyyy = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        const hours = String(d.getUTCHours()).padStart(2, '0');
+        const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+
+        return `${dd} ${format(d, 'MMM')} ${yyyy}, ${hours}:${minutes}`;
+        });
+
+
         handlebars.registerHelper('formatDateFull', (date: Date | string) => {
             if (!date) return 'N/A';
             return format(new Date(date), 'PPP');
@@ -215,14 +231,9 @@ export class PDFService {
                 const pdfBuffer = await page.pdf({
                     format: 'A4',
                     printBackground: true,
-                    margin: {
-                        top: '20px',
-                        right: '20px',
-                        bottom: '20px',
-                        left: '20px'
-                    },
                     preferCSSPageSize: true,
-                    timeout: 60000
+                    timeout: 60000,
+                    margin: { top: '0cm', right: '0cm', bottom: '0cm', left: '0cm' }
                 });
 
                 return Buffer.from(pdfBuffer);
@@ -289,9 +300,9 @@ export class PDFService {
         try {
             const template = this.loadTemplate('bill-template');
 
+
             // Get the absolute path to the logo from backend's public directory
             const logoPath = path.join(process.cwd(), 'public', 'True-Hospital-Logo(White).png');
-            console.log('Loading logo from:', logoPath);
 
             let logoUrl = '';
             try {
@@ -311,7 +322,21 @@ export class PDFService {
             };
 
             // Generate HTML
-            const html = template(templateData);
+            let html = template(templateData);
+            const pageCSS = `
+                <style>
+                    @page {
+                    margin-top: 60px;
+                    }
+                    @page:first {
+                    margin-top: 0;
+                    }
+                    body {
+                    margin: 0;
+                    }
+                </style>
+                `;
+            html = html.replace('</head>', `${pageCSS}</head>`);
 
             // Generate PDF
             return await this.generatePDFFromHTML(html);
@@ -335,7 +360,7 @@ export class PDFService {
             const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
             const logoUrl = `data:image/png;base64,${logoBase64}`;
             // Prepare template data
-            const templateData = {
+          const templateData = {
                 ...diagnosisRecord,
                 labTests: labTests || [],
                 surgicalInfo,
@@ -347,6 +372,7 @@ export class PDFService {
                         ? this.calculateAge(diagnosisRecord.appointment.patient.dob)
                         : 'N/A'
                 },
+                followUpAppointment: diagnosisRecord.followUpAppointment || null,
                 hospital: diagnosisRecord.appointment?.hospital || {},
                 doctor: diagnosisRecord.appointment?.doctor || {},
                 medicines: Array.isArray(diagnosisRecord.medicines) ? diagnosisRecord.medicines : [],
@@ -356,6 +382,7 @@ export class PDFService {
             };
 
             // Generate HTML
+            
             const html = template(templateData);
 
             // Generate PDF
