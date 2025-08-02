@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DoctorSlots from "@/components/DoctorSlots";
 import { surgeriesBySpecialisation } from '@/constants/doctorSpecialization';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface FollowUpData {
     followUpDays: number;
@@ -41,7 +42,6 @@ const SURGERY_CATEGORIES = [
 ] as const;
 
 
-type SurgeryCategory = typeof SURGERY_CATEGORIES[number];
 
 // Add this type before the component
 type SpecializationType = keyof typeof surgeriesBySpecialisation;
@@ -62,6 +62,7 @@ const FollowUpSection: React.FC<FollowUpSectionProps> = ({ doctorId, doctorDept,
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showSurgeryDropdown, setShowSurgeryDropdown] = useState(false);
+    const queryClient = useQueryClient();
 
     // Ref for dropdown click-outside detection
     const dropdownRef = useRef<HTMLDivElement>(null);

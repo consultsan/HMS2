@@ -20,6 +20,7 @@ import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 import ViewBill from "@/components/billing/ViewBill";
 import { appointmentApi } from "@/api/appointment";
 import { ApiResponse, Appointment } from "@/types/types";
+import { stat } from "fs";
 
 export default function AppointmentManagement() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
@@ -190,15 +191,17 @@ export default function AppointmentManagement() {
                           </button>
                         )}
                         <ViewAppointmentLabtests appointmentId={appointment?.id} />
-                        {appointment?.status !== 'DIAGNOSED'&& (
+                        {appointment?.status !== 'DIAGNOSED' && appointment?.status !== 'CANCELLED' && (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
                             className="p-1 hover:bg-gray-100 rounded-full"
                             title="Cancel Appointment"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
-                          </button>
+                          </button> 
                         )}
+
+                        
                       </div>
                     </TableCell>
                   </TableRow>

@@ -120,7 +120,8 @@ export enum BloodGroup {
 export enum SurgicalStatus {
     NOT_REQUIRED = "NOT_REQUIRED",
     NOT_CONFIRMED = "NOT_CONFIRMED",
-    CONFIRMED = "CONFIRMED"
+    CONFIRMED = "CONFIRMED",
+    CANCELLED = "CANCELLED"
 }
 
 export enum Gender {

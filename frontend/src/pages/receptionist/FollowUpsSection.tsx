@@ -14,7 +14,7 @@ import { appointmentApi } from '@/api/appointment';
 import { AppointmentStatus, VisitType, Appointment as AppointmentType } from '@/types/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Pencil } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import UpdateAppointment from '@/components/appointment/UpdateAppointment';
 
 type Appointment = AppointmentType;
@@ -61,6 +61,27 @@ export default function FollowUpsSection() {
         setIsUpdateDialogOpen(true);
     };
 
+
+    const cancelFollowUpMutation = useMutation({
+        mutationFn: async (appointmentId: string) => {
+            const response = await appointmentApi.updateAppointmentStatus(appointmentId, AppointmentStatus.CANCELLED);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['followUpAppointments'] })
+            toast.success('Follow-up cancelled successfully');
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || 'Failed to cancel appointment');
+        },
+    });
+
+    const handleCancelFollowUp = (appointmentId: string) => {
+        if (window.confirm('Are you sure you want to cancel this Follow Up?')) {
+            cancelFollowUpMutation.mutate(appointmentId);
+        }
+    };
+
     if (isLoading) {
         return <div>Loading follow-up appointments...</div>;
     }
@@ -80,11 +101,14 @@ export default function FollowUpsSection() {
 
     // Separate appointments into confirmed and pending
     const confirmedFollowUps = filteredAppointments.filter((apt: Appointment) =>
-        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.CONFIRMED || apt.status === AppointmentStatus.SCHEDULED)
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.CONFIRMED)
     );
 
     const pendingFollowUps = filteredAppointments.filter((apt: Appointment) =>
-        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.DIAGNOSED || apt.status === AppointmentStatus.PENDING)
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.PENDING)
+    );
+    const cancelledFollowUps = filteredAppointments.filter((apt: Appointment) =>
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.CANCELLED)
     );
 
     const renderAppointmentTable = (appointments: Appointment[], showConfirmButton: boolean = false) => (
@@ -136,13 +160,15 @@ export default function FollowUpsSection() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    <button
+                                    {appointment.status!== AppointmentStatus.CANCELLED &&(
+                                        <button
                                         onClick={() => handleEditAppointment(appointment)}
                                         className="p-1 hover:bg-gray-100 rounded-full"
                                         title="Edit Appointment"
-                                    >
+                                        >
                                         <Pencil className="w-4 h-4 text-gray-500" />
                                     </button>
+                                    )}
                                     {showConfirmButton && (
                                         <Button
                                             onClick={() => handleConfirmFollowUp(appointment.id)}
@@ -154,6 +180,16 @@ export default function FollowUpsSection() {
                                                 ? 'Confirming...'
                                                 : 'Confirm Follow up'}
                                         </Button>
+                                    )}
+
+                                    {appointment?.status !== 'CANCELLED' && appointment?.status !== 'DIAGNOSED' && (
+                                        <button
+                                            onClick={() => handleCancelFollowUp(appointment.id)}
+                                            className="p-1 hover:bg-gray-100 rounded-full"
+                                            title="Cancel Follow-up"
+                                        >
+                                            <Trash2 className="w-4 h-4 text-red-500" />
+                                        </button>
                                     )}
                                 </div>
                             </TableCell>
@@ -175,7 +211,7 @@ export default function FollowUpsSection() {
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">Follow Up Appointments</h1>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="pending" className="flex items-center gap-2">
                         Pending Follow-ups
                         <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
@@ -186,6 +222,12 @@ export default function FollowUpsSection() {
                         Confirmed Follow-ups
                         <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
                             {confirmedFollowUps.length}
+                        </span>
+                    </TabsTrigger>
+                    <TabsTrigger value="cancelled" className="flex items-center gap-2">
+                        Cancelled Follow-ups
+                        <span className="bg-yellow-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                            {cancelledFollowUps.length}
                         </span>
                     </TabsTrigger>
                 </TabsList>
@@ -203,7 +245,6 @@ export default function FollowUpsSection() {
                         {renderAppointmentTable(pendingFollowUps, true)}
                     </div>
                 </TabsContent>
-
                 <TabsContent value="confirmed" className="mt-6">
                     <div className="rounded-lg border">
                         <div className="p-4 border-b bg-green-50">
@@ -215,6 +256,19 @@ export default function FollowUpsSection() {
                             </p>
                         </div>
                         {renderAppointmentTable(confirmedFollowUps, false)}
+                    </div>
+                </TabsContent>
+                <TabsContent value="cancelled" className="mt-6">
+                    <div className="rounded-lg border">
+                        <div className="p-4 border-b bg-green-50">
+                            <h2 className="text-lg font-medium text-green-800">
+                                Cancelled Follow-ups Appointments ({cancelledFollowUps.length})
+                            </h2>
+                            <p className="text-sm text-green-600 mt-1">
+                                 Cancelled Follow-ups
+                            </p>
+                        </div>
+                        {renderAppointmentTable(cancelledFollowUps, false)}
                     </div>
                 </TabsContent>
             </Tabs>
