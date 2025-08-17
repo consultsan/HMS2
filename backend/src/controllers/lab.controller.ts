@@ -4,6 +4,7 @@ import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import AppError from "../utils/AppError";
 import s3 from "../services/s3client";
+import { sendLabTestCompletionNotification } from "../services/whatsapp.service";
 
 // Lab Test Controllers
 const createLabTest = async (req: Request, res: Response) => {
@@ -193,7 +194,13 @@ const deleteParameter = async (req: Request, res: Response) => {
 // Lab Test Order Controllers
 const createLabOrder = async (req: Request, res: Response) => {
 	try {
-		const { patientId, appointmentId, appointmentLabTestIds, notes, urgentOrder } = req.body;
+		const {
+			patientId,
+			appointmentId,
+			appointmentLabTestIds,
+			notes,
+			urgentOrder
+		} = req.body;
 
 		// Create the lab order first
 		const labOrder = await prisma.labOrder.create({
@@ -236,7 +243,9 @@ const createLabOrder = async (req: Request, res: Response) => {
 
 		res
 			.status(201)
-			.json(new ApiResponse("Lab order created successfully", completeLabOrder));
+			.json(
+				new ApiResponse("Lab order created successfully", completeLabOrder)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -244,10 +253,20 @@ const createLabOrder = async (req: Request, res: Response) => {
 
 const createExternalLabOrder = async (req: Request, res: Response) => {
 	try {
-		const { patientId, appointmentId, labTestIds, notes, urgentOrder } = req.body;
+		const { patientId, appointmentId, labTestIds, notes, urgentOrder } =
+			req.body;
 
-		if (!patientId || !labTestIds || !Array.isArray(labTestIds) || labTestIds.length === 0) {
-			return res.status(400).json(new ApiResponse("Patient ID and lab test IDs are required", null));
+		if (
+			!patientId ||
+			!labTestIds ||
+			!Array.isArray(labTestIds) ||
+			labTestIds.length === 0
+		) {
+			return res
+				.status(400)
+				.json(
+					new ApiResponse("Patient ID and lab test IDs are required", null)
+				);
 		}
 
 		// Create appointment lab test orders for each lab test (external referral)
@@ -280,7 +299,7 @@ const createExternalLabOrder = async (req: Request, res: Response) => {
 		await prisma.appointmentLabTest.updateMany({
 			where: {
 				id: {
-					in: createdLabTests.map(test => test.id)
+					in: createdLabTests.map((test) => test.id)
 				}
 			},
 			data: {
@@ -304,7 +323,12 @@ const createExternalLabOrder = async (req: Request, res: Response) => {
 
 		res
 			.status(201)
-			.json(new ApiResponse("External lab order created successfully", completeLabOrder));
+			.json(
+				new ApiResponse(
+					"External lab order created successfully",
+					completeLabOrder
+				)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -313,9 +337,17 @@ const createExternalLabOrder = async (req: Request, res: Response) => {
 const updateLabOrder = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const { status, notes, orderedBy, orderDate, urgentOrder, billId } = req.body;
+		const { status, notes, orderedBy, orderDate, urgentOrder, billId } =
+			req.body;
 
-		console.log('Attempting to update lab order:', id, 'with data:', { status, notes, orderedBy, orderDate, urgentOrder, billId });
+		console.log("Attempting to update lab order:", id, "with data:", {
+			status,
+			notes,
+			orderedBy,
+			orderDate,
+			urgentOrder,
+			billId
+		});
 
 		// First check if the lab order exists
 		const existingLabOrder = await prisma.labOrder.findUnique({
@@ -323,26 +355,26 @@ const updateLabOrder = async (req: Request, res: Response) => {
 		});
 
 		if (!existingLabOrder) {
-			console.log('Lab order not found with ID:', id);
+			console.log("Lab order not found with ID:", id);
 			return res.status(404).json(new ApiResponse("Lab order not found", null));
 		}
 
-		console.log('Found existing lab order:', existingLabOrder.id);
+		console.log("Found existing lab order:", existingLabOrder.id);
 
 		const labOrder = await prisma.labOrder.update({
 			where: { id },
 			data: { status, notes, orderedBy, orderDate, urgentOrder, billId }
 		});
 
-		console.log('Successfully updated lab order:', labOrder.id);
+		console.log("Successfully updated lab order:", labOrder.id);
 		res
 			.status(200)
 			.json(new ApiResponse("Lab order updated successfully", labOrder));
 	} catch (error: any) {
-		console.error('Error updating lab order:', error);
+		console.error("Error updating lab order:", error);
 
 		// Handle Prisma specific errors
-		if (error.code === 'P2025') {
+		if (error.code === "P2025") {
 			return res.status(404).json(new ApiResponse("Lab order not found", null));
 		}
 
@@ -357,10 +389,7 @@ const getInternalLabOrderByHospital = async (req: Request, res: Response) => {
 		// Get internal lab orders (those with appointments)
 		const labOrders = await prisma.labOrder.findMany({
 			where: {
-				OR: [
-					{ appointment: { hospitalId } },
-					{ patient: { hospitalId } }
-				],
+				OR: [{ appointment: { hospitalId } }, { patient: { hospitalId } }],
 				appointmentId: { not: null } // Internal orders have appointments
 			},
 			include: {
@@ -389,7 +418,9 @@ const getInternalLabOrderByHospital = async (req: Request, res: Response) => {
 
 		res
 			.status(200)
-			.json(new ApiResponse("Internal lab orders fetched successfully", labOrders));
+			.json(
+				new ApiResponse("Internal lab orders fetched successfully", labOrders)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -420,7 +451,9 @@ const getExternalLabOrderByHospital = async (req: Request, res: Response) => {
 
 		res
 			.status(200)
-			.json(new ApiResponse("External lab orders fetched successfully", labOrders));
+			.json(
+				new ApiResponse("External lab orders fetched successfully", labOrders)
+			);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -437,7 +470,7 @@ const orderLabTest = async (req: Request, res: Response) => {
 		if (referredFromOutside) {
 			const order = await prisma.appointmentLabTest.create({
 				data: {
-					patientId, 
+					patientId,
 					labTestId,
 					referredFromOutside
 				},
@@ -576,6 +609,7 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 		const { sampleType, tentativeReportDate, status } = req.body;
+
 		const order = await prisma.appointmentLabTest.update({
 			where: { id },
 			data: {
@@ -583,8 +617,37 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 				tentativeReportDate: tentativeReportDate
 					? new Date(tentativeReportDate)
 					: null
+			},
+			include: {
+				labTest: true,
+				appointment: {
+					include: {
+						patient: true,
+						hospital: true
+					}
+				},
+				patient: true
 			}
 		});
+
+		// Send WhatsApp notification when lab test is completed
+		if (status === "COMPLETED" && order.patient?.phone) {
+			try {
+				const patientData = order.appointment?.patient || order.patient;
+				const hospitalData = order.appointment?.hospital;
+
+				await sendLabTestCompletionNotification(patientData.phone, {
+					patientName: patientData.name,
+					testName: order.labTest.name,
+					completionDate: new Date(),
+					hospitalName: hospitalData?.name || "Hospital"
+				});
+			} catch (whatsappError) {
+				console.error("WhatsApp notification failed:", whatsappError);
+				// Don't fail the lab test update if WhatsApp fails
+			}
+		}
+
 		res
 			.status(200)
 			.json(new ApiResponse("Lab test order updated successfully", order));
@@ -971,7 +1034,10 @@ const getLabTestBilling = async (req: Request, res: Response) => {
 const getLabKpisByInterval = async (req: Request, res: Response) => {
 	try {
 		const { hospitalId } = req.user as { hospitalId: string };
-		const { startDate, endDate } = req.query as { startDate: string, endDate: string };
+		const { startDate, endDate } = req.query as {
+			startDate: string;
+			endDate: string;
+		};
 		const startDateTime = new Date(startDate);
 		const endDateTime = new Date(endDate as string);
 		startDateTime.setUTCHours(0, 0, 0, 0);
@@ -988,7 +1054,12 @@ const getLabKpisByInterval = async (req: Request, res: Response) => {
 				where: {
 					AND: [
 						{ appointment: { hospitalId } },
-						{ createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) } }
+						{
+							createdAt: {
+								gte: new Date(startDateTime),
+								lte: new Date(endDateTime)
+							}
+						}
 					],
 					appointmentId: { not: null }
 				}
@@ -998,19 +1069,24 @@ const getLabKpisByInterval = async (req: Request, res: Response) => {
 				where: {
 					AND: [
 						{ patient: { hospitalId } },
-						{ createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) } }
+						{
+							createdAt: {
+								gte: new Date(startDateTime),
+								lte: new Date(endDateTime)
+							}
+						}
 					],
-					OR: [
-						{ appointmentId: null },
-						{ referredFromOutside: true }
-					]
+					OR: [{ appointmentId: null }, { referredFromOutside: true }]
 				}
 			}),
 			// Pending tests
 			prisma.appointmentLabTest.count({
 				where: {
 					patient: { hospitalId },
-					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) },
+					createdAt: {
+						gte: new Date(startDateTime),
+						lte: new Date(endDateTime)
+					},
 					status: "PENDING"
 				}
 			}),
@@ -1018,7 +1094,10 @@ const getLabKpisByInterval = async (req: Request, res: Response) => {
 			prisma.appointmentLabTest.count({
 				where: {
 					patient: { hospitalId },
-					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime) },
+					createdAt: {
+						gte: new Date(startDateTime),
+						lte: new Date(endDateTime)
+					},
 					status: "PROCESSING"
 				}
 			}),
@@ -1026,10 +1105,12 @@ const getLabKpisByInterval = async (req: Request, res: Response) => {
 			prisma.appointmentLabTest.count({
 				where: {
 					patient: { hospitalId },
-					createdAt: { gte: new Date(startDateTime), lte: new Date(endDateTime)},
+					createdAt: {
+						gte: new Date(startDateTime),
+						lte: new Date(endDateTime)
+					},
 					status: "COMPLETED"
 				}
-				
 			})
 		]);
 
@@ -1041,7 +1122,9 @@ const getLabKpisByInterval = async (req: Request, res: Response) => {
 			completedTests
 		};
 
-		res.status(200).json(new ApiResponse("Lab KPIs fetched successfully", kpis));
+		res
+			.status(200)
+			.json(new ApiResponse("Lab KPIs fetched successfully", kpis));
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -1092,6 +1175,6 @@ export {
 	// Lab Test Billing Controllers
 	generateLabTestBill,
 	getLabTestBilling,
-	// Lab Test KPIs	
+	// Lab Test KPIs
 	getLabKpisByInterval
 };

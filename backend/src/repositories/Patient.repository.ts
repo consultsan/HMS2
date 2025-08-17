@@ -1,6 +1,7 @@
 import { Patient } from "@prisma/client";
 import prisma from "../utils/dbConfig";
 import AppError from "../utils/AppError";
+import { UhidGenerator } from "../utils/uhidGenerator";
 
 export class PatientRepository {
 	async findAll() {
@@ -40,7 +41,26 @@ export class PatientRepository {
 		>
 	) {
 		try {
-			return await prisma.patient.create({ data });
+			// Get hospital name to generate UHID
+			const hospital = await prisma.hospital.findUnique({
+				where: { id: data.hospitalId },
+				select: { name: true }
+			});
+
+			if (!hospital) {
+				throw new AppError("Hospital not found", 404);
+			}
+
+			// Generate UHID
+			const uhid = await UhidGenerator.generateUHID(hospital.name);
+
+			// Create patient with UHID
+			return await prisma.patient.create({
+				data: {
+					...data,
+					uhid
+				}
+			});
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
@@ -95,9 +115,8 @@ export class PatientRepository {
 					hospitalId: data.hospitalId,
 					name: {
 						contains: data.name,
-						mode: 'insensitive'
+						mode: "insensitive"
 					}
-					
 				}
 			});
 		} catch (error: any) {
@@ -109,6 +128,25 @@ export class PatientRepository {
 		try {
 			return await prisma.patient.findFirst({
 				where: { patientUniqueId }
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async findByUHID(uhid: string) {
+		try {
+			return await prisma.patient.findUnique({
+				where: { uhid },
+				include: {
+					relativesAdded: true,
+					relativeOfOthers: true,
+					appointments: {
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
+				}
 			});
 		} catch (error: any) {
 			throw new AppError(error.message);

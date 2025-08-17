@@ -45,9 +45,7 @@ router.get(
 );
 router.get(
 	"/get-by-date",
-	appointmentController.getAppointmentsByDate.bind(
-		appointmentController
-	)
+	appointmentController.getAppointmentsByDate.bind(appointmentController)
 );
 router.get(
 	"/get-by-date-and-patient",
@@ -102,6 +100,12 @@ router.get(
 router.get(
 	"/:id",
 	appointmentController.getAppointmentById.bind(appointmentController)
+);
+
+// Visit ID route
+router.get(
+	"/visit/:visitId",
+	appointmentController.getAppointmentByVisitID.bind(appointmentController)
 );
 
 export default router;
