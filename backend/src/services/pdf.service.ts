@@ -3,327 +3,350 @@ import * as handlebars from "handlebars";
 import * as fs from "fs";
 import * as path from "path";
 import {
-    Appointment,
-    DiagnosisRecord,
-    Vital,
-    AppointmentAttachment,
-    HospitalAdmin,
-    Patient,
-    Bill,
-    BillItem,
-    Payment
+	Appointment,
+	DiagnosisRecord,
+	Vital,
+	AppointmentAttachment,
+	HospitalAdmin,
+	Patient,
+	Bill,
+	BillItem,
+	Payment
 } from "@prisma/client";
 import { format } from "date-fns";
 
 export interface VisitWithRelations extends Appointment {
-    diagnosisRecord?: DiagnosisRecord | null;
-    vitals: Vital[];
-    attachments: AppointmentAttachment[];
-    doctor: HospitalAdmin;
-    patient: {
-        name: string;
-        dob: Date;
-        gender: string;
-        bloodGroup: string | null;
-        address: string | null;
-        phone: string | null;
-        email: string | null;
-        allergies: string | null;
-        chronicDiseases: string | null;
-        preExistingConditions: string | null;
-    };
+	diagnosisRecord?: DiagnosisRecord | null;
+	vitals: Vital[];
+	attachments: AppointmentAttachment[];
+	doctor: HospitalAdmin;
+	patient: {
+		name: string;
+		dob: Date;
+		gender: string;
+		bloodGroup: string | null;
+		address: string | null;
+		phone: string | null;
+		email: string | null;
+		allergies: string | null;
+		chronicDiseases: string | null;
+		preExistingConditions: string | null;
+	};
 }
 
 export interface BillWithRelations extends Bill {
-    patient: {
-        id: string;
-        name: string;
-        patientUniqueId: string;
-        phone: string;
-        email: string | null;
-    };
-    hospital: {
-        id: string;
-        name: string;
-        address: string | null;
-    };
-    billItems: BillItem[];
-    payments: Payment[];
-    appointment?: {
-        id: string;
-        scheduledAt: Date;
-        visitType: string;
-        doctor: {
-            id: string;
-            name: string;
-            specialisation: string;
-        };
-    };
+	patient: {
+		id: string;
+		name: string;
+		patientUniqueId: string;
+		phone: string;
+		email: string | null;
+	};
+	hospital: {
+		id: string;
+		name: string;
+		address: string | null;
+	};
+	billItems: BillItem[];
+	payments: Payment[];
+	appointment?: {
+		id: string;
+		scheduledAt: Date;
+		visitType: string;
+		doctor: {
+			id: string;
+			name: string;
+			specialisation: string;
+		};
+	};
 }
 
 export class PDFService {
-    private static templatesPath = path.join(__dirname, '../templates');
+	private static templatesPath = path.join(__dirname, "../templates");
 
-    // Register Handlebars helpers
-    private static registerHelpers() {
-        // Date formatting helpers
-        handlebars.registerHelper('formatDate', (date: Date | string) => {
-            if (!date) return 'N/A';
-            return format(new Date(date), 'dd MMM yyyy');
-        });
+	// Register Handlebars helpers
+	private static registerHelpers() {
+		// Date formatting helpers
+		handlebars.registerHelper("formatDate", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "dd MMM yyyy");
+		});
 
-        handlebars.registerHelper('formatDateTime', (date: Date | string) => {
-            if (!date) return 'N/A';
-            return format(new Date(date), 'dd MMM yyyy, hh:mm a');
-        });
+		handlebars.registerHelper("formatDateTime", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "dd MMM yyyy, hh:mm a");
+		});
 
+		handlebars.registerHelper("formatDateTimeUTC", (date: Date | string) => {
+			if (!date) return "N/A";
 
-        handlebars.registerHelper('formatDateTimeUTC', (date: Date | string) => {
-        if (!date) return 'N/A';
+			const d = new Date(date); // input is assumed to be in ISO UTC like '2025-08-04T09:15:00.000Z'
 
-        const d = new Date(date); // input is assumed to be in ISO UTC like '2025-08-04T09:15:00.000Z'
+			const yyyy = d.getUTCFullYear();
+			const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+			const dd = String(d.getUTCDate()).padStart(2, "0");
+			const hours = String(d.getUTCHours()).padStart(2, "0");
+			const minutes = String(d.getUTCMinutes()).padStart(2, "0");
 
-        const yyyy = d.getUTCFullYear();
-        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const dd = String(d.getUTCDate()).padStart(2, '0');
-        const hours = String(d.getUTCHours()).padStart(2, '0');
-        const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+			return `${dd} ${format(d, "MMM")} ${yyyy}, ${hours}:${minutes}`;
+		});
 
-        return `${dd} ${format(d, 'MMM')} ${yyyy}, ${hours}:${minutes}`;
-        });
+		handlebars.registerHelper("formatDateFull", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "PPP");
+		});
 
+		handlebars.registerHelper("formatDateTimeFull", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "PPpp");
+		});
 
-        handlebars.registerHelper('formatDateFull', (date: Date | string) => {
-            if (!date) return 'N/A';
-            return format(new Date(date), 'PPP');
-        });
+		// Currency formatting
+		handlebars.registerHelper("formatCurrency", (amount: number) => {
+			if (typeof amount !== "number") return "0.00";
+			return amount.toFixed(2);
+		});
 
-        handlebars.registerHelper('formatDateTimeFull', (date: Date | string) => {
-            if (!date) return 'N/A';
-            return format(new Date(date), 'PPpp');
-        });
+		// Status class helper
+		handlebars.registerHelper("statusClass", (status: string) => {
+			switch (status?.toLowerCase()) {
+				case "paid":
+					return "paid";
+				case "partially_paid":
+					return "partially-paid";
+				default:
+					return "unpaid";
+			}
+		});
 
-        // Currency formatting
-        handlebars.registerHelper('formatCurrency', (amount: number) => {
-            if (typeof amount !== 'number') return '0.00';
-            return amount.toFixed(2);
-        });
+		// Increment helper for array indices
+		handlebars.registerHelper("inc", (value: number) => {
+			return parseInt(value.toString()) + 1;
+		});
 
-        // Status class helper
-        handlebars.registerHelper('statusClass', (status: string) => {
-            switch (status?.toLowerCase()) {
-                case 'paid':
-                    return 'paid';
-                case 'partially_paid':
-                    return 'partially-paid';
-                default:
-                    return 'unpaid';
-            }
-        });
+		// Lowercase helper
+		handlebars.registerHelper("lowercase", (str: string) => {
+			return str?.toLowerCase() || "";
+		});
 
-        // Increment helper for array indices
-        handlebars.registerHelper('inc', (value: number) => {
-            return parseInt(value.toString()) + 1;
-        });
+		// Equality helper
+		handlebars.registerHelper("eq", (a: any, b: any) => {
+			return a === b;
+		});
 
-        // Lowercase helper
-        handlebars.registerHelper('lowercase', (str: string) => {
-            return str?.toLowerCase() || '';
-        });
+		// Not equal helper
+		handlebars.registerHelper("ne", (a: any, b: any) => {
+			return a !== b;
+		});
 
-        // Equality helper
-        handlebars.registerHelper('eq', (a: any, b: any) => {
-            return a === b;
-        });
+		// Greater than helper
+		handlebars.registerHelper("gt", (a: any, b: any) => {
+			return parseFloat(a) > parseFloat(b);
+		});
 
-        // Not equal helper
-        handlebars.registerHelper('ne', (a: any, b: any) => {
-            return a !== b;
-        });
+		// Less than helper
+		handlebars.registerHelper("lt", (a: any, b: any) => {
+			return parseFloat(a) < parseFloat(b);
+		});
 
-        // Replace helper
-        handlebars.registerHelper('replace', (str: string, find: string, replace: string) => {
-            if (!str) return str;
-            return str.replace(new RegExp(find, 'g'), replace);
-        });
-    }
+		// Replace helper
+		handlebars.registerHelper(
+			"replace",
+			(str: string, find: string, replace: string) => {
+				if (!str) return str;
+				return str.replace(new RegExp(find, "g"), replace);
+			}
+		);
+	}
 
-    // Initialize browser instance with better error handling
-    private static async getBrowser() {
-        try {
-            return await puppeteer.launch({
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--disable-extensions',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--disable-dev-tools',
-                    '--js-flags=--max-old-space-size=4096', // Increase memory limit
-                    '--deterministic-fetch', // Ensure consistent page loads
-                    '--enable-precise-memory-info',
-                    '--enable-low-end-device-mode' // Optimize for low memory
-                ],
-                timeout: 60000,
-                handleSIGINT: true,
-                handleSIGTERM: true,
-                handleSIGHUP: true,
-                pipe: true // Use pipe instead of WebSocket
-            });
-        } catch (error) {
-            console.error('Failed to launch browser:', error);
-            throw new Error('Failed to initialize PDF browser');
-        }
-    }
+	// Initialize browser instance with better error handling
+	private static async getBrowser() {
+		try {
+			return await puppeteer.launch({
+				headless: true,
+				args: [
+					"--no-sandbox",
+					"--disable-setuid-sandbox",
+					"--disable-dev-shm-usage",
+					"--disable-accelerated-2d-canvas",
+					"--no-first-run",
+					"--no-zygote",
+					"--disable-gpu",
+					"--disable-extensions",
+					"--disable-background-timer-throttling",
+					"--disable-backgrounding-occluded-windows",
+					"--disable-renderer-backgrounding",
+					"--disable-features=TranslateUI",
+					"--disable-ipc-flooding-protection",
+					"--disable-dev-tools",
+					"--js-flags=--max-old-space-size=4096", // Increase memory limit
+					"--deterministic-fetch", // Ensure consistent page loads
+					"--enable-precise-memory-info",
+					"--enable-low-end-device-mode" // Optimize for low memory
+				],
+				timeout: 60000,
+				handleSIGINT: true,
+				handleSIGTERM: true,
+				handleSIGHUP: true,
+				pipe: true // Use pipe instead of WebSocket
+			});
+		} catch (error) {
+			console.error("Failed to launch browser:", error);
+			throw new Error("Failed to initialize PDF browser");
+		}
+	}
 
-    // Load and compile template
-    private static loadTemplate(templateName: string): any {
-        const templatePath = path.join(this.templatesPath, `${templateName}.html`);
+	// Load and compile template
+	private static loadTemplate(templateName: string): any {
+		const templatePath = path.join(this.templatesPath, `${templateName}.html`);
 
-        if (!fs.existsSync(templatePath)) {
-            throw new Error(`Template ${templateName} not found at ${templatePath}`);
-        }
+		if (!fs.existsSync(templatePath)) {
+			throw new Error(`Template ${templateName} not found at ${templatePath}`);
+		}
 
-        const templateSource = fs.readFileSync(templatePath, 'utf8');
-        return handlebars.compile(templateSource);
-    }
+		const templateSource = fs.readFileSync(templatePath, "utf8");
+		return handlebars.compile(templateSource);
+	}
 
-    // Generate PDF from HTML template with improved error handling
-    private static async generatePDFFromHTML(html: string): Promise<Buffer> {
-        let browser;
-        let page;
-        let retries = 3; // Add retry mechanism
+	// Generate PDF from HTML template with improved error handling
+	private static async generatePDFFromHTML(html: string): Promise<Buffer> {
+		let browser;
+		let page;
+		let retries = 3; // Add retry mechanism
 
-        while (retries > 0) {
-            try {
-                browser = await this.getBrowser();
-                page = await browser.newPage();
+		while (retries > 0) {
+			try {
+				browser = await this.getBrowser();
+				page = await browser.newPage();
 
-                // Optimize memory usage
-                await page.setCacheEnabled(false);
-                const client = await page.target().createCDPSession();
-                await client.send('Network.enable');
-                await client.send('Network.setBypassServiceWorker', { bypass: true });
+				// Optimize memory usage
+				await page.setCacheEnabled(false);
+				const client = await page.target().createCDPSession();
+				await client.send("Network.enable");
+				await client.send("Network.setBypassServiceWorker", { bypass: true });
 
-                // Set page configuration
-                await page.setDefaultNavigationTimeout(30000);
-                await page.setViewport({ width: 1200, height: 800 });
+				// Set page configuration
+				await page.setDefaultNavigationTimeout(30000);
+				await page.setViewport({ width: 1200, height: 800 });
 
-                // Wait for network to be idle before proceeding
-                await page.setContent(html, {
-                    waitUntil: ['networkidle0', 'load', 'domcontentloaded'],
-                    timeout: 30000
-                });
+				// Wait for network to be idle before proceeding
+				await page.setContent(html, {
+					waitUntil: ["networkidle0", "load", "domcontentloaded"],
+					timeout: 30000
+				});
 
-                // Add a small delay to ensure content is fully rendered
-                await new Promise(resolve => setTimeout(resolve, 1000));
+				// Add a small delay to ensure content is fully rendered
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 
-                // Generate PDF with error handling and increased timeout
-                const pdfBuffer = await page.pdf({
-                    format: 'A4',
-                    printBackground: true,
-                    preferCSSPageSize: true,
-                    timeout: 60000,
-                    margin: { top: '0cm', right: '0cm', bottom: '0cm', left: '0cm' }
-                });
+				// Generate PDF with error handling and increased timeout
+				const pdfBuffer = await page.pdf({
+					format: "A4",
+					printBackground: true,
+					preferCSSPageSize: true,
+					timeout: 60000,
+					margin: { top: "0cm", right: "0cm", bottom: "0cm", left: "0cm" }
+				});
 
-                return Buffer.from(pdfBuffer);
-            } catch (error: unknown) {
-                retries--;
-                console.error(`Error in PDF generation (retries left: ${retries}):`, error);
+				return Buffer.from(pdfBuffer);
+			} catch (error: unknown) {
+				retries--;
+				console.error(
+					`Error in PDF generation (retries left: ${retries}):`,
+					error
+				);
 
-                // Clean up resources before retry
-                try {
-                    if (page && !page.isClosed()) {
-                        await page.close().catch(() => { });
-                    }
-                    if (browser && browser.connected) {
-                        await browser.close().catch(() => { });
-                    }
-                } catch (cleanupError) {
-                    console.warn('Error during cleanup:', cleanupError);
-                }
+				// Clean up resources before retry
+				try {
+					if (page && !page.isClosed()) {
+						await page.close().catch(() => {});
+					}
+					if (browser && browser.connected) {
+						await browser.close().catch(() => {});
+					}
+				} catch (cleanupError) {
+					console.warn("Error during cleanup:", cleanupError);
+				}
 
-                if (retries === 0) {
-                    if (error instanceof Error) {
-                        throw new Error(`PDF generation failed after all retries: ${error.message}`);
-                    }
-                    throw new Error('PDF generation failed with unknown error after all retries');
-                }
+				if (retries === 0) {
+					if (error instanceof Error) {
+						throw new Error(
+							`PDF generation failed after all retries: ${error.message}`
+						);
+					}
+					throw new Error(
+						"PDF generation failed with unknown error after all retries"
+					);
+				}
 
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } finally {
-                try {
-                    if (page && !page.isClosed()) {
-                        await page.close().catch(() => { });
-                    }
-                    if (browser && browser.connected) {
-                        await browser.close().catch(() => { });
-                    }
-                } catch (closeError) {
-                    console.warn('Error during cleanup:', closeError);
-                }
-            }
-        }
+				// Wait before retrying
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			} finally {
+				try {
+					if (page && !page.isClosed()) {
+						await page.close().catch(() => {});
+					}
+					if (browser && browser.connected) {
+						await browser.close().catch(() => {});
+					}
+				} catch (closeError) {
+					console.warn("Error during cleanup:", closeError);
+				}
+			}
+		}
 
-        throw new Error('PDF generation failed: Maximum retries reached');
-    }
+		throw new Error("PDF generation failed: Maximum retries reached");
+	}
 
-    // Calculate age helper
-    private static calculateAge(dob: Date | string): number {
-        const birthDate = new Date(dob);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
+	// Calculate age helper
+	private static calculateAge(dob: Date | string): number {
+		const birthDate = new Date(dob);
+		const today = new Date();
+		let age = today.getFullYear() - birthDate.getFullYear();
+		const monthDiff = today.getMonth() - birthDate.getMonth();
 
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
+		if (
+			monthDiff < 0 ||
+			(monthDiff === 0 && today.getDate() < birthDate.getDate())
+		) {
+			age--;
+		}
 
-        return age;
-    }
+		return age;
+	}
 
-    // Generate Bill PDF using Puppeteer
-    static async generateBillPDF(bill: BillWithRelations): Promise<Buffer> {
-        this.registerHelpers();
+	// Generate Bill PDF using Puppeteer
+	static async generateBillPDF(bill: BillWithRelations): Promise<Buffer> {
+		this.registerHelpers();
 
-        try {
-            const template = this.loadTemplate('bill-template');
+		try {
+			const template = this.loadTemplate("bill-template");
 
+			// Get the absolute path to the logo from backend's public directory
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"True-Hospital-Logo(White).png"
+			);
 
-            // Get the absolute path to the logo from backend's public directory
-            const logoPath = path.join(process.cwd(), 'public', 'True-Hospital-Logo(White).png');
+			let logoUrl = "";
+			try {
+				const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+				logoUrl = `data:image/png;base64,${logoBase64}`;
+			} catch (logoError) {
+				console.error("Error reading logo file:", logoError);
+				// Continue without the logo if file cannot be read
+			}
 
-            let logoUrl = '';
-            try {
-                const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-                logoUrl = `data:image/png;base64,${logoBase64}`;
+			// Prepare template data
+			const templateData = {
+				...bill,
+				currentDate: new Date(),
+				logoUrl
+			};
 
-            } catch (logoError) {
-                console.error('Error reading logo file:', logoError);
-                // Continue without the logo if file cannot be read
-            }
-
-            // Prepare template data
-            const templateData = {
-                ...bill,
-                currentDate: new Date(),
-                logoUrl
-            };
-
-            // Generate HTML
-            let html = template(templateData);
-            const pageCSS = `
+			// Generate HTML
+			let html = template(templateData);
+			const pageCSS = `
                 <style>
                     @page {
                     margin-top: 60px;
@@ -336,105 +359,162 @@ export class PDFService {
                     }
                 </style>
                 `;
-            html = html.replace('</head>', `${pageCSS}</head>`);
+			html = html.replace("</head>", `${pageCSS}</head>`);
 
-            // Generate PDF
-            return await this.generatePDFFromHTML(html);
-        } catch (error) {
-            console.error('Error generating bill PDF:', error);
-            throw new Error(`Failed to generate bill PDF: ${error}`);
-        }
-    }
+			// Generate PDF
+			return await this.generatePDFFromHTML(html);
+		} catch (error) {
+			console.error("Error generating bill PDF:", error);
+			throw new Error(`Failed to generate bill PDF: ${error}`);
+		}
+	}
 
-    // Generate Diagnosis Record PDF using Puppeteer
-    static async generateDiagnosisRecord(
-        diagnosisRecord: any,
-        labTests: any[],
-        surgicalInfo: any
-    ): Promise<Buffer> {
-        this.registerHelpers();
+	// Generate Diagnosis Record PDF using Puppeteer
+	static async generateDiagnosisRecord(
+		diagnosisRecord: any,
+		labTests: any[],
+		surgicalInfo: any
+	): Promise<Buffer> {
+		this.registerHelpers();
 
-        try {
-            const template = this.loadTemplate('diagnosis-template');
-            const logoPath = path.join(process.cwd(), 'public', 'True-Hospital-Logo(White).png');
-            const logoBase64 = fs.readFileSync(logoPath, { encoding: 'base64' });
-            const logoUrl = `data:image/png;base64,${logoBase64}`;
-            // Prepare template data
-          const templateData = {
-                ...diagnosisRecord,
-                labTests: labTests || [],
-                surgicalInfo,
-                currentDate: new Date(),
-                logoUrl,
-                patient: {
-                    ...diagnosisRecord.appointment?.patient,
-                    age: diagnosisRecord.appointment?.patient?.dob
-                        ? this.calculateAge(diagnosisRecord.appointment.patient.dob)
-                        : 'N/A'
-                },
-                followUpAppointment: diagnosisRecord.followUpAppointment || null,
-                hospital: diagnosisRecord.appointment?.hospital || {},
-                doctor: diagnosisRecord.appointment?.doctor || {},
-                medicines: Array.isArray(diagnosisRecord.medicines) ? diagnosisRecord.medicines : [],
-                hasHistory: diagnosisRecord.appointment?.patient?.allergy ||
-                    diagnosisRecord.appointment?.patient?.chronicDisease ||
-                    diagnosisRecord.appointment?.patient?.preExistingCondition,
-            };
+		try {
+			const template = this.loadTemplate("diagnosis-template");
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"True-Hospital-Logo(White).png"
+			);
+			const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+			const logoUrl = `data:image/png;base64,${logoBase64}`;
+			// Prepare template data
+			const templateData = {
+				...diagnosisRecord,
+				labTests: labTests || [],
+				surgicalInfo,
+				currentDate: new Date(),
+				logoUrl,
+				patient: {
+					...diagnosisRecord.appointment?.patient,
+					age: diagnosisRecord.appointment?.patient?.dob
+						? this.calculateAge(diagnosisRecord.appointment.patient.dob)
+						: "N/A"
+				},
+				followUpAppointment: diagnosisRecord.followUpAppointment || null,
+				hospital: diagnosisRecord.appointment?.hospital || {},
+				doctor: diagnosisRecord.appointment?.doctor || {},
+				medicines: Array.isArray(diagnosisRecord.medicines)
+					? diagnosisRecord.medicines
+					: [],
+				hasHistory:
+					diagnosisRecord.appointment?.patient?.allergy ||
+					diagnosisRecord.appointment?.patient?.chronicDisease ||
+					diagnosisRecord.appointment?.patient?.preExistingCondition
+			};
 
-            // Generate HTML
-            
-            const html = template(templateData);
+			// Generate HTML
 
-            // Generate PDF
-            return await this.generatePDFFromHTML(html);
-        } catch (error) {
-            console.error('Error generating diagnosis PDF:', error);
-            throw new Error(`Failed to generate diagnosis PDF: ${error}`);
-        }
-    }
+			const html = template(templateData);
 
-    // Generate Clinical Summary PDF using Puppeteer
-    static async generateClinicalSummary(
-        appointment: Appointment,
-        visit: VisitWithRelations
-    ): Promise<Buffer> {
-        this.registerHelpers();
+			// Generate PDF
+			return await this.generatePDFFromHTML(html);
+		} catch (error) {
+			console.error("Error generating diagnosis PDF:", error);
+			throw new Error(`Failed to generate diagnosis PDF: ${error}`);
+		}
+	}
 
-        try {
-            const template = this.loadTemplate('clinical-summary-template');
+	// Generate Clinical Summary PDF using Puppeteer
+	static async generateClinicalSummary(
+		appointment: Appointment,
+		visit: VisitWithRelations
+	): Promise<Buffer> {
+		this.registerHelpers();
 
-            // Prepare template data
-            const templateData = {
-                ...visit,
-                currentDate: new Date(),
-                patient: {
-                    ...visit.patient,
-                    age: visit.patient.dob ? this.calculateAge(visit.patient.dob) : 'N/A'
-                },
-                diagnosisRecord: {
-                    ...visit.diagnosisRecord,
-                    medicines: Array.isArray(visit.diagnosisRecord?.medicines)
-                        ? visit.diagnosisRecord.medicines
-                        : []
-                }
-            };
+		try {
+			const template = this.loadTemplate("clinical-summary-template");
 
-            // Generate HTML
-            const html = template(templateData);
+			// Prepare template data
+			const templateData = {
+				...visit,
+				currentDate: new Date(),
+				patient: {
+					...visit.patient,
+					age: visit.patient.dob ? this.calculateAge(visit.patient.dob) : "N/A"
+				},
+				diagnosisRecord: {
+					...visit.diagnosisRecord,
+					medicines: Array.isArray(visit.diagnosisRecord?.medicines)
+						? visit.diagnosisRecord.medicines
+						: []
+				}
+			};
 
-            // Generate PDF
-            return await this.generatePDFFromHTML(html);
-        } catch (error) {
-            console.error('Error generating clinical summary PDF:', error);
-            throw new Error(`Failed to generate clinical summary PDF: ${error}`);
-        }
-    }
+			// Generate HTML
+			const html = template(templateData);
 
-    // Test method to generate sample PDF (for testing)
-    static async generateTestPDF(): Promise<Buffer> {
-        this.registerHelpers();
+			// Generate PDF
+			return await this.generatePDFFromHTML(html);
+		} catch (error) {
+			console.error("Error generating clinical summary PDF:", error);
+			throw new Error(`Failed to generate clinical summary PDF: ${error}`);
+		}
+	}
 
-        const testHTML = `
+	// Generate Lab Report PDF using Puppeteer
+	static async generateLabReport(labTest: any): Promise<Buffer> {
+		this.registerHelpers();
+
+		try {
+			const template = this.loadTemplate("lab-report-template");
+
+			// Get the absolute path to the logo from backend's public directory
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"True-Hospital-Logo(White).png"
+			);
+			let logoUrl = "";
+
+			try {
+				const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+				logoUrl = `data:image/png;base64,${logoBase64}`;
+			} catch (logoError) {
+				console.error("Error reading logo file:", logoError);
+			}
+
+			// Prepare template data
+			const templateData = {
+				labTest,
+				patient: labTest.appointment?.patient || labTest.patient,
+				hospital: labTest.appointment?.hospital || { name: "Hospital" },
+				doctor: labTest.appointment?.doctor || { name: "Doctor" },
+				results: labTest.results || [],
+				currentDate: new Date(),
+				logoUrl,
+				patientAge:
+					labTest.appointment?.patient?.dob || labTest.patient?.dob
+						? this.calculateAge(
+								labTest.appointment?.patient?.dob || labTest.patient?.dob
+						  )
+						: "N/A"
+			};
+
+			// Generate HTML
+			const html = template(templateData);
+
+			// Generate PDF
+			return await this.generatePDFFromHTML(html);
+		} catch (error) {
+			console.error("Error generating lab report PDF:", error);
+			throw new Error(`Failed to generate lab report PDF: ${error}`);
+		}
+	}
+
+	// Test method to generate sample PDF (for testing)
+	static async generateTestPDF(): Promise<Buffer> {
+		this.registerHelpers();
+
+		const testHTML = `
 			<!DOCTYPE html>
 			<html>
 			<head>
@@ -456,20 +536,23 @@ export class PDFService {
 			</html>
 		`;
 
-        return await this.generatePDFFromHTML(testHTML);
-    }
+		return await this.generatePDFFromHTML(testHTML);
+	}
 }
 
 // Helper function to calculate age (keeping for backward compatibility)
 function calculateAge(dob: Date | string) {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
+	const birthDate = new Date(dob);
+	const today = new Date();
+	let age = today.getFullYear() - birthDate.getFullYear();
+	const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
+	if (
+		monthDiff < 0 ||
+		(monthDiff === 0 && today.getDate() < birthDate.getDate())
+	) {
+		age--;
+	}
 
-    return age;
-} 
+	return age;
+}

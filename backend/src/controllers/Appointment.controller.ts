@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay } from "date-fns";
 import {
 	AppointmentAttachment,
 	VisitType,
@@ -17,6 +17,7 @@ import prisma from "../utils/dbConfig";
 import redisClient from "../utils/redisClient";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
+import { sendAppointmentNotification } from "../services/whatsapp.service";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -42,7 +43,7 @@ export class AppointmentController {
 					throw new AppError("User isn't linked to any hospital", 403);
 				// Convert input date string to Date in UTC, then apply IST offset
 				const queryDateUTC = new Date(date as string);
-				// Create IST start and end of day		
+				// Create IST start and end of day
 				const startOfDayIST = new Date(queryDateUTC);
 				startOfDayIST.setHours(0, 0, 0, 0);
 
@@ -73,21 +74,22 @@ export class AppointmentController {
 					}
 				});
 
-				res.status(200).json(
-					new ApiResponse(
-						appointments.length
-							? "Fetched appointments"
-							: "No appointments found",
-						appointments
-					)
-				);
+				res
+					.status(200)
+					.json(
+						new ApiResponse(
+							appointments.length
+								? "Fetched appointments"
+								: "No appointments found",
+							appointments
+						)
+					);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
 		} else {
 			res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
-
 	}
 
 	async getSurgeryByHospitalId(req: Request, res: Response) {
@@ -149,11 +151,15 @@ export class AppointmentController {
 
 				// Validate required fields
 				if (!appointmentId) {
-					return res.status(400).json(new ApiResponse("Appointment ID is required", null));
+					return res
+						.status(400)
+						.json(new ApiResponse("Appointment ID is required", null));
 				}
 
 				if (!category) {
-					return res.status(400).json(new ApiResponse("Surgery category is required", null));
+					return res
+						.status(400)
+						.json(new ApiResponse("Surgery category is required", null));
 				}
 
 				// Check if appointment exists and belongs to the hospital
@@ -165,7 +171,11 @@ export class AppointmentController {
 				});
 
 				if (!appointment) {
-					return res.status(404).json(new ApiResponse("Appointment not found or unauthorized", null));
+					return res
+						.status(404)
+						.json(
+							new ApiResponse("Appointment not found or unauthorized", null)
+						);
 				}
 
 				// Check if surgery already exists for this appointment
@@ -174,7 +184,14 @@ export class AppointmentController {
 				});
 
 				if (existingSurgery) {
-					return res.status(400).json(new ApiResponse("Surgery already exists for this appointment", null));
+					return res
+						.status(400)
+						.json(
+							new ApiResponse(
+								"Surgery already exists for this appointment",
+								null
+							)
+						);
 				}
 
 				// Create surgery data object
@@ -191,7 +208,9 @@ export class AppointmentController {
 					if (!isNaN(parsedDate.getTime())) {
 						surgeryData.scheduledAt = parsedDate;
 					} else {
-						return res.status(400).json(new ApiResponse("Invalid surgery date", null));
+						return res
+							.status(400)
+							.json(new ApiResponse("Invalid surgery date", null));
 					}
 				}
 
@@ -219,7 +238,9 @@ export class AppointmentController {
 					}
 				});
 
-				return res.status(201).json(new ApiResponse("Surgery added successfully", surgery));
+				return res
+					.status(201)
+					.json(new ApiResponse("Surgery added successfully", surgery));
 			} catch (error: any) {
 				console.error("Error adding surgery:", error);
 				errorHandler(error, res);
@@ -257,10 +278,14 @@ export class AppointmentController {
 				});
 				res
 					.status(200)
-					.json(new ApiResponse(
-						appointments.length ? "Fetched appointments" : "No appointments found",
-						appointments
-					));
+					.json(
+						new ApiResponse(
+							appointments.length
+								? "Fetched appointments"
+								: "No appointments found",
+							appointments
+						)
+					);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -295,9 +320,40 @@ export class AppointmentController {
 							create: new Array<Vital>()
 						},
 						attachments: { create: new Array<AppointmentAttachment>() }
+					},
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
 					}
 				});
+
 				redisClient.lPush(`${hospitalId}_${doctorId}`, JSON.stringify(visit));
+
+				// Send WhatsApp notification to patient
+				try {
+					if (visit.patient.phone) {
+						const appointmentTime = new Date(
+							visit.scheduledAt
+						).toLocaleTimeString("en-IN", {
+							hour: "2-digit",
+							minute: "2-digit",
+							hour12: true
+						});
+
+						await sendAppointmentNotification(visit.patient.phone, {
+							patientName: visit.patient.name,
+							doctorName: visit.doctor.name,
+							appointmentDate: visit.scheduledAt,
+							appointmentTime: appointmentTime,
+							hospitalName: visit.hospital.name
+						});
+					}
+				} catch (whatsappError) {
+					console.error("WhatsApp notification failed:", whatsappError);
+					// Don't fail the appointment booking if WhatsApp fails
+				}
+
 				res
 					.status(200)
 					.json(new ApiResponse("Appointment booked successfully", visit));
@@ -413,7 +469,9 @@ export class AppointmentController {
 					}
 				});
 				if (!appointments) throw new AppError("No appointments found", 404);
-				res.status(200).json(new ApiResponse("Fetched appointments", appointments));
+				res
+					.status(200)
+					.json(new ApiResponse("Fetched appointments", appointments));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -426,10 +484,10 @@ export class AppointmentController {
 				const { date } = req.query;
 				const userId = req.user.id as string;
 				let startOfDay, endOfDay;
-				if (typeof date === 'string') {
+				if (typeof date === "string") {
 					let queryDate;
 					// Try to parse as dd/MM/yyyy
-					const parts = date.split('/');
+					const parts = date.split("/");
 					if (parts.length === 3) {
 						const [day, month, year] = parts;
 						queryDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
@@ -438,22 +496,36 @@ export class AppointmentController {
 						queryDate = new Date(date);
 					}
 					if (isNaN(queryDate.getTime())) {
-						return res.status(400).json(new ApiResponse('Invalid date format', null));
+						return res
+							.status(400)
+							.json(new ApiResponse("Invalid date format", null));
 					}
-					startOfDay = new Date(Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						0, 0, 0, 0
-					));
-					endOfDay = new Date(Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						23, 59, 59, 999
-					));
+					startOfDay = new Date(
+						Date.UTC(
+							queryDate.getUTCFullYear(),
+							queryDate.getUTCMonth(),
+							queryDate.getUTCDate(),
+							0,
+							0,
+							0,
+							0
+						)
+					);
+					endOfDay = new Date(
+						Date.UTC(
+							queryDate.getUTCFullYear(),
+							queryDate.getUTCMonth(),
+							queryDate.getUTCDate(),
+							23,
+							59,
+							59,
+							999
+						)
+					);
 				} else {
-					return res.status(400).json(new ApiResponse('Date is required', null));
+					return res
+						.status(400)
+						.json(new ApiResponse("Date is required", null));
 				}
 
 				try {
@@ -490,12 +562,16 @@ export class AppointmentController {
 						}
 					});
 
-					return res.status(200).json(
-						new ApiResponse(
-							appointments.length ? "Fetched appointments" : "No appointments found",
-							appointments
-						)
-					);
+					return res
+						.status(200)
+						.json(
+							new ApiResponse(
+								appointments.length
+									? "Fetched appointments"
+									: "No appointments found",
+								appointments
+							)
+						);
 				} catch (dbError) {
 					console.error("Database error:", dbError);
 					throw new AppError("Failed to fetch appointments from database", 500);
@@ -520,10 +596,10 @@ export class AppointmentController {
 
 				// Create proper date range for the specific day
 				let startOfDay, endOfDay;
-				if (typeof date === 'string') {
+				if (typeof date === "string") {
 					let queryDate;
 					// Try to parse as dd/MM/yyyy
-					const parts = date.split('/');
+					const parts = date.split("/");
 					if (parts.length === 3) {
 						const [day, month, year] = parts;
 						queryDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
@@ -532,22 +608,36 @@ export class AppointmentController {
 						queryDate = new Date(date);
 					}
 					if (isNaN(queryDate.getTime())) {
-						return res.status(400).json(new ApiResponse('Invalid date format', null));
+						return res
+							.status(400)
+							.json(new ApiResponse("Invalid date format", null));
 					}
-					startOfDay = new Date(Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						0, 0, 0, 0
-					));
-					endOfDay = new Date(Date.UTC(
-						queryDate.getUTCFullYear(),
-						queryDate.getUTCMonth(),
-						queryDate.getUTCDate(),
-						23, 59, 59, 999
-					));
+					startOfDay = new Date(
+						Date.UTC(
+							queryDate.getUTCFullYear(),
+							queryDate.getUTCMonth(),
+							queryDate.getUTCDate(),
+							0,
+							0,
+							0,
+							0
+						)
+					);
+					endOfDay = new Date(
+						Date.UTC(
+							queryDate.getUTCFullYear(),
+							queryDate.getUTCMonth(),
+							queryDate.getUTCDate(),
+							23,
+							59,
+							59,
+							999
+						)
+					);
 				} else {
-					return res.status(400).json(new ApiResponse('Date is required', null));
+					return res
+						.status(400)
+						.json(new ApiResponse("Date is required", null));
 				}
 				const appointments = await prisma.appointment.findMany({
 					where: {
@@ -591,7 +681,9 @@ export class AppointmentController {
 					}
 				});
 
-				res.status(200).json(new ApiResponse("Fetched appointments", appointments));
+				res
+					.status(200)
+					.json(new ApiResponse("Fetched appointments", appointments));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -811,7 +903,15 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { appointmentId } = req.params;
-				const { items, dueDate, notes, paidAmount, dueAmount, status, billDate } = req.body;
+				const {
+					items,
+					dueDate,
+					notes,
+					paidAmount,
+					dueAmount,
+					status,
+					billDate
+				} = req.body;
 
 				// Get appointment details
 				const appointment = await prisma.appointment.findUnique({
@@ -841,7 +941,8 @@ export class AppointmentController {
 				const billItems = [];
 				let totalAmount = 0;
 				for (const item of items) {
-					const itemTotal = item.unitPrice * item.quantity - item.discountAmount;
+					const itemTotal =
+						item.unitPrice * item.quantity - item.discountAmount;
 					totalAmount += itemTotal;
 					billItems.push({
 						itemType: item.itemType,
@@ -952,7 +1053,9 @@ export class AppointmentController {
 
 				res
 					.status(200)
-					.json(new ApiResponse("Appointment retrieved successfully", appointment));
+					.json(
+						new ApiResponse("Appointment retrieved successfully", appointment)
+					);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -1050,27 +1153,32 @@ export class AppointmentController {
 
 				// Count completed appointments (diagnosed status)
 				const totalCompletedAppointments = appointments.filter(
-					apt => apt.status === AppointmentStatus.DIAGNOSED
+					(apt) => apt.status === AppointmentStatus.DIAGNOSED
 				).length;
 
 				// Count cancelled appointments
 				const totalCancelledAppointments = appointments.filter(
-					apt => apt.status === AppointmentStatus.CANCELLED
+					(apt) => apt.status === AppointmentStatus.CANCELLED
 				).length;
 
 				// Calculate total revenue from bills
 				const totalRevenue = appointments.reduce((sum, apt) => {
-					const billTotal = apt.bills.reduce((billSum, bill) => billSum + bill.totalAmount, 0);
+					const billTotal = apt.bills.reduce(
+						(billSum, bill) => billSum + bill.totalAmount,
+						0
+					);
 					return sum + billTotal;
 				}, 0);
 
 				// Count unique patients
-				const uniquePatients = new Set(appointments.map(apt => apt.patientId));
+				const uniquePatients = new Set(
+					appointments.map((apt) => apt.patientId)
+				);
 				const totalPatients = uniquePatients.size;
 
 				// Count follow-up appointments (appointments that have a diagnosis with follow-up)
 				const totalFollowUps = appointments.filter(
-					apt => apt.diagnosisRecord?.followUpAppointment
+					(apt) => apt.diagnosisRecord?.followUpAppointment
 				).length;
 
 				const kpis = {
@@ -1085,7 +1193,9 @@ export class AppointmentController {
 					totalCompletedAppointments
 				};
 
-				res.status(200).json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
+				res
+					.status(200)
+					.json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -1143,27 +1253,32 @@ export class AppointmentController {
 
 				// Count completed appointments (diagnosed status)
 				const totalCompletedAppointments = appointments.filter(
-					apt => apt.status === AppointmentStatus.DIAGNOSED
+					(apt) => apt.status === AppointmentStatus.DIAGNOSED
 				).length;
 
 				// Count cancelled appointments
 				const totalCancelledAppointments = appointments.filter(
-					apt => apt.status === AppointmentStatus.CANCELLED
+					(apt) => apt.status === AppointmentStatus.CANCELLED
 				).length;
 
 				// Calculate total revenue from bills
 				const totalRevenue = appointments.reduce((sum, apt) => {
-					const billTotal = apt.bills.reduce((billSum, bill) => billSum + bill.totalAmount, 0);
+					const billTotal = apt.bills.reduce(
+						(billSum, bill) => billSum + bill.totalAmount,
+						0
+					);
 					return sum + billTotal;
 				}, 0);
 
 				// Count unique patients
-				const uniquePatients = new Set(appointments.map(apt => apt.patientId));
+				const uniquePatients = new Set(
+					appointments.map((apt) => apt.patientId)
+				);
 				const totalPatients = uniquePatients.size;
 
 				// Count follow-up appointments (appointments that have a diagnosis with follow-up)
 				const totalFollowUps = appointments.filter(
-					apt => apt.diagnosisRecord?.followUpAppointment
+					(apt) => apt.diagnosisRecord?.followUpAppointment
 				).length;
 
 				const kpis = {
@@ -1182,7 +1297,9 @@ export class AppointmentController {
 					}
 				};
 
-				res.status(200).json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
+				res
+					.status(200)
+					.json(new ApiResponse("Doctor KPIs retrieved successfully", kpis));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
