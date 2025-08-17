@@ -8,76 +8,78 @@ import { readFileSync } from "fs";
 import { format } from "date-fns";
 import Handlebars from "handlebars";
 
-
 const prisma = new PrismaClient();
 
 export class BillingController {
 	// Register Handlebars helpers
 	private static registerHelpers() {
 		// Date formatting helpers
-		Handlebars.registerHelper('formatDate', (date: Date | string) => {
-			if (!date) return 'N/A';
-			return format(new Date(date), 'dd MMM yyyy');
+		Handlebars.registerHelper("formatDate", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "dd MMM yyyy");
 		});
 
-		Handlebars.registerHelper('formatDateTime', (date: Date | string) => {
-			if (!date) return 'N/A';
-			return format(new Date(date), 'dd MMM yyyy, hh:mm a');
+		Handlebars.registerHelper("formatDateTime", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "dd MMM yyyy, hh:mm a");
 		});
 
-		Handlebars.registerHelper('formatDateFull', (date: Date | string) => {
-			if (!date) return 'N/A';
-			return format(new Date(date), 'PPP');
+		Handlebars.registerHelper("formatDateFull", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "PPP");
 		});
 
-		Handlebars.registerHelper('formatDateTimeFull', (date: Date | string) => {
-			if (!date) return 'N/A';
-			return format(new Date(date), 'PPpp');
+		Handlebars.registerHelper("formatDateTimeFull", (date: Date | string) => {
+			if (!date) return "N/A";
+			return format(new Date(date), "PPpp");
 		});
 
 		// Currency formatting
-		Handlebars.registerHelper('formatCurrency', (amount: number) => {
-			if (typeof amount !== 'number') return '0.00';
+		Handlebars.registerHelper("formatCurrency", (amount: number) => {
+			if (typeof amount !== "number") return "0.00";
 			return amount.toFixed(2);
 		});
 
 		// Status class helper
-		Handlebars.registerHelper('statusClass', (status: string) => {
+		Handlebars.registerHelper("statusClass", (status: string) => {
 			switch (status?.toLowerCase()) {
-				case 'paid':
-					return 'paid';
-				case 'partially_paid':
-					return 'partially-paid';
+				case "paid":
+					return "paid";
+				case "partially_paid":
+					return "partially-paid";
 				default:
-					return 'unpaid';
+					return "unpaid";
 			}
 		});
 
 		// Increment helper for array indices
-		Handlebars.registerHelper('inc', (value: number) => {
+		Handlebars.registerHelper("inc", (value: number) => {
 			return parseInt(value.toString()) + 1;
 		});
 
 		// Lowercase helper
-		Handlebars.registerHelper('lowercase', (str: string) => {
-			return str?.toLowerCase() || '';
+		Handlebars.registerHelper("lowercase", (str: string) => {
+			return str?.toLowerCase() || "";
 		});
 
 		// Equality helper
-		Handlebars.registerHelper('eq', (a: any, b: any) => {
+		Handlebars.registerHelper("eq", (a: any, b: any) => {
 			return a === b;
 		});
 
 		// Not equal helper
-		Handlebars.registerHelper('ne', (a: any, b: any) => {
+		Handlebars.registerHelper("ne", (a: any, b: any) => {
 			return a !== b;
 		});
 
 		// Replace helper
-		Handlebars.registerHelper('replace', (str: string, find: string, replace: string) => {
-			if (!str) return str;
-			return str.replace(new RegExp(find, 'g'), replace);
-		});
+		Handlebars.registerHelper(
+			"replace",
+			(str: string, find: string, replace: string) => {
+				if (!str) return str;
+				return str.replace(new RegExp(find, "g"), replace);
+			}
+		);
 	}
 	// Generate unique bill number
 	private generateBillNumber(): string {
@@ -89,8 +91,18 @@ export class BillingController {
 	// Create a new bill
 	createBill = async (req: Request, res: Response) => {
 		try {
-			const { patientId, hospitalId, appointmentId, items, dueDate, paidAmount, dueAmount, status, billDate, notes } =
-				req.body;
+			const {
+				patientId,
+				hospitalId,
+				appointmentId,
+				items,
+				dueDate,
+				paidAmount,
+				dueAmount,
+				status,
+				billDate,
+				notes
+			} = req.body;
 
 			// Validate required fields
 			if (!patientId || !hospitalId || !items || !Array.isArray(items)) {
@@ -98,6 +110,16 @@ export class BillingController {
 					"Patient ID, Hospital ID, and items array are required",
 					400
 				);
+			}
+
+			// Get appointment details to include Visit ID
+			let visitId = null;
+			if (appointmentId) {
+				const appointment = await prisma.appointment.findUnique({
+					where: { id: appointmentId },
+					select: { visitId: true }
+				});
+				visitId = appointment?.visitId;
 			}
 
 			// Calculate totals
@@ -143,13 +165,22 @@ export class BillingController {
 						select: {
 							id: true,
 							name: true,
-							patientUniqueId: true
+							patientUniqueId: true,
+							uhid: true
 						}
 					},
 					hospital: {
 						select: {
 							id: true,
 							name: true
+						}
+					},
+					appointment: {
+						select: {
+							id: true,
+							visitId: true,
+							visitType: true,
+							scheduledAt: true
 						}
 					},
 					billItems: true,
@@ -703,7 +734,6 @@ export class BillingController {
 				throw new AppError("Bill not found", 404);
 			}
 
-
 			// Read the template file
 			const templatePath = join(__dirname, "../templates/bill-template.html");
 			let templateContent = readFileSync(templatePath, "utf-8");
@@ -746,9 +776,11 @@ export class BillingController {
 			</style>
 			`;
 
-
 			// Insert print styles before </head>
-			templateContent = templateContent.replace('</head>', `${printStyles}</head>`);
+			templateContent = templateContent.replace(
+				"</head>",
+				`${printStyles}</head>`
+			);
 
 			// Compile template
 			const template = Handlebars.compile(templateContent);
@@ -762,19 +794,17 @@ export class BillingController {
 				logoUrl
 			};
 
-
 			// Generate HTML
 			const html = template(templateData);
 
 			// Send HTML response
-			res.setHeader('Content-Type', 'text/html');
+			res.setHeader("Content-Type", "text/html");
 			res.send(html);
-
 		} catch (error: any) {
 			console.error("Error generating HTML:", error);
-			res.status(error.statusCode || 500).json(
-				new ApiResponse(error.message || "Error generating HTML")
-			);
+			res
+				.status(error.statusCode || 500)
+				.json(new ApiResponse(error.message || "Error generating HTML"));
 		}
-	}
+	};
 }

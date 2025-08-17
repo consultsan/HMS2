@@ -60,8 +60,7 @@ export class NotificationController {
 			const attachment = await prisma.appointmentLabTestAttachment.create({
 				data: {
 					appointmentLabTestId,
-					url: s3Url,
-					type: "REPORT"
+					url: s3Url
 				}
 			});
 
@@ -70,7 +69,7 @@ export class NotificationController {
 				const patientData = labTest.appointment?.patient || labTest.patient;
 				const hospitalData = labTest.appointment?.hospital;
 
-				if (patientData.phone) {
+				if (patientData?.phone) {
 					try {
 						await sendLabReportNotification(patientData.phone, {
 							patientName: patientData.name,
@@ -151,7 +150,7 @@ export class NotificationController {
 				data: {
 					appointmentId,
 					url: s3Url,
-					type: "DIAGNOSIS_RECORD"
+					type: "MEDICAL_REPORT"
 				}
 			});
 
@@ -195,8 +194,7 @@ export class NotificationController {
 				where: {
 					appointmentLabTest: {
 						OR: [{ patientId }, { appointment: { patientId } }]
-					},
-					type: "REPORT"
+					}
 				},
 				include: {
 					appointmentLabTest: {
@@ -220,7 +218,7 @@ export class NotificationController {
 			const diagnosisRecords = await prisma.appointmentAttachment.findMany({
 				where: {
 					appointment: { patientId },
-					type: "DIAGNOSIS_RECORD"
+					type: "MEDICAL_REPORT"
 				},
 				include: {
 					appointment: {
@@ -286,6 +284,10 @@ export class NotificationController {
 					attachment.appointmentLabTest.patient;
 				const hospitalData =
 					attachment.appointmentLabTest.appointment?.hospital;
+
+				if (!patientData) {
+					throw new AppError("Patient data not found", 404);
+				}
 
 				patientPhone = phoneNumber || patientData.phone;
 

@@ -286,6 +286,7 @@ model Shift {
 model Patient {
   id                        String             @id @default(uuid())
   patientUniqueId           String             @unique @default(cuid())
+  uhid                      String?            @unique // Universal Health ID
   name                      String
   dob                       DateTime
   gender                    Gender
@@ -321,6 +322,7 @@ model Patient {
 
   @@index([hospitalId])
   @@index([patientUniqueId])
+  @@index([uhid])
 }
 
 model PatientDocument {
@@ -351,6 +353,7 @@ model PatientFamilyLink {
 
 model Appointment {
   id          String            @id @default(uuid())
+  visitId     String?           @unique // Visit ID for this appointment
   scheduledAt DateTime
   visitType   VisitType
   status      AppointmentStatus @default(SCHEDULED)
@@ -382,6 +385,7 @@ model Appointment {
   @@index([doctorId])
   @@index([hospitalId])
   @@index([createdBy])
+  @@index([visitId])
 }
 
 /// — Lab order to group multiple lab tests ordered together —
@@ -766,4 +770,16 @@ model Surgery {
   billItems     BillItem[]
 
   @@index([appointmentId])
+}
+
+/// — UHID Sequence Tracker for universal sequence across TRUE ecosystem —
+model UhidSequence {
+  id        String   @id @default(uuid())
+  yearCode  String   // Year code (e.g., "25")
+  sequence  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([yearCode])
+  @@index([yearCode])
 }

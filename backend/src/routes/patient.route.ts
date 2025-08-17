@@ -18,6 +18,14 @@ router.get(
 	"/get-by-phone",
 	patientController.getPatientByPhone.bind(patientController)
 );
+router.get(
+	"/get-by-uhid",
+	patientController.getPatientByUHID.bind(patientController)
+);
+router.get(
+	"/get-by-unique-id",
+	patientController.getPatientByUniqueId.bind(patientController)
+);
 router.post(
 	"/upload-doc",
 	upload.single("file"),

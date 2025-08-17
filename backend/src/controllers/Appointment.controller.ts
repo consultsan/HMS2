@@ -18,6 +18,7 @@ import redisClient from "../utils/redisClient";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import { sendAppointmentNotification } from "../services/whatsapp.service";
+import { UhidGenerator } from "../utils/uhidGenerator";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -307,6 +308,29 @@ export class AppointmentController {
 				if (!hospitalId)
 					throw new AppError("User isn't linked to any hospital", 403);
 
+				// Get patient to check if UHID exists
+				const patient = await prisma.patient.findUnique({
+					where: { id: patientId },
+					select: { uhid: true }
+				});
+
+				if (!patient) {
+					throw new AppError("Patient not found", 404);
+				}
+
+				if (!patient.uhid) {
+					throw new AppError(
+						"Patient UHID not found. Please ensure patient has a valid UHID.",
+						400
+					);
+				}
+
+				// Generate Visit ID
+				const visitId = await UhidGenerator.generateVisitID(
+					patient.uhid,
+					visitType === VisitType.OPD ? "OPD" : "IPD"
+				);
+
 				const visit = await prisma.appointment.create({
 					data: {
 						patientId,
@@ -316,6 +340,7 @@ export class AppointmentController {
 						doctorId,
 						status: status || AppointmentStatus.SCHEDULED,
 						createdBy: req.user.id as string,
+						visitId, // Add Visit ID
 						vitals: {
 							create: new Array<Vital>()
 						},
@@ -1014,53 +1039,89 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { id } = req.params;
-				const hospitalId = req.user.hospitalId;
-
-				if (!hospitalId) {
-					throw new AppError("User isn't linked to any hospital", 403);
-				}
-
 				const appointment = await prisma.appointment.findUnique({
-					where: {
-						id,
-						hospitalId
-					},
+					where: { id },
 					include: {
-						patient: {
-							select: {
-								id: true,
-								name: true,
-								patientUniqueId: true,
-								phone: true
-							}
-						},
-						doctor: {
-							select: {
-								id: true,
-								name: true,
-								specialisation: true
-							}
-						},
+						patient: true,
+						doctor: true,
+						hospital: true,
 						vitals: true,
 						attachments: true,
-						diagnosisRecord: true
+						diagnosisRecord: true,
+						surgery: true,
+						bills: true,
+						labTests: {
+							include: {
+								labTest: true,
+								results: {
+									include: {
+										parameter: true
+									}
+								}
+							}
+						}
 					}
 				});
 
 				if (!appointment) {
-					throw new AppError("Appointment not found", 404);
+					return res.status(404).json(new ApiResponse("Appointment not found"));
 				}
 
 				res
 					.status(200)
 					.json(
-						new ApiResponse("Appointment retrieved successfully", appointment)
+						new ApiResponse("Appointment fetched successfully", appointment)
 					);
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
 		} else {
-			res.status(403).json(new ApiResponse("Unauthorized access"));
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
+		}
+	}
+
+	async getAppointmentByVisitID(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { visitId } = req.params;
+				const appointment = await prisma.appointment.findUnique({
+					where: { visitId },
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true,
+						vitals: true,
+						attachments: true,
+						diagnosisRecord: true,
+						surgery: true,
+						bills: true,
+						labTests: {
+							include: {
+								labTest: true,
+								results: {
+									include: {
+										parameter: true
+									}
+								}
+							}
+						}
+					}
+				});
+
+				if (!appointment) {
+					return res.status(404).json(new ApiResponse("Appointment not found"));
+				}
+
+				res
+					.status(200)
+					.json(
+						new ApiResponse("Appointment fetched successfully", appointment)
+					);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
 	}
 

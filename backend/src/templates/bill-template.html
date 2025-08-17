@@ -1,218 +1,268 @@
 <!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1"
+		/>
+		<title>Bill - {{billNumber}}</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<style>
+			@page {
+				size: A4;
+				margin: 0;
+			}
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bill - {{billNumber}}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @page {
-      size: A4;
-      margin: 0;
-    }
+			html,
+			body {
+				height: auto;
+				width: 100%;
+				margin: 0;
+				padding: 0;
+				background: white;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
 
-    html,
-    body {
-      height: auto;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      background: white;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+			table,
+			tr,
+			td,
+			th {
+				page-break-inside: avoid !important;
+			}
 
-    table,
-    tr,
-    td,
-    th {
-      page-break-inside: avoid !important;
-    }
+			.break-inside-avoid {
+				break-inside: avoid;
+				page-break-inside: avoid;
+			}
+		</style>
+	</head>
 
-    .break-inside-avoid {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-  </style>
-</head>
+	<body class="font-sans text-sm text-gray-800 leading-relaxed bg-white">
+		<div class="container mx-auto w-full max-w-4xl px-6 py-8">
+			<!-- Header -->
+			<div
+				class="header bg-gradient-to-tr from-blue-900 to-blue-400 text-white rounded-t-lg p-4"
+			>
+				<div class="flex justify-between items-center">
+					<!-- Logo -->
+					<div>
+						{{#if logoUrl}}
+						<img
+							src="{{logoUrl}}"
+							alt="Hospital Logo"
+							class="h-20 object-contain"
+						/>
+						{{/if}}
+					</div>
 
-<body class="font-sans text-sm text-gray-800 leading-relaxed bg-white">
-  <div class="container mx-auto w-full max-w-4xl px-6 py-8">
+					<!-- Hospital Info -->
+					<div class="text-right text-sm leading-normal">
+						{{#if hospital.name}}
+						<div class="text-3xl font-bold mb-2">{{hospital.name}}</div>
+						{{/if}} {{#if hospital.address}}
+						<div class="text-gray-200">{{hospital.address}}</div>
+						{{/if}} {{#if hospital.phone}}
+						<div class="text-gray-200">Phone: {{hospital.phone}}</div>
+						{{/if}}
+					</div>
+				</div>
+			</div>
+			<!-- Bill Details -->
+			<div class="bg-gray-50 border rounded-md p-4 mb-6">
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+					<div>
+						<div class="text-gray-500">Bill Number</div>
+						<div class="font-medium">{{billNumber}}</div>
+					</div>
+					<div>
+						<div class="text-gray-500">Date</div>
+						<div class="font-medium">{{formatDate billDate}}</div>
+					</div>
+					<div>
+						<div class="text-gray-500">Status</div>
+						<div
+							class="mt-1 inline-block text-white text-xs px-3 py-1 rounded-full bg-gray-600 {{statusClass status}}"
+						>
+							{{replace status "_" " "}}
+						</div>
+					</div>
+				</div>
+			</div>
 
-    <!-- Header -->
-    <div class="header bg-gradient-to-tr from-blue-900 to-blue-400 text-white rounded-t-lg p-4">
-    <div class="flex justify-between items-center">
-    <!-- Logo -->
-    <div>
-      {{#if logoUrl}}
-      <img src="{{logoUrl}}" alt="Hospital Logo" class="h-20 object-contain" />
-      {{/if}}
-    </div>
+			<!-- Patient Info -->
+			<div class="break-inside-avoid mb-8">
+				<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">
+					Patient Information
+				</h2>
+				<div
+					class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-md border"
+				>
+					<div>
+						<p>
+							<span class="text-gray-600">Patient Name:</span> {{patient.name}}
+						</p>
+						<p>
+							<span class="text-gray-600">Patient ID:</span>
+							{{patient.patientUniqueId}}
+						</p>
+						{{#if patient.uhid}}
+						<p><span class="text-gray-600">UHID:</span> {{patient.uhid}}</p>
+						{{/if}}
+						<p><span class="text-gray-600">Phone:</span> {{patient.phone}}</p>
+					</div>
+					<div>
+						<p><span class="text-gray-600">Email:</span> {{patient.email}}</p>
+						{{#if appointment.visitId}}
+						<p>
+							<span class="text-gray-600">Visit ID:</span>
+							{{appointment.visitId}}
+						</p>
+						{{/if}}
+						<p>
+							<span class="text-gray-600">Due Date:</span> {{formatDate
+							dueDate}}
+						</p>
+						<p>
+							<span class="text-gray-600">Created:</span> {{formatDate
+							createdAt}}
+						</p>
+					</div>
+				</div>
+			</div>
 
-    <!-- Hospital Info -->
-    <div class="text-right text-sm leading-normal">
-      {{#if hospital.name}}
-      <div class="text-3xl font-bold mb-2">{{hospital.name}}</div>
-      {{/if}}
-      {{#if hospital.address}}
-      <div class="text-gray-200">{{hospital.address}}</div>
-      {{/if}}
-      {{#if hospital.phone}}
-      <div class="text-gray-200">Phone: {{hospital.phone}}</div>
-      {{/if}}
-    </div>
-  </div>
-</div>
-    <!-- Bill Details -->
-    <div class="bg-gray-50 border rounded-md p-4 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <div class="text-gray-500">Bill Number</div>
-          <div class="font-medium">{{billNumber}}</div>
-        </div>
-        <div>
-          <div class="text-gray-500">Date</div>
-          <div class="font-medium">{{formatDate billDate}}</div>
-        </div>
-        <div>
-          <div class="text-gray-500">Status</div>
-          <div class="mt-1 inline-block text-white text-xs px-3 py-1 rounded-full bg-gray-600 {{statusClass status}}">
-            {{replace status "_" " "}}
-          </div>
-        </div>
-      </div>
-    </div>
+			<!-- Bill Items -->
+			<div class="break-inside-avoid mb-8">
+				<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">
+					Bill Items
+				</h2>
+				<div class="overflow-x-auto">
+					<table class="w-full border border-gray-200">
+						<thead>
+							<tr class="bg-gray-100 text-sm text-gray-700">
+								<th class="py-1 px-3 text-left">S.No</th>
+								<th class="py-1 px-3 text-left">Description</th>
+								<th class="py-1 px-3 text-left">Qty</th>
+								<th class="py-1 px-3 text-left">Unit Price</th>
+								<th class="py-1 px-3 text-left">Discount</th>
+								<th class="py-1 px-3 text-right">Total</th>
+							</tr>
+						</thead>
+						<tbody>
+							{{#each billItems}}
+							<tr class="even:bg-white odd:bg-gray-50 border-t border-gray-200">
+								<td class="py-1 px-3">{{inc @index}}</td>
+								<td class="py-1 px-3">{{description}}</td>
+								<td class="py-1 px-3">{{quantity}}</td>
+								<td class="py-1 px-3">₹{{formatCurrency unitPrice}}</td>
+								<td class="py-1 px-3">₹{{formatCurrency discountAmount}}</td>
+								<td class="py-1 px-3 text-right">
+									₹{{formatCurrency totalPrice}}
+								</td>
+							</tr>
+							{{/each}}
+						</tbody>
+					</table>
+				</div>
+			</div>
 
-    <!-- Patient Info -->
-    <div class="break-inside-avoid mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Patient Information</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-md border">
-        <div>
-          <p><span class="text-gray-600">Patient Name:</span> {{patient.name}}</p>
-          <p><span class="text-gray-600">Patient ID:</span> {{patient.patientUniqueId}}</p>
-          <p><span class="text-gray-600">Phone:</span> {{patient.phone}}</p>
-        </div>
-        <div>
-          <p><span class="text-gray-600">Email:</span> {{patient.email}}</p>
-          <p><span class="text-gray-600">Due Date:</span> {{formatDate dueDate}}</p>
-          <p><span class="text-gray-600">Created:</span> {{formatDate createdAt}}</p>
-        </div>
-      </div>
-    </div>
+			<!-- Payment Summary -->
+			<div class="break-inside-avoid mb-8">
+				<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">
+					Payment Summary
+				</h2>
+				<div class="bg-gray-50 rounded-md p-4 w-full border">
+					<div class="flex justify-between mb-1">
+						<span>Total Amount</span>
+						<span class="font-semibold">₹{{formatCurrency totalAmount}}</span>
+					</div>
+					<div class="flex justify-between mb-1">
+						<span>Amount Paid</span>
+						<span class="font-semibold text-green-600"
+							>₹{{formatCurrency paidAmount}}</span
+						>
+					</div>
+					<div class="flex justify-between mb-2 border-b pb-2">
+						<span>Amount Due</span>
+						<span class="font-semibold text-red-500"
+							>₹{{formatCurrency dueAmount}}</span
+						>
+					</div>
+					<div class="flex justify-between font-semibold text-gray-800 mt-2">
+						<span>Status</span>
+						<span
+							class="text-xs rounded-full px-3 py-1 text-white {{statusClass status}}"
+						>
+							{{replace status "_" " "}}
+						</span>
+					</div>
+				</div>
+			</div>
 
-    <!-- Bill Items -->
-    <div class="break-inside-avoid mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Bill Items</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full border border-gray-200">
-          <thead>
-            <tr class="bg-gray-100 text-sm text-gray-700">
-              <th class="py-1 px-3 text-left">S.No</th>
-              <th class="py-1 px-3 text-left">Description</th>
-              <th class="py-1 px-3 text-left">Qty</th>
-              <th class="py-1 px-3 text-left">Unit Price</th>
-              <th class="py-1 px-3 text-left">Discount</th>
-              <th class="py-1 px-3 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each billItems}}
-            <tr class="even:bg-white odd:bg-gray-50 border-t border-gray-200">
-              <td class="py-1 px-3">{{inc @index}}</td>
-              <td class="py-1 px-3">{{description}}</td>
-              <td class="py-1 px-3">{{quantity}}</td>
-              <td class="py-1 px-3">₹{{formatCurrency unitPrice}}</td>
-              <td class="py-1 px-3">₹{{formatCurrency discountAmount}}</td>
-              <td class="py-1 px-3 text-right">₹{{formatCurrency totalPrice}}</td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-    </div>
+			<!-- Payment History -->
+			{{#if payments.length}}
+			<div class="break-inside-avoid mb-8">
+				<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">
+					Payment History
+				</h2>
+				<div class="overflow-x-auto">
+					<table class="w-full border border-gray-200">
+						<thead>
+							<tr class="bg-gray-100 text-sm text-gray-700">
+								<th class="py-2 px-3 text-left">Date</th>
+								<th class="py-2 px-3 text-left">Amount</th>
+								<th class="py-2 px-3 text-left">Method</th>
+								<th class="py-2 px-3 text-left">Status</th>
+							</tr>
+						</thead>
+						<tbody>
+							{{#each payments}}
+							<tr class="even:bg-white odd:bg-gray-50 border-t border-gray-200">
+								<td class="py-2 px-3">{{formatDate paymentDate}}</td>
+								<td class="py-2 px-3">₹{{formatCurrency amount}}</td>
+								<td class="py-2 px-3">{{replace paymentMethod "_" " "}}</td>
+								<td class="py-2 px-3">{{replace status "_" " "}}</td>
+							</tr>
+							{{/each}}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			{{/if}}
 
-    <!-- Payment Summary -->
-    <div class="break-inside-avoid mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Payment Summary</h2>
-      <div class="bg-gray-50 rounded-md p-4 w-full border">
-        <div class="flex justify-between mb-1">
-          <span>Total Amount</span>
-          <span class="font-semibold">₹{{formatCurrency totalAmount}}</span>
-        </div>
-        <div class="flex justify-between mb-1">
-          <span>Amount Paid</span>
-          <span class="font-semibold text-green-600">₹{{formatCurrency paidAmount}}</span>
-        </div>
-        <div class="flex justify-between mb-2 border-b pb-2">
-          <span>Amount Due</span>
-          <span class="font-semibold text-red-500">₹{{formatCurrency dueAmount}}</span>
-        </div>
-        <div class="flex justify-between font-semibold text-gray-800 mt-2">
-          <span>Status</span>
-          <span class="text-xs rounded-full px-3 py-1 text-white {{statusClass status}}">
-            {{replace status "_" " "}}
-          </span>
-        </div>
-      </div>
-    </div>
+			<!-- Notes -->
+			{{#if notes}}
+			<div class="break-inside-avoid mb-8">
+				<h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">
+					Notes
+				</h2>
+				<div
+					class="bg-yellow-50 p-4 border-l-4 border-yellow-400 rounded-md text-gray-700"
+				>
+					{{notes}}
+				</div>
+			</div>
+			{{/if}}
 
-    <!-- Payment History -->
-    {{#if payments.length}}
-    <div class="break-inside-avoid mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Payment History</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full border border-gray-200">
-          <thead>
-            <tr class="bg-gray-100 text-sm text-gray-700">
-              <th class="py-2 px-3 text-left">Date</th>
-              <th class="py-2 px-3 text-left">Amount</th>
-              <th class="py-2 px-3 text-left">Method</th>
-              <th class="py-2 px-3 text-left">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each payments}}
-            <tr class="even:bg-white odd:bg-gray-50 border-t border-gray-200">
-              <td class="py-2 px-3">{{formatDate paymentDate}}</td>
-              <td class="py-2 px-3">₹{{formatCurrency amount}}</td>
-              <td class="py-2 px-3">{{replace paymentMethod "_" " "}}</td>
-              <td class="py-2 px-3">{{replace status "_" " "}}</td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {{/if}}
-
-    <!-- Notes -->
-    {{#if notes}}
-    <div class="break-inside-avoid mb-8">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Notes</h2>
-      <div class="bg-yellow-50 p-4 border-l-4 border-yellow-400 rounded-md text-gray-700">
-        {{notes}}
-      </div>
-    </div>
-    {{/if}}
-
-    <!-- Footer -->
-    <div class="footer pt-6 border-t mt-8 text-xs text-gray-500">
-      <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-        <div>
-          <div>Generated on: {{formatDateTime currentDate}}</div>
-          <div>Hospital: {{hospital.name}}</div>
-          {{#if hospital.address}}
-          <div>Address: {{hospital.address}}</div>
-          {{/if}}
-        </div>
-        <div class="text-right">
-          <div class="text-sm text-gray-700">Authorized Signature</div>
-          <div class="border-b border-gray-400 w-36 mt-2 ml-auto"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-
+			<!-- Footer -->
+			<div class="footer pt-6 border-t mt-8 text-xs text-gray-500">
+				<div
+					class="flex flex-col md:flex-row justify-between items-start gap-4"
+				>
+					<div>
+						<div>Generated on: {{formatDateTime currentDate}}</div>
+						<div>Hospital: {{hospital.name}}</div>
+						{{#if hospital.address}}
+						<div>Address: {{hospital.address}}</div>
+						{{/if}}
+					</div>
+					<div class="text-right">
+						<div class="text-sm text-gray-700">Authorized Signature</div>
+						<div class="border-b border-gray-400 w-36 mt-2 ml-auto"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
 </html>

@@ -56,10 +56,7 @@ export class PatientController {
 	}
 
 	async getPatientById(req: Request, res: Response) {
-		if (
-			req.user &&
-			roles.includes(req.user.role)
-		) {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
 				const patient = await this.patientRepository.findById(id);
@@ -78,10 +75,7 @@ export class PatientController {
 	}
 
 	async getPatientByName(req: Request, res: Response) {
-		if (
-			req.user &&
-			roles.includes(req.user.role)
-		) {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { name } = req.query as Pick<Patient, "name">;
 				if (!name) return res.status(401).json({ message: "Name is missing" });
@@ -106,10 +100,7 @@ export class PatientController {
 	}
 
 	async getPatientByPhone(req: Request, res: Response) {
-		if (
-			req.user &&
-			roles.includes(req.user.role)
-		) {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { phone } = req.query as Pick<Patient, "phone">;
 				if (!phone)
@@ -159,11 +150,29 @@ export class PatientController {
 		}
 	}
 
+	async getPatientByUHID(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { uhid } = req.query;
+				if (!uhid) return res.status(400).json({ message: "UHID is required" });
+
+				const patient = await this.patientRepository.findByUHID(uhid as string);
+				if (!patient)
+					return res.status(404).json({ message: "Patient not found" });
+
+				res.json(new ApiResponse("Patient fetched successfully", patient));
+			} catch (error: any) {
+				res
+					.status(error.code || 500)
+					.json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
+		}
+	}
+
 	async createPatient(req: Request, res: Response) {
-		if (
-			req.user &&
-			roles.includes(req.user.role)
-		) {
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const {
 					name,
@@ -260,7 +269,10 @@ export class PatientController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				// For multipart/form-data, fields are in req.body
-				const { patientId, type } = req.body as { patientId: string; type: string };
+				const { patientId, type } = req.body as {
+					patientId: string;
+					type: string;
+				};
 				if (!patientId) throw new AppError("Patient ID is required", 400);
 				if (!type) throw new AppError("Document type is required", 400);
 
@@ -293,10 +305,10 @@ export class PatientController {
 				let statusCode = 500;
 				if (error instanceof AppError) {
 					statusCode = error.code || 400;
-				} else if (error.code?.startsWith('P')) {
+				} else if (error.code?.startsWith("P")) {
 					// Handle Prisma errors
 					switch (error.code) {
-						case 'P2003': // Foreign key constraint failed
+						case "P2003": // Foreign key constraint failed
 							statusCode = 400;
 							break;
 						default:
@@ -385,7 +397,9 @@ export class PatientController {
 				orderBy: { uploadedAt: "desc" }
 			});
 
-			res.status(200).json(new ApiResponse("Documents retrieved successfully", docs));
+			res
+				.status(200)
+				.json(new ApiResponse("Documents retrieved successfully", docs));
 		} catch (error: any) {
 			console.error("Error listing documents:", error);
 			res
@@ -393,7 +407,7 @@ export class PatientController {
 				.json(new ApiResponse(error.message || "Internal Server Error"));
 		}
 	}
-	
+
 	async deleteAttachment(req: Request, res: Response) {
 		try {
 			const { documentId } = req.params;
