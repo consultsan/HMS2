@@ -1,6 +1,7 @@
 import axios from "axios";
+import { text } from "pdfkit";
 
-const WHATSAPP_CLOUD_API_VERSION = "latest";
+const WHATSAPP_CLOUD_API_VERSION = "v20.0";
 const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.WA_CLOUD_API_ACCESS_TOKEN;
 
@@ -21,6 +22,18 @@ interface LabTestNotificationData {
 
 async function sendWhatsAppMessage(to: string, messageBody: string) {
 	const url = `https://graph.facebook.com/${WHATSAPP_CLOUD_API_VERSION}/${PHONE_NUMBER_ID}/messages`;
+
+	let formattedNumber = to.replace(/\D/g, ''); // Remove all non-digits
+
+	// Add country code if not present
+	if (!formattedNumber.startsWith('91') && formattedNumber.length === 10) {
+		formattedNumber = '91' + formattedNumber;
+	}
+
+	// Add + prefix for international format
+	if (!formattedNumber.startsWith('+')) {
+		formattedNumber = '+' + formattedNumber;
+	}
 
 	try {
 		const response = await axios.post(

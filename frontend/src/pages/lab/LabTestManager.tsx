@@ -14,9 +14,10 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LabTestStatus, AppointmentAttachType } from "@/types/types";
+import { LabTestStatus, AppointmentAttachType, Patient } from "@/types/types";
 import ViewTestResult from "./ViewTestResult";
 import TestParameters from "./TestParamters";
+import { notificationApi } from "@/api/patient";
 
 
 export default function LabTestManager({ filter }: { filter: string }) {
@@ -167,7 +168,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
     });
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]; 
+        const file = event.target.files?.[0];
         if (!file) return;
 
         const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
@@ -286,7 +287,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
         }
     };
 
-    const handleCompleteTest = () => {
+    const handleCompleteTest = async () => {
         if (selectedTestForCompletion) {
             const allTests = labOrders?.flatMap((order: any) => order.appointmentLabTests) || [];
             const test = allTests.find((t: any) => t.id === selectedTestForCompletion.id);
@@ -308,6 +309,19 @@ export default function LabTestManager({ filter }: { filter: string }) {
                 status: LabTestStatus.COMPLETED,
                 tentativeReportDate: test.tentativeReportDate
             });
+            // Send lab test completion notification
+            const testResp = await labApi.getOrderedTestById(selectedTestForCompletion.id);
+            const patient = testResp.data?.data?.patient;
+
+            await notificationApi.sendLabTestCompletionNotification({
+                phoneNumber: patient?.phone,
+                patientName: patient?.name,
+                testName: testResp.data.data?.name,
+                completionDate: new Date().toISOString(), // or your actual date
+                hospitalName: patient.hospitalName// or fetch dynamically
+            });
+
+
             setIsParametersDialogOpen(false);
             setSelectedTestForCompletion(null);
             setUploadedFiles([]);
@@ -492,7 +506,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                                                                 Start Processing
                                                             </Button>
                                                         )}
-                                                        {(test?.status === 'PROCESSING' || test?.status==='SENT_EXTERNAL') && (
+                                                        {(test?.status === 'PROCESSING' || test?.status === 'SENT_EXTERNAL') && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"

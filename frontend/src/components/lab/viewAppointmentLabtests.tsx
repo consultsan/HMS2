@@ -11,6 +11,8 @@ import { FlaskConical, Clock, Send } from "lucide-react";
 import { labApi } from "@/api/lab";
 import ViewTestResult from "@/pages/lab/ViewTestResult";
 import { formatDate } from "@/utils/dateUtils";
+import { api } from "@/lib/api";
+import { notificationApi } from "@/api/patient";
 
 export default function ViewAppointmentLabtests({ appointmentId }: { appointmentId: string }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -29,6 +31,16 @@ export default function ViewAppointmentLabtests({ appointmentId }: { appointment
     const handleViewResult = (testId: string) => {
         setSelectedLabTestId(testId);
         setIsResultOpen(true);
+    };
+
+    const handleSendLabReport = async (testId: string) => {
+        try {
+            await notificationApi.sendLabReport(testId);
+            alert("Lab report sent successfully!");
+        } catch (error) {
+            console.error("Failed to send lab report:", error);
+            alert("Failed to send lab report. Please try again.");
+        }
     };
 
     return (
@@ -94,7 +106,7 @@ export default function ViewAppointmentLabtests({ appointmentId }: { appointment
                                                         >
                                                             View Report
                                                         </Button>
-                                                        <Button variant="outline" size="sm" onClick={() => (test.id)}>
+                                                        <Button variant="outline" size="sm" onClick={() => handleSendLabReport(test.id)}>
                                                             <Send className="w-4 h-" />
                                                         </Button>
                                                     </div>

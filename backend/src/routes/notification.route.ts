@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { NotificationController } from "../controllers/notification.controller";
+import { sendAppointmentNotification } from "../services/whatsapp.service";
 
 const router = Router();
 const notificationController = new NotificationController();
@@ -10,7 +11,7 @@ router.post(
 	notificationController.sendLabReport.bind(notificationController)
 );
 
-// Diagnosis record routes
+// Diagnosis record routes 
 router.post(
 	"/diagnosis-record/:appointmentId",
 	notificationController.sendDiagnosisRecord.bind(notificationController)
@@ -26,6 +27,15 @@ router.get(
 router.post(
 	"/resend/:type/:attachmentId",
 	notificationController.resendNotification.bind(notificationController)
+);
+
+//appointment notification
+router.post("/appointment-msg",
+	notificationController.sendAppointmentNotification.bind(notificationController)
+);
+
+router.post("/lab-completion",
+	notificationController.sendLabTestComplitionNotification.bind(notificationController)
 );
 
 export default router;

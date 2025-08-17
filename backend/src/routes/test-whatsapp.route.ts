@@ -68,6 +68,14 @@ router.post("/test-appointment", async (req, res) => {
 				message: "All fields are required"
 			});
 		}
+		console.log("Sending appointment notification to:", phoneNumber);
+		console.log("Appointment details:", {
+			patientName,
+			doctorName,
+			appointmentDate,
+			appointmentTime,
+			hospitalName
+		});
 
 		const result = await sendAppointmentNotification(phoneNumber, {
 			patientName,
