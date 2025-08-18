@@ -81,7 +81,7 @@ const wss = new WebSocketServer({
 	path: "/api/dashboard/patient"
 });
 
-const doctorRooms = new Array<string>();
+const doctorRooms = new Set<string>();
 
 wss.on("connection", (socket: Socket) => {
 	socket.id = uuid();
@@ -89,7 +89,7 @@ wss.on("connection", (socket: Socket) => {
 	socket.on("message", (msg) => {
 		const data = JSON.parse(msg.toString()) as Doctor;
 		const room = `${data.hospital_id}_${data.doctor_id}`;
-		doctorRooms.push(room);
+		doctorRooms.add(room);
 		socket.room = room;
 		console.log(`${socket.id} Joined room ${room}`);
 	});
@@ -97,6 +97,15 @@ wss.on("connection", (socket: Socket) => {
 		console.log(
 			`Client with connection ID ${socket.id} has closed its connection`
 		);
+		// Clean up room if no clients are in it
+		if (socket.room) {
+			const clientsInRoom = Array.from(wss.clients).filter(
+				(client: any) => client.room === socket.room
+			);
+			if (clientsInRoom.length === 0) {
+				doctorRooms.delete(socket.room);
+			}
+		}
 	});
 });
 
@@ -107,8 +116,8 @@ setInterval(() => {
 			if (client.room == q && client.readyState == WebSocket.OPEN && product)
 				client.send(product);
 		});
-	}, 1000);
-});
+	});
+}, 1000);
 
 // routes
 app.post("/api/login", login);
@@ -138,9 +147,15 @@ app.use("/api/test-whatsapp", testWhatsAppRoute);
 app.post("/api/whatsapp", (req, res) => {
 	try {
 		const { to, message } = req.body;
+		if (!to || !message) {
+			return res
+				.status(400)
+				.json({ message: "Missing required fields: to and message" });
+		}
 		sendWhatsAppMessage(to, message);
 		res.status(200).json({ message: "WhatsApp message sent successfully" });
 	} catch (error: any) {
+		console.error("WhatsApp message error:", error);
 		res.status(500).json({ message: "Failed to send WhatsApp message" });
 	}
 });
