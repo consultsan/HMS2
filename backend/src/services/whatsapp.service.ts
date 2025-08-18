@@ -1,7 +1,7 @@
 import axios from "axios";
 import { text } from "pdfkit";
 
-const WHATSAPP_CLOUD_API_VERSION = "v20.0";
+const WHATSAPP_CLOUD_API_VERSION = "v18.0";
 const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.WA_CLOUD_API_ACCESS_TOKEN;
 
@@ -20,27 +20,46 @@ interface LabTestNotificationData {
 	hospitalName: string;
 }
 
+// Function to format phone number for WhatsApp API
+function formatPhoneNumber(phoneNumber: string): string {
+	// Remove all non-digit characters
+	let cleaned = phoneNumber.replace(/\D/g, "");
+
+	// If number starts with 0, remove it
+	if (cleaned.startsWith("0")) {
+		cleaned = cleaned.substring(1);
+	}
+
+	// If number doesn't start with country code, assume India (+91)
+	if (!cleaned.startsWith("91") && cleaned.length === 10) {
+		cleaned = "91" + cleaned;
+	}
+
+	// Ensure it starts with country code
+	if (!cleaned.startsWith("91")) {
+		throw new Error(
+			"Invalid phone number format. Please use international format (e.g., 919680032837)"
+		);
+	}
+
+	return cleaned;
+}
+
 async function sendWhatsAppMessage(to: string, messageBody: string) {
 	const url = `https://graph.facebook.com/${WHATSAPP_CLOUD_API_VERSION}/${PHONE_NUMBER_ID}/messages`;
 
-	let formattedNumber = to.replace(/\D/g, ''); // Remove all non-digits
-
-	// Add country code if not present
-	if (!formattedNumber.startsWith('91') && formattedNumber.length === 10) {
-		formattedNumber = '91' + formattedNumber;
-	}
-
-	// Add + prefix for international format
-	if (!formattedNumber.startsWith('+')) {
-		formattedNumber = '+' + formattedNumber;
-	}
-
 	try {
+		// Format phone number
+		const formattedPhoneNumber = formatPhoneNumber(to);
+
+		console.log(`Sending WhatsApp message to: ${formattedPhoneNumber}`);
+		console.log(`Message content: ${messageBody}`);
+
 		const response = await axios.post(
 			url,
 			{
 				messaging_product: "whatsapp",
-				to: to,
+				to: formattedPhoneNumber,
 				type: "text",
 				text: {
 					body: messageBody
@@ -55,6 +74,16 @@ async function sendWhatsAppMessage(to: string, messageBody: string) {
 		);
 
 		console.log("WhatsApp message sent successfully:", response.data);
+
+		// Check for specific error conditions in the response
+		if (response.data.messages && response.data.messages.length > 0) {
+			const message = response.data.messages[0];
+			if (message.error) {
+				console.error("WhatsApp API returned error:", message.error);
+				return { success: false, error: message.error };
+			}
+		}
+
 		return { success: true, data: response.data };
 	} catch (error: any) {
 		console.error(

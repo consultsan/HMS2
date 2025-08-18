@@ -5,6 +5,31 @@ import {
 	sendLabTestCompletionNotification
 } from "../services/whatsapp.service";
 
+// Function to format phone number for WhatsApp API
+function formatPhoneNumber(phoneNumber: string): string {
+	// Remove all non-digit characters
+	let cleaned = phoneNumber.replace(/\D/g, "");
+
+	// If number starts with 0, remove it
+	if (cleaned.startsWith("0")) {
+		cleaned = cleaned.substring(1);
+	}
+
+	// If number doesn't start with country code, assume India (+91)
+	if (!cleaned.startsWith("91") && cleaned.length === 10) {
+		cleaned = "91" + cleaned;
+	}
+
+	// Ensure it starts with country code
+	if (!cleaned.startsWith("91")) {
+		throw new Error(
+			"Invalid phone number format. Please use international format (e.g., 919680032837)"
+		);
+	}
+
+	return cleaned;
+}
+
 const router = Router();
 
 // Test basic WhatsApp message
@@ -150,6 +175,68 @@ router.post("/test-lab-completion", async (req, res) => {
 		res.status(500).json({
 			success: false,
 			message: "Error sending lab test completion notification",
+			error: error.message
+		});
+	}
+});
+
+// Phone number validation endpoint
+router.post("/validate-phone", async (req, res) => {
+	try {
+		const { phoneNumber } = req.body;
+
+		if (!phoneNumber) {
+			return res.status(400).json({
+				success: false,
+				message: "Phone number is required"
+			});
+		}
+
+		try {
+			const formatted = formatPhoneNumber(phoneNumber);
+			res.json({
+				success: true,
+				original: phoneNumber,
+				formatted: formatted,
+				valid: true,
+				message: "Phone number formatted successfully"
+			});
+		} catch (error: any) {
+			res.json({
+				success: false,
+				original: phoneNumber,
+				error: error.message,
+				valid: false,
+				message: "Invalid phone number format"
+			});
+		}
+	} catch (error: any) {
+		res.status(500).json({
+			success: false,
+			message: "Error validating phone number",
+			error: error.message
+		});
+	}
+});
+
+// Test environment variables
+router.get("/test-config", async (req, res) => {
+	try {
+		const config = {
+			phoneNumberId: process.env.WA_PHONE_NUMBER_ID ? "Set" : "Not Set",
+			accessToken: process.env.WA_CLOUD_API_ACCESS_TOKEN ? "Set" : "Not Set",
+			apiVersion: "latest"
+		};
+
+		res.json({
+			success: true,
+			config,
+			message: "Configuration check completed"
+		});
+	} catch (error: any) {
+		res.status(500).json({
+			success: false,
+			message: "Error checking configuration",
 			error: error.message
 		});
 	}
