@@ -23,6 +23,8 @@ import DoctorSlots from "@/components/DoctorSlots";
 import { billingApi } from "@/api/billing";
 import { HospitalStaff, VisitType } from "@/types/types";
 import { appointmentApi } from "@/api/appointment";
+import { notificationApi } from "@/api/notification";
+import { toArray } from "lodash";
 
 interface Patient {
     id: string;
@@ -42,6 +44,7 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
     const [selectedSlotId, setSelectedSlotId] = useState<string>("");
     const [partiallyBooked, setPartiallyBooked] = useState(false);
     const [doctorOpdCharge, setSlectedDoctorOpdCharge] = useState(0);
+    const hospitalName = "True Hospitals"; // Replace with actual hospital name if needed
 
     useEffect(() => {
         if (patientId) {
@@ -77,11 +80,16 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         mutationFn: async (data: {
             patientId: string;
             doctorId: string;
+            phoneNumber: string;
+            patientName: string;
+            doctorName: string;
+            hospitalName: string;
             visitType: 'OPD' | 'IPD' | 'EMERGENCY';
             scheduledAt: string;
             selectedSlotId: string;
             partiallyBooked: boolean;
         }) => {
+
             const appointmentResponse = await appointmentApi.bookAppointment({
                 patientId: data.patientId,
                 doctorId: data.doctorId,
@@ -102,6 +110,21 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
                 });
             }
 
+            const notificationResponse = await notificationApi.sendAppointmentNotification({
+                phoneNumber: data.phoneNumber,
+                patientName: data.patientName,
+                doctorName: data.doctorName,
+                appointmentDate: data.scheduledAt.split('T')[0], // Extract date part
+                appointmentTime: data.scheduledAt.split('T')[1]?.split('.') || '00:00', // Extract time part
+                hospitalName: data.hospitalName
+            });
+            if (notificationResponse?.contact) {
+                toast.success(`Appointment notification sent to ${notificationResponse.contact}`);
+            }
+            else {
+                toast.error('Failed to send appointment notification');
+            }
+            
             return appointmentResponse.data;
         },
         onSuccess: () => {
@@ -115,7 +138,6 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             toast.error(error.response?.data?.message || 'Failed to create appointment');
         },
     });
-
 
     const handleDoctorChange = (doctorId: string) => {
         setSelectedDoctorId(doctorId);
@@ -155,6 +177,10 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
         createAppointmentMutation.mutate({
             patientId: selectedPatientId,
             doctorId: selectedDoctorId,
+            phoneNumber: patients?.find(p => p.id === selectedPatientId)?.phone || '',
+            patientName: patients?.find(p => p.id === selectedPatientId)?.name || '',
+            doctorName: doctors?.find(d => d.id === selectedDoctorId)?.name || '',
+            hospitalName: hospitalName || '',
             visitType,
             scheduledAt: appointmentDateTime.toISOString(),
             selectedSlotId,

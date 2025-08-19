@@ -6,14 +6,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { shiftApi } from '@/api/shift';
 import { Button } from '../ui/button';

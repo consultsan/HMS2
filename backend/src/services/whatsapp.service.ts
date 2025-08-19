@@ -1,4 +1,5 @@
 import axios from "axios";
+import { text } from "pdfkit";
 
 const WHATSAPP_CLOUD_API_VERSION = "v18.0";
 const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
@@ -37,7 +38,7 @@ function formatPhoneNumber(phoneNumber: string): string {
 	// Ensure it starts with country code
 	if (!cleaned.startsWith("91")) {
 		throw new Error(
-			"Invalid phone number format. Please use international format (e.g., 919680032837)"
+			"Invalid phone number format. Please use international format (e.g., 919680092837)"
 		);
 	}
 

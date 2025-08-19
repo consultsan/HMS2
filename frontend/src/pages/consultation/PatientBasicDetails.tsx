@@ -14,13 +14,13 @@ function PatientBasicDetails({ patientId }: { patientId: string }) {
   const [error, setError] = useState("");
 
   const { data: patient, isLoading: isPatientLoading } = useQuery<Patient>({
-        queryKey: ['patient-details', patientId],
-        queryFn: async () => {
-            const response = await patientApi.getPatientById(patientId);
-            return response;
-        },
-        enabled: !!patientId,
-    });
+    queryKey: ['patient-details', patientId],
+    queryFn: async () => {
+      const response = await patientApi.getPatientById(patientId);
+      return response;
+    },
+    enabled: !!patientId,
+  });
 
   const fetchHistory = async () => {
     try {

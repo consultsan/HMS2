@@ -20,7 +20,6 @@ import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 import ViewBill from "@/components/billing/ViewBill";
 import { appointmentApi } from "@/api/appointment";
 import { ApiResponse, Appointment } from "@/types/types";
-import { stat } from "fs";
 
 export default function AppointmentManagement() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
@@ -33,8 +32,6 @@ export default function AppointmentManagement() {
 
   // Check if user can view bills (receptionist or hospital admin)
   const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
-
-
   const { data: appointments, isLoading: appointmentsLoading, isError: appointmentsError } = useQuery<ApiResponse<Appointment[]>>({
     queryKey: ["appointments", filterDate.toISOString().split('T')[0]],
     queryFn: async () => {
@@ -53,8 +50,8 @@ export default function AppointmentManagement() {
         const response = await appointmentApi.getCreatedAppointmentsByDate(formattedDate);
         return response.data;
       }
-      
-      const response = await appointmentApi.getAppointmentsByDate({date:formattedDate});
+
+      const response = await appointmentApi.getAppointmentsByDate({ date: formattedDate });
       console.log("Appointments from API:", response.data);
       return response.data;
     },
@@ -104,7 +101,6 @@ export default function AppointmentManagement() {
   };
 
   const handleViewBill = (appointment: Appointment) => {
-    console.log("appointment", appointment);
     if (appointment?.bills?.length) {
       setViewBillAppointmentId(appointment.bills[0].id);
     }
@@ -198,10 +194,10 @@ export default function AppointmentManagement() {
                             title="Cancel Appointment"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
-                          </button> 
+                          </button>
                         )}
 
-                        
+
                       </div>
                     </TableCell>
                   </TableRow>
