@@ -12,7 +12,7 @@ import { labApi } from "@/api/lab";
 import ViewTestResult from "@/pages/lab/ViewTestResult";
 import { formatDate } from "@/utils/dateUtils";
 import { api } from "@/lib/api";
-import { notificationApi } from "@/api/patient";
+import { notificationApi } from "@/api/notification";
 
 export default function ViewAppointmentLabtests({ appointmentId }: { appointmentId: string }) {
     const [isOpen, setIsOpen] = useState(false);

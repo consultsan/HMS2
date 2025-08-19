@@ -1,34 +1,35 @@
-// src/api/notification.api.ts
-import axios from "axios";
+import { api } from '@/lib/api';
+import { ApiResponse } from '@/types/types'; // adjust the import path as necessary
+// import other types like Notification, etc. when you define them
 
-const API_BASE = "/api/notifications"; // adjust if your backend prefix differs
+export const notificationApi = {
+    // Send lab report
+    sendLabReport: (appointmentLabTestId: string) =>
+        api.post<ApiResponse<any>>(`/api/notifications/lab-report/${appointmentLabTestId}`)
+           .then(res => res.data.data),
 
-// Send lab report
-export const sendLabReport = (appointmentLabTestId: string) => {
-  return axios.post(`${API_BASE}/lab-report/${appointmentLabTestId}`);
-};
+    // Send diagnosis record
+    sendDiagnosisRecord: (appointmentId: string) =>
+        api.post<ApiResponse<any>>(`/api/notifications/diagnosis-record/${appointmentId}`)
+           .then(res => res.data.data),
 
-// Send diagnosis record
-export const sendDiagnosisRecord = (appointmentId: string) => {
-  return axios.post(`${API_BASE}/diagnosis-record/${appointmentId}`);
-};
+    // Get notification history
+    getNotificationHistory: (patientId: string) =>
+        api.get<ApiResponse<any[]>>(`/api/notifications/history/${patientId}`)
+           .then(res => res.data.data),
 
-// Get notification history for a patient
-export const getNotificationHistory = (patientId: string) => {
-  return axios.get(`${API_BASE}/history/${patientId}`);
-};
+    // Resend notification
+    resendNotification: (type: string, attachmentId: string, data?: any) =>
+        api.post<ApiResponse<any>>(`/api/notifications/resend/${type}/${attachmentId}`, data)
+           .then(res => res.data.data),
 
-// Resend notification
-export const resendNotification = (type: string, attachmentId: string, data?: any) => {
-  return axios.post(`${API_BASE}/resend/${type}/${attachmentId}`, data);
-};
+    // Send appointment notification
+    sendAppointmentNotification: (data: any) =>
+        api.post<ApiResponse<any>>(`/api/notifications/appointment-msg`, data)
+           .then(res => res.data.data),
 
-// Send appointment notification
-export const sendAppointmentNotification = (data: any) => {
-  return axios.post(`${API_BASE}/appointment-msg`, data);
-};
-
-// Send lab test completion notification
-export const sendLabTestCompletionNotification = (data: any) => {
-  return axios.post(`${API_BASE}/lab-completion`, data);
+    // Send lab test completion notification
+    sendLabTestCompletionNotification: (data: any) =>
+        api.post<ApiResponse<any>>(`/api/notifications/lab-completion`, data)
+           .then(res => res.data.data),
 };

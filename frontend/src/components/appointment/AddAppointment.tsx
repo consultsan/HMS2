@@ -23,7 +23,8 @@ import DoctorSlots from "@/components/DoctorSlots";
 import { billingApi } from "@/api/billing";
 import { HospitalStaff, VisitType } from "@/types/types";
 import { appointmentApi } from "@/api/appointment";
-import { notificationApi } from "@/api/patient";
+import { notificationApi } from "@/api/notification";
+import { toArray } from "lodash";
 
 interface Patient {
     id: string;
@@ -117,12 +118,13 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
                 appointmentTime: data.scheduledAt.split('T')[1]?.split('.') || '00:00', // Extract time part
                 hospitalName: data.hospitalName
             });
-
-            if(notificationResponse.data.success) {
-                toast.success('Appointment created and notification sent successfully');
-            } else {
-                toast.error('Appointment created, but failed to send notification');
+            if (notificationResponse?.contact) {
+                toast.success(`Appointment notification sent to ${notificationResponse.contact}`);
             }
+            else {
+                toast.error('Failed to send appointment notification');
+            }
+            
             return appointmentResponse.data;
         },
         onSuccess: () => {

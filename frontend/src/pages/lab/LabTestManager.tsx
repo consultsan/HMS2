@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LabTestStatus, AppointmentAttachType, Patient } from "@/types/types";
 import ViewTestResult from "./ViewTestResult";
 import TestParameters from "./TestParamters";
-import { notificationApi } from "@/api/patient";
+import { notificationApi } from "@/api/notification";
 
 
 export default function LabTestManager({ filter }: { filter: string }) {

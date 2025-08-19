@@ -38,7 +38,7 @@ function formatPhoneNumber(phoneNumber: string): string {
 	// Ensure it starts with country code
 	if (!cleaned.startsWith("91")) {
 		throw new Error(
-			"Invalid phone number format. Please use international format (e.g., 919680032837)"
+			"Invalid phone number format. Please use international format (e.g., 919680092837)"
 		);
 	}
 

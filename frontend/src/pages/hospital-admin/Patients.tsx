@@ -545,8 +545,8 @@ export default function Patients() {
         {/* Patient Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          <DialogTitle>
-          </DialogTitle>
+            <DialogTitle>
+            </DialogTitle>
             {isDetailsDialogOpen && selectedPatientId && (
               <PatientDetails patientId={selectedPatientId} />
             )}
