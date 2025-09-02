@@ -561,6 +561,11 @@ const getOrderedTestById = async (req: Request, res: Response) => {
 					include: {
 						parameter: true
 					}
+				},
+				patient: {
+					include: {
+						hospital: true
+					}
 				}
 			}
 		});

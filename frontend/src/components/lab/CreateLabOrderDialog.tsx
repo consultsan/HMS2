@@ -44,10 +44,10 @@ export default function CreateLabOrderDialog({
         queryKey: ['hospital-patients'],
         queryFn: async () => {
             const response = await patientApi.getAllPatients();
-            return response;   
+            return response;
         },
     });
-    
+
     const { data: labTests } = useQuery<any>({
         queryKey: ['lab-tests'],
         queryFn: async () => {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Await } from 'react-router-dom';
 import { Patient } from './interfaces/PatinetInterface'
 import PatientBasicDetails from './PatientBasicDetails';
 import PrescriptionSection from './PrescriptionSection';
@@ -14,6 +14,7 @@ import { AppointmentStatus, Slot, VisitType, SurgicalStatus } from '@/types/type
 import { CheckCircle, ArrowLeft, Clock, FileText, Stethoscope, Calendar, Save } from 'lucide-react';
 import { doctorApi } from '@/api/doctor';
 import { appointmentApi } from '@/api/appointment';
+import { notificationApi } from '@/api/notification';
 
 
 interface DiagnosisFormData {
@@ -217,7 +218,7 @@ function ConsultationPage() {
     });
 
     // Patient data query
-    
+
 
     // Check if diagnosis already exists
     const getDiagnosis = async () => {
@@ -324,6 +325,19 @@ function ConsultationPage() {
 
     // Success state
     if (isSubmitted) {
+        const sendNotification = async () => {
+            try {
+                await notificationApi.sendDiagnosisRecord(diagnosisMutation.data?.data?.id);
+                toast.success('Notification sent successfully');
+            } catch (error: any) {
+                console.error('Error sending notification:', error);
+                toast.error(error.response?.data?.message || 'Failed to send notification');
+            }
+        };
+        useEffect(() => {
+            sendNotification();
+        }, [diagnosisMutation.data]);
+
         return (
             <div className="min-h-[60vh] bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-6">
                 <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md w-full border border-green-100">

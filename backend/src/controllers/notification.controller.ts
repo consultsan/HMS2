@@ -5,12 +5,116 @@ import errorHandler from "../utils/errorHandler";
 import AppError from "../utils/AppError";
 import {
 	sendLabReportNotification,
-	sendDiagnosisRecordNotification
+	sendDiagnosisRecordNotification,
+	sendAppointmentNotification,
+	sendLabTestCompletionNotification
 } from "../services/whatsapp.service";
 import { PDFService } from "../services/pdf.service";
 import s3 from "../services/s3client";
 
 export class NotificationController {
+	// Appointmnet notification
+	async sendAppointmentNotification(req: Request, res: Response) {
+		try {
+			const {
+				phoneNumber,
+				patientName,
+				doctorName,
+				appointmentDate,
+				appointmentTime,
+				hospitalName
+			} = req.body;
+
+			if (
+				!phoneNumber ||
+				!patientName ||
+				!doctorName ||
+				!appointmentDate ||
+				!appointmentTime ||
+				!hospitalName
+			) {
+				return res.status(400).json({
+					success: false,
+					message: "All fields are required"
+				});
+			}
+			
+			const result = await sendAppointmentNotification(phoneNumber, {
+				patientName,
+				doctorName,
+				appointmentDate: new Date(appointmentDate),
+				appointmentTime,
+				hospitalName
+			});
+
+			if (result.success) {
+				res.status(200).json({
+					success: true,
+					message: "Appointment notification sent successfully",
+					data: result.data
+				});
+			} else {
+				res.status(500).json({
+					success: false,
+					message: "Failed to send appointment notification",
+					error: result.error
+				});
+			}
+		} catch (error: any) {
+			res.status(500).json({
+				success: false,
+				message: "Error sending appointment notification",
+				error: error.message
+			});
+		}
+	}
+
+	async sendLabTestComplitionNotification(req : Request, res : Response){
+	try {
+		const { phoneNumber, patientName, testName, completionDate, hospitalName } =
+			req.body;
+
+		if (
+			!phoneNumber ||
+			!patientName ||
+			!testName ||
+			!completionDate ||
+			!hospitalName
+		) {
+			return res.status(400).json({
+				success: false,
+				message: "All fields are required"
+			});
+		}
+
+		const result = await sendLabTestCompletionNotification(phoneNumber, {
+			patientName,
+			testName,
+			completionDate: new Date(completionDate),
+			hospitalName
+		});
+
+		if (result.success) {
+			res.status(200).json({
+				success: true,
+				message: "Lab test completion notification sent successfully",
+				data: result.data
+			});
+		} else {
+			res.status(500).json({
+				success: false,
+				message: "Failed to send lab test completion notification",
+				error: result.error
+			});
+		}
+	} catch (error: any) {
+		res.status(500).json({
+			success: false,
+			message: "Error sending lab test completion notification",
+			error: error.message
+		});
+		}
+	}
 	// Send lab report to patient
 	async sendLabReport(req: Request, res: Response) {
 		try {
@@ -340,4 +444,6 @@ export class NotificationController {
 			errorHandler(error, res);
 		}
 	}
+
+
 }
