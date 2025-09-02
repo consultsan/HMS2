@@ -1,5 +1,6 @@
 import prisma from "./dbConfig";
 import AppError from "./AppError";
+import { VisitType } from "@prisma/client";
 
 export class UhidGenerator {
 	/**
@@ -47,7 +48,7 @@ export class UhidGenerator {
 	 */
 	static async generateVisitID(
 		uhid: string,
-		visitType: "OPD" | "IPD"
+		visitType: "OPD" | "IPD" | "FUP" | "ER"	
 	): Promise<string> {
 		try {
 			if (!uhid) {
@@ -55,16 +56,14 @@ export class UhidGenerator {
 			}
 
 			// Extract UHID prefix (TR + hospital prefix + year code)
-			// UHID format: TRAV25001, so prefix would be TRAV25
-			const uhidPrefix = uhid.substring(0, uhid.length - 3);
-
+			
 			// Get visit sequence for this patient and visit type
 			const visitCount = await prisma.appointment.count({
 				where: {
 					patient: {
 						uhid: uhid
 					},
-					visitType: visitType as any
+					visitType:  visitType=== "OPD" ? VisitType.OPD : visitType=== "IPD" ? VisitType.IPD : visitType=== "FUP" ? VisitType.FOLLOW_UP : VisitType.ER
 				}
 			});
 
@@ -72,7 +71,7 @@ export class UhidGenerator {
 			const visitSequence = visitCount + 1;
 
 			// Generate Visit ID: OPD/IPD + UHID prefix + visit sequence
-			const visitId = `${visitType}${uhidPrefix}${visitSequence}`;
+			const visitId = `${visitType}${uhid}${visitSequence}`;
 
 			return visitId;
 		} catch (error: any) {

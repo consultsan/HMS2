@@ -328,7 +328,7 @@ export class AppointmentController {
 				// Generate Visit ID
 				const visitId = await UhidGenerator.generateVisitID(
 					patient.uhid,
-					visitType === VisitType.OPD ? "OPD" : "IPD"
+					visitType === VisitType.OPD ? "OPD" : visitType === VisitType.IPD ? "IPD" : visitType === VisitType.FOLLOW_UP ? "FUP" : "ER"
 				);
 
 				const visit = await prisma.appointment.create({
@@ -569,6 +569,7 @@ export class AppointmentController {
 							patient: {
 								select: {
 									id: true,
+									uhid: true,
 									name: true,
 									patientUniqueId: true,
 									phone: true

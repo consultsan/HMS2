@@ -11,6 +11,7 @@ export interface PatientDocument {
 export interface Patient {
     id: string;
     patientUniqueId: string;
+    uhid?: string;
     name: string;
     dob: Date;
     gender: string;

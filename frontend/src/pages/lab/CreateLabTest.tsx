@@ -135,15 +135,17 @@ export default function CreateLabTest() {
     };
 
     const handleAddParameter = () => {
-        if (newParameter.name && newParameter.unit) {
-            createParameterMutation.mutate(newParameter);
-            setNewParameter({
-                name: '',
-                unit: '',
-                lowerLimit: 0,
-                upperLimit: 0
-            });
+        if (newParameter.name === '' || newParameter.unit === '' || newParameter.lowerLimit === 0 || newParameter.upperLimit === 0) {
+            toast.error('Please fill all the fields');
+            return;
         }
+        createParameterMutation.mutate(newParameter);
+        setNewParameter({
+            name: '',
+            unit: '',
+            lowerLimit: 0,
+            upperLimit: 0
+        });
     };
 
     const handleRemoveParameter = (index: number) => {

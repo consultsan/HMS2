@@ -83,12 +83,12 @@ export enum AppointmentAttachType {
     OTHER = "OTHER"
 }
 export enum PatientDoc {
-  PHOTO = "PHOTO",
-  ID_PROOF = "ID_PROOF",    
-  INSURANCE_CARD = "INSURANCE_CARD",
-  PRESCRIPTION = "PRESCRIPTION",
-  LAB_REPORT = "LAB_REPORT",
-  OTHER = "OTHER",
+    PHOTO = "PHOTO",
+    ID_PROOF = "ID_PROOF",
+    INSURANCE_CARD = "INSURANCE_CARD",
+    PRESCRIPTION = "PRESCRIPTION",
+    LAB_REPORT = "LAB_REPORT",
+    OTHER = "OTHER",
 }
 
 export enum ShiftName {
@@ -185,6 +185,7 @@ export interface PatientFamilyLink {
 export interface Patient {
     id: string;
     patientUniqueId: string;
+    uhid?: string;
     name: string;
     dob: Date;
     gender: Gender;
@@ -270,6 +271,7 @@ export interface Appointment {
     scheduledAt: Date;
     visitType: VisitType;
     status: AppointmentStatus;
+    visitId?: string;
     patientId: string;
     doctorId: string;
     hospitalId: string;
@@ -499,7 +501,7 @@ export interface FamilyLinkCreateData {
 }
 export interface DocumentUploadData {
     file: File;
-    patientId?: string; 
+    patientId?: string;
     type: DocumentType; // Type of document (e.g., PHOTO, ID_PROOF, INSURANCE_CARD)
     appointmentId?: string; // Optional, if the document is related to an appointment
     documentType?: string;

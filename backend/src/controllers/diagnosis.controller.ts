@@ -322,10 +322,8 @@ export const addDiseaseTemplate = async (req: Request, res: Response) => {
 			};
 
 			if (
-				!Array.isArray(medicines) ||
-				medicines.length == 0 ||
-				!Array.isArray(labTests) ||
-				labTests.length == 0 ||
+				(!Array.isArray(medicines) && !Array.isArray(labTests)) ||
+				((!Array.isArray(medicines) || medicines.length === 0) && (!Array.isArray(labTests) || labTests.length === 0)) ||
 				!name
 			)
 				throw new AppError("Partial or Missing Input Info", 400);
@@ -465,6 +463,7 @@ export const downloadDiagnosisPDF = async (req: Request, res: Response) => {
 						patient: {
 							select: {
 								name: true,
+								uhid:true,
 								dob: true,
 								gender: true,
 								bloodGroup: true,

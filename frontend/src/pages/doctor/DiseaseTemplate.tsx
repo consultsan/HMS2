@@ -178,10 +178,12 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
     };
 
     const handleSubmit = () => {
-        if (!formData.name || formData.medicines.length === 0 || formData.labTests.length === 0) {
-            toast.error('Please fill in all required fields (name, medicines, and lab tests)');
+
+        if (!formData.name || (formData.medicines.length === 0 && formData.labTests.length === 0)) {
+            toast.error('Please fill in at least one required fields (name, medicines, and lab tests)');
             return;
         }
+
         onSubmit(formData);
     };
 

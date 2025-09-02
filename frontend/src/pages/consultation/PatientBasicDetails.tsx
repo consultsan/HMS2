@@ -73,7 +73,7 @@ function PatientBasicDetails({ patientId }: { patientId: string }) {
             <User className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{patient?.name}</h2>
+            <h2 className="text-xl font-bold text-gray-900">{patient?.name} <span className="text-sm text-gray-500">{' - '+patient?.uhid}</span></h2>
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />

@@ -18,7 +18,7 @@ export function BasicInformation({ formData, isEditing, onInputChange, onSelectC
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label>Patient ID</Label>
-                    <p className="text-gray-700">{formData.patientUniqueId}</p>
+                    <p className="text-gray-700">{formData?.uhid}</p>
                 </div>
                 <div>
                     <Label htmlFor="name">Name</Label>
