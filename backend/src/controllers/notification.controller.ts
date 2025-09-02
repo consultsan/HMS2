@@ -268,7 +268,8 @@ export class NotificationController {
 							patientName: patient.name,
 							doctorName: doctor.name,
 							diagnosisDate: diagnosisRecord.createdAt,
-							hospitalName: hospital.name
+							hospitalName: hospital.name,
+							reportUrl: s3Url
 						});
 					} catch (whatsappError) {
 						console.error("WhatsApp notification failed:", whatsappError);
@@ -426,7 +427,8 @@ export class NotificationController {
 					patientName: attachment.appointment.patient.name,
 					doctorName: attachment.appointment.doctor.name,
 					diagnosisDate: new Date(),
-					hospitalName: attachment.appointment.hospital.name
+					hospitalName: attachment.appointment.hospital.name,
+					reportUrl: attachment.url
 				});
 			} else {
 				throw new AppError("Invalid notification type", 400);

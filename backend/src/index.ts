@@ -144,7 +144,7 @@ app.use("/api/discount", authMiddleware, discountRoute);
 app.use("/api/test", testPdfRoute);
 app.use("/api/test-whatsapp", testWhatsAppRoute);
 
-app.post("/api/whatsapp", (req, res) => {
+app.post("/api/whatsapp", async (req, res) => {
 	try {
 		const { to, message } = req.body;
 		if (!to || !message) {
@@ -152,8 +152,17 @@ app.post("/api/whatsapp", (req, res) => {
 				.status(400)
 				.json({ message: "Missing required fields: to and message" });
 		}
-		sendWhatsAppMessage(to, message);
-		res.status(200).json({ message: "WhatsApp message sent successfully" });
+		const result = await sendWhatsAppMessage(to, message);
+		if (result.success) {
+			res.status(200).json({ message: "WhatsApp message sent successfully" });
+		} else {
+			res
+				.status(500)
+				.json({
+					message: "Failed to send WhatsApp message",
+					error: result.error
+				});
+		}
 	} catch (error: any) {
 		console.error("WhatsApp message error:", error);
 		res.status(500).json({ message: "Failed to send WhatsApp message" });
