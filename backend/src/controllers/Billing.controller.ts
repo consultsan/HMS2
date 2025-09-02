@@ -211,7 +211,8 @@ export class BillingController {
 							name: true,
 							patientUniqueId: true,
 							phone: true,
-							email: true
+							email: true,
+							uhid: true
 						}
 					},
 					hospital: {
@@ -539,6 +540,7 @@ export class BillingController {
 					patient: {
 						select: {
 							id: true,
+							uhid:true,
 							name: true,
 							patientUniqueId: true,
 							phone: true,
@@ -686,6 +688,7 @@ export class BillingController {
 						select: {
 							id: true,
 							name: true,
+							uhid:true,
 							patientUniqueId: true,
 							phone: true,
 							email: true

@@ -130,7 +130,7 @@ export default function AppointmentManagement() {
                 <TableHead>Patient Name</TableHead>
                 <TableHead>Doctor Name</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Visit Type</TableHead>
+                <TableHead>Visit Id</TableHead>
                 <TableHead>Scheduled At</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -143,7 +143,7 @@ export default function AppointmentManagement() {
                     <TableCell className="font-medium">{appointment?.patient?.name}</TableCell>
                     <TableCell>{appointment?.doctor?.name}</TableCell>
                     <TableCell>{appointment?.patient?.phone}</TableCell>
-                    <TableCell>{appointment.visitType}</TableCell>
+                    <TableCell>{appointment?.visitId}</TableCell>
                     <TableCell>
                       {new Date(appointment.scheduledAt).toLocaleString('en-GB', {
                         year: 'numeric',

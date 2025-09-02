@@ -215,10 +215,10 @@ export default function ViewBill({
         }
     };
 
-     const handlePrint = async () => {
+    const handlePrint = async () => {
         if (!billId) return;
 
-         try {
+        try {
             console.log('Fetching print template for bill ID:', billId);
             const response = await api.get(`/api/billing/get-html/${billId}`, {
                 responseType: 'text'
@@ -357,14 +357,14 @@ export default function ViewBill({
                                     </Button>
 
                                     <Button
-                                onClick={handlePrint}
-                                variant="outline"
-                                className="flex items-center text-green-600 hover:text-green-700 print:hidden"
-                                title="Print using the formatted template"
-                            >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Print Bill
-                            </Button>
+                                        onClick={handlePrint}
+                                        variant="outline"
+                                        className="flex items-center text-green-600 hover:text-green-700 print:hidden"
+                                        title="Print using the formatted template"
+                                    >
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        Print Bill
+                                    </Button>
                                 </div>
                             </div>
 
@@ -398,7 +398,7 @@ export default function ViewBill({
                                     </div>
                                     <div className="space-y-2 text-sm">
                                         <div><span className="font-medium">Name:</span> {bill.patient.name}</div>
-                                        <div><span className="font-medium">ID:</span> {bill.patient.patientUniqueId}</div>
+                                        <div><span className="font-medium">ID:</span> {bill.patient?.uhid}</div>
                                         {bill.patient.phone && (
                                             <div><span className="font-medium">Phone:</span> {bill.patient.phone}</div>
                                         )}
