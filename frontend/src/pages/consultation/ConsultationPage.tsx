@@ -263,7 +263,7 @@ function ConsultationPage() {
     }, [appointmentId, diagnosisText, prescriptionData.medicines]);
 
     // Form submission
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback(async() => {
         if (!validateForm()) return;
 
         // Combine clinical notes from templates into a single notes string
@@ -281,6 +281,7 @@ function ConsultationPage() {
         };
 
         diagnosisMutation.mutate(diagnosisData);
+        await notificationApi.sendDiagnosisRecord(appointmentId);
     }, [validateForm, diagnosisText, notesText, prescriptionData, appointmentId, diagnosisMutation]);
 
     const handleGoBack = useCallback(() => {
@@ -292,7 +293,6 @@ function ConsultationPage() {
         setFollowUpData(data);
     }, []);
 
-    // Loading state
 
 
     // Check if diagnosis already exists
@@ -325,19 +325,6 @@ function ConsultationPage() {
 
     // Success state
     if (isSubmitted) {
-        const sendNotification = async () => {
-            try {
-                await notificationApi.sendDiagnosisRecord(diagnosisMutation.data?.data?.id);
-                toast.success('Notification sent successfully');
-            } catch (error: any) {
-                console.error('Error sending notification:', error);
-                toast.error(error.response?.data?.message || 'Failed to send notification');
-            }
-        };
-        useEffect(() => {
-            sendNotification();
-        }, [diagnosisMutation.data]);
-
         return (
             <div className="min-h-[60vh] bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-6">
                 <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md w-full border border-green-100">

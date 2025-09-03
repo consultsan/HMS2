@@ -309,19 +309,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                 status: LabTestStatus.COMPLETED,
                 tentativeReportDate: test.tentativeReportDate
             });
-            // Send lab test completion notification
-            const testResp = await labApi.getOrderedTestById(selectedTestForCompletion.id);
-            const patient = testResp.data?.data?.patient;
-
-            await notificationApi.sendLabTestCompletionNotification({
-                phoneNumber: patient?.phone,
-                patientName: patient?.name,
-                testName: testResp.data.data?.name,
-                completionDate: new Date().toISOString(), // or your actual date
-                hospitalName: patient.hospitalName// or fetch dynamically
-            });
-
-
+            // Send notification to patient
             setIsParametersDialogOpen(false);
             setSelectedTestForCompletion(null);
             setUploadedFiles([]);
@@ -749,7 +737,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                         </Button>
                         <Button
                             onClick={handleCompleteTest}
-                            disabled={!parametersComplete || uploadedFiles.length === 0}
+                            disabled={!parametersComplete || uploadedFiles.length === 0 || updateTestStatusMutation.isPending || isUploading}
                         >
                             Complete Test
                         </Button>

@@ -38,6 +38,8 @@ export default function FollowUpsSection() {
         staleTime: 10000 // Consider data fresh for 10 seconds
     });
 
+    console.log(appointments);
+
     // Mutation for confirming follow-up appointments
     const confirmFollowUpMutation = useMutation({
         mutationFn: async (appointmentId: string) => {
@@ -101,7 +103,7 @@ export default function FollowUpsSection() {
 
     // Separate appointments into confirmed and pending
     const confirmedFollowUps = filteredAppointments.filter((apt: Appointment) =>
-        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.CONFIRMED)
+        apt.visitType === VisitType.FOLLOW_UP && (apt.status === AppointmentStatus.SCHEDULED)
     );
 
     const pendingFollowUps = filteredAppointments.filter((apt: Appointment) =>

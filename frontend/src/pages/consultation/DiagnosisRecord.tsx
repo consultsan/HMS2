@@ -104,7 +104,6 @@ function DiagnosisRecord() {
             toast.error('Failed to prepare document for printing');
         }
     };
-console.log('diagnosisRecord', diagnosisRecord);
     const handleDownloadPDF = async () => {
         if (!appointmentId) return;
 

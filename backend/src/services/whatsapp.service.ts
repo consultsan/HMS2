@@ -27,7 +27,7 @@ function formatPhoneNumber(phoneNumber: string): string {
 	// Must be E.164 (digits only, 8–15 length)
 	if (!/^\d{8,15}$/.test(cleaned)) {
 		throw new Error(
-        "Invalid phone number format. Use international E.164 format (e.g., 919876543210)"
+			"Invalid phone number format. Use international E.164 format (e.g., 919876543210)"
 		);
 	}
 
@@ -115,15 +115,14 @@ async function sendAppointmentNotification(
 		hospitalName: string;
 	}
 ) {
-	const formattedDate = new Date(data.appointmentDate).toLocaleDateString(
-		"en-IN",
-		{
-			weekday: "long",
-			year: "numeric",
-			month: "long",
-			day: "numeric"
-		}
-	);
+	const formattedDate = new Date(data.appointmentDate).toLocaleDateString("en-GB", {
+		weekday: "long",
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+		timeZone: "UTC"
+	});
+
 
 	const message = `🏥 *Appointment Confirmation*
 

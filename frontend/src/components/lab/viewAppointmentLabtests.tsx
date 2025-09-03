@@ -13,11 +13,14 @@ import ViewTestResult from "@/pages/lab/ViewTestResult";
 import { formatDate } from "@/utils/dateUtils";
 import { api } from "@/lib/api";
 import { notificationApi } from "@/api/notification";
+import { toast } from "sonner";
+import { se } from "date-fns/locale";
 
 export default function ViewAppointmentLabtests({ appointmentId }: { appointmentId: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedLabTestId, setSelectedLabTestId] = useState<string>("");
     const [isResultOpen, setIsResultOpen] = useState(false);
+    const [sendingReport, setSendingReport] = useState(false);
 
     const { data: labTests, isLoading, isError } = useQuery({
         queryKey: ["appointment-lab-tests", appointmentId],
@@ -35,8 +38,12 @@ export default function ViewAppointmentLabtests({ appointmentId }: { appointment
 
     const handleSendLabReport = async (testId: string) => {
         try {
+            setSendingReport(true);
             await notificationApi.sendLabReport(testId);
-            alert("Lab report sent successfully!");
+            toast.success("Lab report sent successfully");
+            setSendingReport(false);
+
+
         } catch (error) {
             console.error("Failed to send lab report:", error);
             alert("Failed to send lab report. Please try again.");
@@ -106,7 +113,7 @@ export default function ViewAppointmentLabtests({ appointmentId }: { appointment
                                                         >
                                                             View Report
                                                         </Button>
-                                                        <Button variant="outline" size="sm" onClick={() => handleSendLabReport(test.id)}>
+                                                        <Button variant="outline" size="sm" disabled={sendingReport} onClick={() => handleSendLabReport(test.id)}>
                                                             <Send className="w-4 h-" />
                                                         </Button>
                                                     </div>
