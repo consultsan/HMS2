@@ -178,12 +178,10 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
     };
 
     const handleSubmit = () => {
-
         if (!formData.name || (formData.medicines.length === 0 && formData.labTests.length === 0)) {
             toast.error('Please fill in at least one required fields (name, medicines, and lab tests)');
             return;
         }
-
         onSubmit(formData);
     };
 
@@ -397,7 +395,7 @@ export default function DiseaseTemplate() {
         onError: (error: any) => {
             toast.error(error.response?.data?.message || 'Failed to create template');
         }
-    });
+    }); 
 
     const updateMutation = useMutation({
         mutationFn: ({ id, data }: { id: string; data: { name: string; medicines: Medicine[]; clinicalNotes: ClinicalNote[]; labTests: LabTest[] } }) =>

@@ -110,21 +110,6 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
                 });
             }
 
-            const notificationResponse = await notificationApi.sendAppointmentNotification({
-                phoneNumber: data.phoneNumber,
-                patientName: data.patientName,
-                doctorName: data.doctorName,
-                appointmentDate: data.scheduledAt.split('T')[0], // Extract date part
-                appointmentTime: data.scheduledAt.split('T')[1]?.split('.') || '00:00', // Extract time part
-                hospitalName: data.hospitalName
-            });
-            if (notificationResponse?.contact) {
-                toast.success(`Appointment notification sent to ${notificationResponse.contact}`);
-            }
-            else {
-                toast.error('Failed to send appointment notification');
-            }
-            
             return appointmentResponse.data;
         },
         onSuccess: () => {

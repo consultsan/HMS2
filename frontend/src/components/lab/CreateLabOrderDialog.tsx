@@ -16,13 +16,9 @@ import { useMutation, UseMutationResult, useQuery, useQueryClient } from "@tanst
 import { api } from "@/lib/api";
 import { labApi } from "@/api/lab";
 import { patientApi } from "@/api/patient";
+import { Patient } from "@/types/types";
 
-interface Patient {
-    id: string;
-    name: string;
-    patientUniqueId: string;
-    phone: string;
-}
+
 
 
 interface CreateLabOrderDialogProps {
@@ -110,6 +106,14 @@ export default function CreateLabOrderDialog({
             notes: orderNotes || undefined,
             urgentOrder: urgentOrder
         });
+
+        setBatchOrderPatient('');
+        setSelectedLabTests([]);
+        setOrderNotes('');
+        setUrgentOrder(false);
+        setBatchPatientSearchQuery('');
+
+
     };
 
     // Reset form when dialog closes
@@ -157,7 +161,7 @@ export default function CreateLabOrderDialog({
                                             >
                                                 <div className="font-medium">{patient.name}</div>
                                                 <div className="text-sm text-gray-500">
-                                                    ID: {patient.patientUniqueId} | Phone: {patient.phone}
+                                                    ID: {patient?.uhid} | Phone: {patient.phone}
                                                 </div>
                                             </div>
                                         ))

@@ -15,6 +15,7 @@ import { PDFService } from "../services/pdf.service";
 import { readFileSync } from "fs";
 import { format } from 'date-fns';
 import Handlebars from "handlebars";
+import { sendAppointmentNotification, sendDiagnosisRecordNotification } from "../services/whatsapp.service";
 import { join } from "path";
 
 const calculateAge = (dob: Date): number => {
@@ -236,7 +237,6 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 
 				return record;
 			});
-
 			res
 				.status(200)
 				.json(new ApiResponse("Diagnosis record created successfully", result));
@@ -463,7 +463,7 @@ export const downloadDiagnosisPDF = async (req: Request, res: Response) => {
 						patient: {
 							select: {
 								name: true,
-								uhid:true,
+								uhid: true,
 								dob: true,
 								gender: true,
 								bloodGroup: true,

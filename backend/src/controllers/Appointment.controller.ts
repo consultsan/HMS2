@@ -360,10 +360,11 @@ export class AppointmentController {
 					if (visit.patient.phone) {
 						const appointmentTime = new Date(
 							visit.scheduledAt
-						).toLocaleTimeString("en-IN", {
+						).toLocaleTimeString("en-GB", {
 							hour: "2-digit",
 							minute: "2-digit",
-							hour12: true
+							hour12: true,
+							timeZone: "UTC"
 						});
 
 						await sendAppointmentNotification(visit.patient.phone, {
@@ -373,6 +374,7 @@ export class AppointmentController {
 							appointmentTime: appointmentTime,
 							hospitalName: visit.hospital.name
 						});
+						
 					}
 				} catch (whatsappError) {
 					console.error("WhatsApp notification failed:", whatsappError);
@@ -476,6 +478,7 @@ export class AppointmentController {
 			res.status(403).json(new ApiResponse("Unauthorized access", null));
 		}
 	}
+
 	async getCreatedAppointments(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
@@ -749,11 +752,46 @@ export class AppointmentController {
 				if (!status)
 					throw new AppError("New status is required to update", 403);
 
+				const appointment = await prisma.appointment.findUnique({
+					where: { id },
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
+					}
+				});
+
 				const visit = await prisma.appointment.update({
 					where: { id },
 					data: { status }
 				});
 
+				if (appointment?.visitType === "FOLLOW_UP" && status === "SCHEDULED") {
+					//means follow up confirmed
+					try {
+						if (appointment.patient.phone) {
+							const appointmentTime = new Date(
+								visit.scheduledAt
+							).toLocaleTimeString("en-GB", {
+								hour: "2-digit",
+								minute: "2-digit",
+								hour12: true
+								,timeZone: "UTC"
+							});
+
+							await sendAppointmentNotification(appointment.patient.phone, {
+								patientName: appointment.patient.name,
+								doctorName: appointment.doctor.name,
+								appointmentDate: appointment.scheduledAt,
+								appointmentTime: appointmentTime,
+								hospitalName: appointment.hospital.name
+							});
+						}
+					} catch (whatsappError) {
+						console.error("WhatsApp notification failed:", whatsappError);
+						// Don't fail the appointment booking if WhatsApp fails
+					}
+				}
 				res.status(200).json(new ApiResponse("Status updated", visit));
 			} catch (error: any) {
 				errorHandler(error, res);

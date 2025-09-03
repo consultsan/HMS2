@@ -199,7 +199,6 @@ export class NotificationController {
 			errorHandler(error, res);
 		}
 	}
-
 	// Send diagnosis record to patient
 	async sendDiagnosisRecord(req: Request, res: Response) {
 		try {

@@ -458,6 +458,7 @@ const getExternalLabOrderByHospital = async (req: Request, res: Response) => {
 		errorHandler(error, res);
 	}
 };
+
 const orderLabTest = async (req: Request, res: Response) => {
 	try {
 		const {
