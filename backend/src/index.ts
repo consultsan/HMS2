@@ -24,6 +24,7 @@ import discountRoute from "./routes/discount.route";
 import testPdfRoute from "./routes/test-pdf.route";
 import testWhatsAppRoute from "./routes/test-whatsapp.route";
 import notificationRoute from "./routes/notification.route";
+import ipdRoute from "./routes/ipd.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
@@ -139,6 +140,9 @@ app.use("/api/billing", authMiddleware, billingRoute);
 app.use("/api/payment", authMiddleware, paymentRoute);
 app.use("/api/insurance", authMiddleware, insuranceRoute);
 app.use("/api/discount", authMiddleware, discountRoute);
+
+// IPD module routes
+app.use("/api/ipd", ipdRoute);
 
 // Test routes (no auth for testing)
 app.use("/api/test", testPdfRoute);

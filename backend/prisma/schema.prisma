@@ -137,6 +137,28 @@ enum LabTestStatus {
   SENT_EXTERNAL
 }
 
+/// IPD System Enums
+enum IPDStatus {
+  QUEUED
+  ADMITTED
+  DISCHARGED
+  TRANSFERRED
+}
+
+enum InsuranceType {
+  CASHLESS
+  REIMBURSEMENT
+  NA
+}
+
+enum WardType {
+  GENERAL
+  ICU
+  PRIVATE
+  SEMI_PRIVATE
+  EMERGENCY
+}
+
 model SuperAdmin {
   id        String   @id @default(uuid())
   name      String
@@ -168,6 +190,9 @@ model Hospital {
   labCharges   LabCharge[]
   tempShifts   TempShift[]
   bills        Bill[]
+  ipdQueues    IPDQueue[]
+  insuranceCompanies InsuranceCompany[]
+  wards        Ward[]
 }
 
 model Department {
@@ -218,6 +243,9 @@ model HospitalStaff {
   slots               Slot[]
   tempShifts          TempShift[]
   createdAppointments Appointment[]     @relation("AppointmentCreator")
+  createdIPDQueues    IPDQueue[]
+  assignedIPDAdmissions IPDAdmission[]
+  ipdVisits           IPDVisit[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -315,6 +343,7 @@ model Patient {
   appointmentLabTests AppointmentLabTest[]
   bills               Bill[]
   insurances          Insurance[]
+  ipdQueues           IPDQueue[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -782,4 +811,176 @@ model UhidSequence {
 
   @@unique([yearCode])
   @@index([yearCode])
+}
+
+/// — IPD System Models —
+
+/// IPD Queue Management
+model IPDQueue {
+  id        String   @id @default(uuid())
+  ipdNumber String   @unique
+  status    IPDStatus @default(QUEUED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  patient   Patient @relation(fields: [patientId], references: [id])
+  patientId String
+  
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  hospitalId String
+  
+  createdBy   HospitalStaff @relation(fields: [createdById], references: [id])
+  createdById String
+  
+  admission   IPDAdmission?
+  
+  @@index([patientId])
+  @@index([hospitalId])
+  @@index([status])
+  @@index([createdById])
+}
+
+/// IPD Admission Details
+model IPDAdmission {
+  id        String   @id @default(uuid())
+  admissionDate DateTime @default(now())
+  dischargeDate DateTime?
+  status    IPDStatus @default(ADMITTED)
+  
+  // Insurance details
+  insuranceType InsuranceType @default(NA)
+  insuranceCompany String?
+  policyNumber String?
+  tpaName String?
+  
+  // Ward details
+  wardType WardType
+  roomNumber String?
+  bedNumber String?
+  
+  // Medical details
+  chiefComplaint String?
+  admissionNotes String?
+  dischargeNotes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  queue   IPDQueue @relation(fields: [queueId], references: [id])
+  queueId String @unique
+  
+  assignedDoctor   HospitalStaff @relation(fields: [assignedDoctorId], references: [id])
+  assignedDoctorId String
+  
+  visits IPDVisit[]
+  dischargeSummary IPDDischargeSummary?
+  
+  @@index([queueId])
+  @@index([assignedDoctorId])
+  @@index([status])
+}
+
+/// IPD Doctor Visits
+model IPDVisit {
+  id        String   @id @default(uuid())
+  visitDate DateTime @default(now())
+  visitNotes String
+  clinicalObservations String?
+  treatmentGiven String?
+  medicationChanges String?
+  patientResponse String?
+  nextVisitPlan String?
+  
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  doctor   HospitalStaff @relation(fields: [doctorId], references: [id])
+  doctorId String
+  
+  vitals IPDVisitVital[]
+  
+  @@index([admissionId])
+  @@index([doctorId])
+}
+
+/// IPD Visit Vitals
+model IPDVisitVital {
+  id         String    @id @default(uuid())
+  type       VitalType
+  value      Float
+  unit       String?
+  notes      String?
+  recordedAt DateTime  @default(now())
+  
+  visit   IPDVisit @relation(fields: [visitId], references: [id])
+  visitId String
+  
+  @@index([visitId])
+}
+
+/// IPD Discharge Summary
+model IPDDischargeSummary {
+  id        String   @id @default(uuid())
+  summaryDate DateTime @default(now())
+  
+  // Admission details
+  admissionDate DateTime
+  dischargeDate DateTime
+  totalStayDuration Int // in days
+  
+  // Medical details
+  chiefComplaint String
+  finalDiagnosis String
+  treatmentSummary String
+  proceduresPerformed String?
+  medicationsPrescribed String
+  followUpInstructions String
+  
+  // Doctor details
+  doctorSignature String?
+  hospitalStamp String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String @unique
+  
+  @@index([admissionId])
+}
+
+/// Insurance Companies
+model InsuranceCompany {
+  id        String   @id @default(uuid())
+  name      String
+  isPartnered Boolean @default(false)
+  tpaName   String?
+  contactInfo String?
+  
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  hospitalId String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([hospitalId])
+}
+
+/// Ward Management
+model Ward {
+  id        String   @id @default(uuid())
+  name      String
+  type      WardType
+  totalBeds Int
+  occupiedBeds Int @default(0)
+  availableBeds Int
+  
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  hospitalId String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([hospitalId])
+  @@index([type])
 }
