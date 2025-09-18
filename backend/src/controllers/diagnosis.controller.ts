@@ -389,23 +389,60 @@ export const updateDiseaseTemplate = async (req: Request, res: Response) => {
 				labTests: { id: string }[];
 			};
 
-			const updatedTemplate = await prisma.diseaseTemplate.update({
-				where: { id },
-				data: {
-					name,
-					medicines: medicines as Prisma.InputJsonValue,
-					labTests: {
-						set: labTests
-					}
-				},
-				include: {
-					labTests: true
+			// Use transaction to handle the update properly
+			const updatedTemplate = await prisma.$transaction(async (tx) => {
+				// Get current lab tests
+				const currentTemplate = await tx.diseaseTemplate.findUnique({
+					where: { id },
+					include: { labTests: true }
+				});
+
+				if (!currentTemplate) {
+					throw new AppError("Template not found", 404);
 				}
+
+				// Disconnect existing lab tests
+				const currentLabTestIds = currentTemplate.labTests.map(test => ({ id: test.id }));
+				if (currentLabTestIds.length > 0) {
+					await tx.diseaseTemplate.update({
+						where: { id },
+						data: {
+							labTests: {
+								disconnect: currentLabTestIds
+							}
+						}
+					});
+				}
+
+				// Connect new lab tests
+				return await tx.diseaseTemplate.update({
+					where: { id },
+					data: {
+						name,
+						medicines: medicines as Prisma.InputJsonValue,
+						labTests: {
+							connect: labTests
+						}
+					},
+					include: {
+						labTests: true
+					}
+				});
 			});
 
 			res.status(200).json(new ApiResponse("Template updated successfully", updatedTemplate));
 		} catch (error: any) {
 			console.error("Update disease template error:", error);
+			
+			// Handle specific PostgreSQL replica identity error
+			if (error.message && error.message.includes("REPLICA IDENTITY")) {
+				res.status(500).json(new ApiResponse(
+					"Database configuration error. Please contact administrator to fix replica identity settings.", 
+					null
+				));
+				return;
+			}
+			
 			res
 				.status(error.statusCode || 500)
 				.json(new ApiResponse(error.message || "Internal Server Error", null));

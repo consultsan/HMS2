@@ -159,6 +159,45 @@ enum WardType {
   EMERGENCY
 }
 
+enum InsuranceVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+  UNDER_REVIEW
+}
+
+enum InsuranceDocumentType {
+  POLICY_CARD
+  ID_CARD
+  AUTHORIZATION_LETTER
+  MEDICAL_REPORTS
+  PRESCRIPTION
+  OTHER
+}
+
+enum PatientDocumentCategory {
+  MEDICAL_REPORTS
+  LAB_REPORTS
+  IMAGING_REPORTS
+  PRESCRIPTION
+  CONSENT_FORMS
+  DISCHARGE_SUMMARY
+  REFERRAL_LETTERS
+  INSURANCE_DOCUMENTS
+  ID_PROOF
+  EMERGENCY_CONTACT
+  OTHER
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  VERIFIED
+  REJECTED
+  ARCHIVED
+}
+
 model SuperAdmin {
   id        String   @id @default(uuid())
   name      String
@@ -193,6 +232,7 @@ model Hospital {
   ipdQueues    IPDQueue[]
   insuranceCompanies InsuranceCompany[]
   wards        Ward[]
+  prescriptions Prescription[]
 }
 
 model Department {
@@ -246,6 +286,12 @@ model HospitalStaff {
   createdIPDQueues    IPDQueue[]
   assignedIPDAdmissions IPDAdmission[]
   ipdVisits           IPDVisit[]
+  uploadedInsuranceDocuments InsuranceDocument[]
+  verifiedInsuranceVerifications InsuranceVerification[]
+  createdDocumentFolders PatientDocumentFolder[]
+  uploadedPatientDocuments PatientDocumentFile[]
+  documentAccessLogs DocumentAccessLog[]
+  prescriptions       Prescription[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -344,6 +390,9 @@ model Patient {
   bills               Bill[]
   insurances          Insurance[]
   ipdQueues           IPDQueue[]
+  documentFolders     PatientDocumentFolder[]
+  documentFiles       PatientDocumentFile[]
+  prescriptions       Prescription[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -874,6 +923,10 @@ model IPDAdmission {
   
   visits IPDVisit[]
   dischargeSummary IPDDischargeSummary?
+  insuranceDocuments InsuranceDocument[]
+  insuranceVerification InsuranceVerification?
+  patientDocuments PatientDocumentFile[]
+  prescriptions Prescription[]
   
   @@index([queueId])
   @@index([assignedDoctorId])
@@ -898,6 +951,7 @@ model IPDVisit {
   doctorId String
   
   vitals IPDVisitVital[]
+  prescriptions Prescription[]
   
   @@index([admissionId])
   @@index([doctorId])
@@ -983,4 +1037,359 @@ model Ward {
   
   @@index([hospitalId])
   @@index([type])
+}
+
+/// Insurance Document Management
+model InsuranceDocument {
+  id        String   @id @default(uuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  documentType InsuranceDocumentType
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  @@index([admissionId])
+  @@index([uploadedById])
+}
+
+/// Insurance Verification Tracking
+model InsuranceVerification {
+  id        String   @id @default(uuid())
+  verificationStatus InsuranceVerificationStatus @default(PENDING)
+  verificationDate DateTime?
+  verifiedBy String? // Name of person who verified
+  verificationNotes String?
+  policyValidFrom DateTime?
+  policyValidTo DateTime?
+  coverageAmount Float?
+  deductibleAmount Float?
+  coPaymentPercentage Float?
+  preAuthorizationRequired Boolean @default(false)
+  preAuthorizationNumber String?
+  preAuthorizationDate DateTime?
+  preAuthorizationExpiry DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String @unique
+  
+  verifiedByStaff   HospitalStaff? @relation(fields: [verifiedByStaffId], references: [id])
+  verifiedByStaffId String?
+  
+  @@index([admissionId])
+  @@index([verificationStatus])
+}
+
+/// Patient Document Management System
+model PatientDocumentFolder {
+  id        String   @id @default(uuid())
+  folderName String
+  description String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  patient   Patient @relation(fields: [patientId], references: [id])
+  patientId String
+  
+  createdBy   HospitalStaff @relation(fields: [createdById], references: [id])
+  createdById String
+  
+  documents PatientDocumentFile[]
+  
+  @@index([patientId])
+  @@index([createdById])
+}
+
+model PatientDocumentFile {
+  id        String   @id @default(uuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  category  PatientDocumentCategory
+  status    DocumentStatus @default(UPLOADED)
+  version   Int      @default(1)
+  description String?
+  tags      String[] // Array of tags for better organization
+  uploadedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  patient   Patient @relation(fields: [patientId], references: [id])
+  patientId String
+  
+  folder   PatientDocumentFolder? @relation(fields: [folderId], references: [id])
+  folderId String?
+  
+  uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  // Optional relation to IPD admission
+  admission   IPDAdmission? @relation(fields: [admissionId], references: [id])
+  admissionId String?
+  
+  // Document history for version control
+  previousVersion   PatientDocumentFile? @relation("DocumentVersion", fields: [previousVersionId], references: [id])
+  previousVersionId String?
+  nextVersions      PatientDocumentFile[] @relation("DocumentVersion")
+  
+  // Access logs
+  accessLogs        DocumentAccessLog[]
+  
+  @@index([patientId])
+  @@index([folderId])
+  @@index([uploadedById])
+  @@index([admissionId])
+  @@index([category])
+  @@index([status])
+}
+
+model DocumentAccessLog {
+  id        String   @id @default(uuid())
+  action    String   // VIEW, DOWNLOAD, UPDATE, DELETE
+  accessedAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+  
+  // Relations
+  document   PatientDocumentFile @relation(fields: [documentId], references: [id])
+  documentId String
+  
+  accessedBy   HospitalStaff @relation(fields: [accessedById], references: [id])
+  accessedById String
+  
+  @@index([documentId])
+  @@index([accessedById])
+  @@index([accessedAt])
+}
+
+// ========================================
+// PRESCRIPTION SYSTEM MODELS
+// ========================================
+
+enum DrugCategory {
+  ANTIBIOTIC
+  ANALGESIC
+  ANTI_INFLAMMATORY
+  CARDIOVASCULAR
+  RESPIRATORY
+  GASTROINTESTINAL
+  NEUROLOGICAL
+  PSYCHIATRIC
+  ENDOCRINE
+  DERMATOLOGICAL
+  OPHTHALMOLOGICAL
+  GYNECOLOGICAL
+  PEDIATRIC
+  EMERGENCY
+  VITAMIN_SUPPLEMENT
+  OTHER
+}
+
+enum DrugForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  INJECTION
+  CREAM
+  OINTMENT
+  DROPS
+  INHALER
+  PATCH
+  SUPPOSITORY
+  POWDER
+  GEL
+  LOTION
+  SPRAY
+  OTHER
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum PrescriptionItemStatus {
+  PENDING
+  DISPENSED
+  PARTIALLY_DISPENSED
+  CANCELLED
+  OUT_OF_STOCK
+}
+
+model Drug {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  genericName String?
+  brandName   String?
+  category    DrugCategory
+  form        DrugForm
+  strength    String       // e.g., "500mg", "10ml"
+  unit        String       // e.g., "mg", "ml", "tablets"
+  description String?
+  
+  // Drug properties
+  isControlledSubstance Boolean @default(false)
+  requiresPrescription  Boolean @default(true)
+  isActive              Boolean @default(true)
+  
+  // Stock information
+  currentStock    Int @default(0)
+  minimumStock    Int @default(0)
+  maximumStock    Int @default(0)
+  reorderLevel    Int @default(0)
+  
+  // Pricing
+  unitPrice       Float?
+  costPrice       Float?
+  
+  // Drug interactions and contraindications
+  contraindications String?
+  sideEffects       String?
+  warnings          String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  prescriptionItems PrescriptionItem[]
+  drugInteractions  DrugInteraction[] @relation("Drug1")
+  drugInteractions2 DrugInteraction[] @relation("Drug2")
+  
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+  @@index([isControlledSubstance])
+}
+
+model DrugInteraction {
+  id          String @id @default(uuid())
+  severity    String // MILD, MODERATE, SEVERE
+  description String
+  action      String // AVOID, MONITOR, DOSE_ADJUSTMENT
+  
+  // Relations
+  drug1   Drug   @relation("Drug1", fields: [drug1Id], references: [id])
+  drug1Id String
+  
+  drug2   Drug   @relation("Drug2", fields: [drug2Id], references: [id])
+  drug2Id String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([drug1Id, drug2Id])
+  @@index([drug1Id])
+  @@index([drug2Id])
+}
+
+model Prescription {
+  id          String            @id @default(uuid())
+  prescriptionNumber String     @unique
+  status      PrescriptionStatus @default(DRAFT)
+  
+  // Patient and doctor information
+  patientId   String
+  doctorId    String
+  hospitalId  String
+  
+  // Prescription details
+  diagnosis   String?
+  notes       String?
+  instructions String?
+  
+  // Validity
+  validFrom   DateTime @default(now())
+  validUntil  DateTime
+  
+  // IPD integration
+  admissionId String?
+  visitId     String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  patient     Patient            @relation(fields: [patientId], references: [id])
+  doctor      HospitalStaff      @relation(fields: [doctorId], references: [id])
+  hospital    Hospital           @relation(fields: [hospitalId], references: [id])
+  admission   IPDAdmission?      @relation(fields: [admissionId], references: [id])
+  visit       IPDVisit?          @relation(fields: [visitId], references: [id])
+  items       PrescriptionItem[]
+  history     PrescriptionHistory[]
+  
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([hospitalId])
+  @@index([admissionId])
+  @@index([visitId])
+  @@index([status])
+  @@index([validUntil])
+}
+
+model PrescriptionItem {
+  id             String                 @id @default(uuid())
+  prescriptionId String
+  drugId         String
+  
+  // Dosage information
+  dosage         String  // e.g., "500mg"
+  frequency      String  // e.g., "Twice daily", "Every 8 hours"
+  duration       String  // e.g., "7 days", "Until symptoms resolve"
+  quantity       Int     // Total quantity prescribed
+  unit           String  // e.g., "tablets", "ml"
+  
+  // Administration details
+  route          String? // e.g., "Oral", "IV", "Topical"
+  timing         String? // e.g., "Before meals", "At bedtime"
+  specialInstructions String?
+  
+  // Status tracking
+  status         PrescriptionItemStatus @default(PENDING)
+  dispensedQuantity Int @default(0)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug         Drug         @relation(fields: [drugId], references: [id])
+  
+  @@index([prescriptionId])
+  @@index([drugId])
+  @@index([status])
+}
+
+model PrescriptionHistory {
+  id             String @id @default(uuid())
+  prescriptionId String
+  action         String // CREATED, UPDATED, DISPENSED, CANCELLED, EXPIRED
+  description    String?
+  performedBy    String
+  performedAt    DateTime @default(now())
+  
+  // Relations
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([prescriptionId])
+  @@index([performedAt])
 }
