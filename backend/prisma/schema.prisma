@@ -215,6 +215,9 @@ model Hospital {
   address       String
   contactNumber String
   email         String
+  latitude      Float?
+  longitude     Float?
+  googlePlaceId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   status        Status   @default(ACTIVE)
@@ -292,6 +295,7 @@ model HospitalStaff {
   uploadedPatientDocuments PatientDocumentFile[]
   documentAccessLogs DocumentAccessLog[]
   prescriptions       Prescription[]
+  createdPatients     Patient[] @relation("PatientCreator")
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -381,6 +385,10 @@ model Patient {
   bloodGroup            BloodGroup?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
+
+  // Creator tracking
+  createdBy   String?
+  creator     HospitalStaff? @relation("PatientCreator", fields: [createdBy], references: [id])
 
   documents           PatientDocument[]
   relativesAdded      PatientFamilyLink[]  @relation("PatientToRelatives")

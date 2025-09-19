@@ -28,7 +28,9 @@ import ipdRoute from "./routes/ipd.route";
 import insuranceProcessingRoute from "./routes/insuranceProcessing.route";
 import patientDocumentRoute from "./routes/patientDocument.route";
 import prescriptionRoute from "./routes/prescription.route";
+import hospitalLocationRoute from "./routes/hospitalLocation.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
+import IPDWebSocketService from "./services/ipdWebSocket.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
 const http_port = Number(process.env.HTTP_PORT);
@@ -76,6 +78,12 @@ interface Doctor {
 	hospital_id: string;
 	doctor_id: string;
 }
+interface IPDConnection {
+	hospital_id: string;
+	ward_id?: string;
+	doctor_id?: string;
+	user_type: 'doctor' | 'nurse' | 'ward_staff';
+}
 
 // Websocket server setup
 const server = createServer(app);
@@ -85,7 +93,24 @@ const wss = new WebSocketServer({
 	path: "/api/dashboard/patient"
 });
 
+// IPD WebSocket servers
+const ipdWardWss = new WebSocketServer({
+	server,
+	path: "/api/ipd/ward-monitoring"
+});
+
+const ipdDoctorWss = new WebSocketServer({
+	server,
+	path: "/api/ipd/doctor-dashboard"
+});
+
+const ipdNurseWss = new WebSocketServer({
+	server,
+	path: "/api/ipd/nurse-station"
+});
+
 const doctorRooms = new Set<string>();
+const ipdRooms = new Set<string>();
 
 wss.on("connection", (socket: Socket) => {
 	socket.id = uuid();
@@ -113,6 +138,96 @@ wss.on("connection", (socket: Socket) => {
 	});
 });
 
+// IPD Ward Monitoring WebSocket
+ipdWardWss.on("connection", (socket: Socket) => {
+	socket.id = uuid();
+	console.log(`🏥 IPD Ward client connected: ${socket.id}`);
+	
+	socket.on("message", (msg) => {
+		try {
+			const data = JSON.parse(msg.toString()) as IPDConnection;
+			const room = `ipd_ward_${data.hospital_id}_${data.ward_id}`;
+			ipdRooms.add(room);
+			socket.room = room;
+			console.log(`🏥 IPD Ward client ${socket.id} joined room: ${room}`);
+		} catch (error) {
+			console.error("Error parsing IPD ward message:", error);
+		}
+	});
+	
+	socket.on("close", () => {
+		console.log(`🏥 IPD Ward client ${socket.id} disconnected`);
+		if (socket.room) {
+			const clientsInRoom = Array.from(ipdWardWss.clients).filter(
+				(client: any) => client.room === socket.room
+			);
+			if (clientsInRoom.length === 0) {
+				ipdRooms.delete(socket.room);
+			}
+		}
+	});
+});
+
+// IPD Doctor Dashboard WebSocket
+ipdDoctorWss.on("connection", (socket: Socket) => {
+	socket.id = uuid();
+	console.log(`👨‍⚕️ IPD Doctor client connected: ${socket.id}`);
+	
+	socket.on("message", (msg) => {
+		try {
+			const data = JSON.parse(msg.toString()) as IPDConnection;
+			const room = `ipd_doctor_${data.hospital_id}_${data.doctor_id}`;
+			ipdRooms.add(room);
+			socket.room = room;
+			console.log(`👨‍⚕️ IPD Doctor client ${socket.id} joined room: ${room}`);
+		} catch (error) {
+			console.error("Error parsing IPD doctor message:", error);
+		}
+	});
+	
+	socket.on("close", () => {
+		console.log(`👨‍⚕️ IPD Doctor client ${socket.id} disconnected`);
+		if (socket.room) {
+			const clientsInRoom = Array.from(ipdDoctorWss.clients).filter(
+				(client: any) => client.room === socket.room
+			);
+			if (clientsInRoom.length === 0) {
+				ipdRooms.delete(socket.room);
+			}
+		}
+	});
+});
+
+// IPD Nurse Station WebSocket
+ipdNurseWss.on("connection", (socket: Socket) => {
+	socket.id = uuid();
+	console.log(`👩‍⚕️ IPD Nurse client connected: ${socket.id}`);
+	
+	socket.on("message", (msg) => {
+		try {
+			const data = JSON.parse(msg.toString()) as IPDConnection;
+			const room = `ipd_nurse_${data.hospital_id}_${data.ward_id}`;
+			ipdRooms.add(room);
+			socket.room = room;
+			console.log(`👩‍⚕️ IPD Nurse client ${socket.id} joined room: ${room}`);
+		} catch (error) {
+			console.error("Error parsing IPD nurse message:", error);
+		}
+	});
+	
+	socket.on("close", () => {
+		console.log(`👩‍⚕️ IPD Nurse client ${socket.id} disconnected`);
+		if (socket.room) {
+			const clientsInRoom = Array.from(ipdNurseWss.clients).filter(
+				(client: any) => client.room === socket.room
+			);
+			if (clientsInRoom.length === 0) {
+				ipdRooms.delete(socket.room);
+			}
+		}
+	});
+});
+
 setInterval(() => {
 	doctorRooms.forEach(async (q) => {
 		const product = await redisService.rPop(q);
@@ -120,6 +235,32 @@ setInterval(() => {
 			if (client.room == q && client.readyState == WebSocket.OPEN && product)
 				client.send(product);
 		});
+	});
+}, 1000);
+
+// IPD WebSocket polling
+setInterval(() => {
+	ipdRooms.forEach(async (q) => {
+		const product = await redisService.rPop(q);
+		if (product) {
+			// Send to appropriate WebSocket server based on room type
+			if (q.startsWith('ipd_ward_')) {
+				ipdWardWss.clients.forEach((client: any) => {
+					if (client.room == q && client.readyState == WebSocket.OPEN)
+						client.send(product);
+				});
+			} else if (q.startsWith('ipd_doctor_')) {
+				ipdDoctorWss.clients.forEach((client: any) => {
+					if (client.room == q && client.readyState == WebSocket.OPEN)
+						client.send(product);
+				});
+			} else if (q.startsWith('ipd_nurse_')) {
+				ipdNurseWss.clients.forEach((client: any) => {
+					if (client.room == q && client.readyState == WebSocket.OPEN)
+						client.send(product);
+				});
+			}
+		}
 	});
 }, 1000);
 
@@ -153,6 +294,9 @@ app.use("/api/insurance-processing", insuranceProcessingRoute);
 // Patient Document Management module routes
 app.use("/api/patient-documents", patientDocumentRoute);
 app.use("/api/prescription", prescriptionRoute);
+
+// Hospital Location Management module routes
+app.use("/api/hospital-location", hospitalLocationRoute);
 
 // Test routes (no auth for testing)
 app.use("/api/test", testPdfRoute);

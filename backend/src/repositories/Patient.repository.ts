@@ -18,7 +18,20 @@ export class PatientRepository {
 				where: { id },
 				include: {
 					relativesAdded: true,
-					relativeOfOthers: true
+					relativeOfOthers: true,
+					appointments: {
+						include: {
+							diagnosisRecord: {
+								include: {
+									followUpAppointment: true
+								}
+							},
+							surgery: true
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
 				}
 			});
 		} catch (error: any) {
@@ -38,6 +51,7 @@ export class PatientRepository {
 			| "registrationSource"
 			| "registrationSourceDetails"
 			| "hospitalId"
+			| "createdBy"
 		>
 	) {
 		try {
@@ -146,6 +160,171 @@ export class PatientRepository {
 							scheduledAt: "desc"
 						}
 					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// Sales Person specific methods
+	async findByCreator(createdById: string) {
+		try {
+			return await prisma.patient.findMany({
+				where: {
+					createdBy: createdById
+				},
+				include: {
+					appointments: {
+						include: {
+							diagnosisRecord: {
+								include: {
+									followUpAppointment: true
+								}
+							},
+							surgery: true
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
+				},
+				orderBy: {
+					createdAt: "desc"
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async findFollowUpAndSurgeryPatients(createdById: string) {
+		try {
+			return await prisma.patient.findMany({
+				where: {
+					createdBy: createdById,
+					appointments: {
+						some: {
+							OR: [
+								{
+									visitType: "FOLLOW_UP"
+								},
+								{
+									surgery: {
+										isNot: null
+									}
+								},
+								{
+									diagnosisRecord: {
+										followUpAppointment: {
+											isNot: null
+										}
+									}
+								}
+							]
+						}
+					}
+				},
+				include: {
+					appointments: {
+						include: {
+							diagnosisRecord: {
+								include: {
+									followUpAppointment: true
+								}
+							},
+							surgery: true
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
+				},
+				orderBy: {
+					createdAt: "desc"
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async findByCreatorAndHospital(createdById: string, hospitalId: string) {
+		try {
+			return await prisma.patient.findMany({
+				where: {
+					createdBy: createdById,
+					hospitalId
+				},
+				include: {
+					appointments: {
+						include: {
+							diagnosisRecord: {
+								include: {
+									followUpAppointment: true
+								}
+							},
+							surgery: true
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
+				},
+				orderBy: {
+					createdAt: "desc"
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async findFollowUpAndSurgeryPatientsByHospital(createdById: string, hospitalId: string) {
+		try {
+			return await prisma.patient.findMany({
+				where: {
+					createdBy: createdById,
+					hospitalId,
+					appointments: {
+						some: {
+							OR: [
+								{
+									visitType: "FOLLOW_UP"
+								},
+								{
+									surgery: {
+										isNot: null
+									}
+								},
+								{
+									diagnosisRecord: {
+										followUpAppointment: {
+											isNot: null
+										}
+									}
+								}
+							]
+						}
+					}
+				},
+				include: {
+					appointments: {
+						include: {
+							diagnosisRecord: {
+								include: {
+									followUpAppointment: true
+								}
+							},
+							surgery: true
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						}
+					}
+				},
+				orderBy: {
+					createdAt: "desc"
 				}
 			});
 		} catch (error: any) {

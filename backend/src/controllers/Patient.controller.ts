@@ -13,6 +13,7 @@ import {
 import ApiResponse from "../utils/ApiResponse";
 import AppError from "../utils/AppError";
 import errorHandler from "../utils/errorHandler";
+import { maskPatientsDataForDoctor, maskPatientDataForDoctor } from "../utils/mobileMasker";
 
 interface Document {
 	type: PatientDoc;
@@ -35,16 +36,47 @@ export class PatientController {
 	async getAllPatients(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { hospitalId } = req.user as { hospitalId: string };
+				const { hospitalId, role, id } = req.user as { hospitalId: string; role: string; id: string };
 				if (!hospitalId)
 					throw new AppError("User ain't linked to any hospital", 400);
-				const patients = await prisma.patient.findMany({
-					where: {
-						hospitalId
-					}
-				});
 
-				res.json(new ApiResponse("Patients fetched successfully", patients));
+				let patients;
+
+				// Sales Person specific filtering
+				if (role === "SALES_PERSON") {
+					// Sales person can only see follow-up and surgery patients created by them
+					patients = await this.patientRepository.findFollowUpAndSurgeryPatientsByHospital(id, hospitalId);
+				} else {
+					// Other roles see all patients in the hospital
+					patients = await prisma.patient.findMany({
+						where: {
+							hospitalId
+						},
+						include: {
+							appointments: {
+								include: {
+									diagnosisRecord: {
+										include: {
+											followUpAppointment: true
+										}
+									},
+									surgery: true
+								},
+								orderBy: {
+									scheduledAt: "desc"
+								}
+							}
+						},
+						orderBy: {
+							createdAt: "desc"
+						}
+					});
+				}
+
+				// Mask mobile numbers for doctors
+				const maskedPatients = role === "DOCTOR" ? maskPatientsDataForDoctor(patients) : patients;
+
+				res.json(new ApiResponse("Patients fetched successfully", maskedPatients));
 			} catch (error: any) {
 				res
 					.status(error.code || 500)
@@ -59,11 +91,41 @@ export class PatientController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { id } = req.params as Pick<Patient, "id">;
+				const { role, id: userId, hospitalId } = req.user as { role: string; id: string; hospitalId: string };
+				
 				const patient = await this.patientRepository.findById(id);
 				if (!patient) {
 					return res.status(404).json({ message: "Patient not found" });
 				}
-				res.json(new ApiResponse("Patient fetched successfully", patient));
+
+				// Sales Person access control
+				if (role === "SALES_PERSON") {
+					// Check if patient was created by this sales person
+					if (patient.createdBy !== userId) {
+						return res.status(403).json({ message: "Access denied: Patient not created by you" });
+					}
+					
+					// Check if patient has follow-up or surgery appointments
+					const hasFollowUpOrSurgery = patient.appointments?.some((apt: any) => 
+						apt.visitType === "FOLLOW_UP" || 
+						apt.surgery !== null ||
+						apt.diagnosisRecord?.followUpAppointment !== null
+					);
+					
+					if (!hasFollowUpOrSurgery) {
+						return res.status(403).json({ message: "Access denied: Patient is not a follow-up or surgery patient" });
+					}
+				}
+
+				// Check hospital access
+				if (patient.hospitalId !== hospitalId) {
+					return res.status(403).json({ message: "Access denied: Patient belongs to different hospital" });
+				}
+
+				// Mask mobile number for doctors
+				const maskedPatient = role === "DOCTOR" ? maskPatientDataForDoctor(patient) : patient;
+
+				res.json(new ApiResponse("Patient fetched successfully", maskedPatient));
 			} catch (error: any) {
 				res
 					.status(error.code || 500)
@@ -88,7 +150,12 @@ export class PatientController {
 					name,
 					hospitalId
 				});
-				res.json(new ApiResponse("Patient fetched successfully", patient));
+
+				// Mask mobile numbers for doctors
+				const { role } = req.user as { role: string };
+				const maskedPatient = role === "DOCTOR" ? maskPatientsDataForDoctor(patient) : patient;
+
+				res.json(new ApiResponse("Patient fetched successfully", maskedPatient));
 			} catch (error: any) {
 				res
 					.status(error.code || 500)
@@ -119,9 +186,13 @@ export class PatientController {
 						.status(200)
 						.json(new ApiResponse("No patient found with this phone number"));
 
+				// Mask mobile numbers for doctors
+				const { role } = req.user as { role: string };
+				const maskedPatient = role === "DOCTOR" ? maskPatientsDataForDoctor(patient) : patient;
+
 				res
 					.status(200)
-					.json(new ApiResponse("Patient fetched successfully", patient));
+					.json(new ApiResponse("Patient fetched successfully", maskedPatient));
 			} catch (error: any) {
 				res
 					.status(error.code || 500)
@@ -160,7 +231,11 @@ export class PatientController {
 				if (!patient)
 					return res.status(404).json({ message: "Patient not found" });
 
-				res.json(new ApiResponse("Patient fetched successfully", patient));
+				// Mask mobile number for doctors
+				const { role } = req.user as { role: string };
+				const maskedPatient = role === "DOCTOR" ? maskPatientDataForDoctor(patient) : patient;
+
+				res.json(new ApiResponse("Patient fetched successfully", maskedPatient));
 			} catch (error: any) {
 				res
 					.status(error.code || 500)
@@ -207,7 +282,8 @@ export class PatientController {
 					registrationMode,
 					registrationSource,
 					registrationSourceDetails,
-					hospitalId
+					hospitalId,
+					createdBy: req.user.id // Track who created the patient
 				});
 
 				res
