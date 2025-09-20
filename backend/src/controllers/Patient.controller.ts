@@ -42,12 +42,37 @@ export class PatientController {
 
 				let patients;
 
-				// Sales Person specific filtering
+				// Role-based patient filtering
 				if (role === "SALES_PERSON") {
 					// Sales person can only see follow-up and surgery patients created by them
 					patients = await this.patientRepository.findFollowUpAndSurgeryPatientsByHospital(id, hospitalId);
+				} else if (role === "RECEPTIONIST") {
+					// Receptionist can see all patients in the hospital (including those created by sales persons)
+					patients = await prisma.patient.findMany({
+						where: {
+							hospitalId
+						},
+						include: {
+							appointments: {
+								include: {
+									diagnosisRecord: {
+										include: {
+											followUpAppointment: true
+										}
+									},
+									surgery: true
+								},
+								orderBy: {
+									scheduledAt: "desc"
+								}
+							}
+						},
+						orderBy: {
+							createdAt: "desc"
+						}
+					});
 				} else {
-					// Other roles see all patients in the hospital
+					// Other roles (Hospital Admin, Doctor, etc.) see all patients in the hospital
 					patients = await prisma.patient.findMany({
 						where: {
 							hospitalId

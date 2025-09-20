@@ -4,6 +4,9 @@ import  ApiResponse  from '../utils/ApiResponse';
 import  AppError  from '../utils/AppError';
 import  errorHandler  from '../utils/errorHandler';
 import { PrescriptionStatus, PrescriptionItemStatus, DrugCategory, DrugForm } from '@prisma/client';
+import { sendPrescriptionNotification } from '../services/whatsapp.service';
+import { PrescriptionPDFService } from '../services/prescriptionPDF.service';
+import s3 from '../services/s3client';
 
 export class PrescriptionController {
   // ========================================
@@ -236,6 +239,42 @@ export class PrescriptionController {
         visitId,
         items,
       });
+
+      // Generate PDF and send WhatsApp notification
+      try {
+        // Get prescription with all related data for PDF generation
+        const prescriptionWithDetails = await PrescriptionRepository.getPrescriptionById(prescription.id);
+        
+        if (prescriptionWithDetails) {
+          // Generate prescription PDF
+          const pdfBuffer = await PrescriptionPDFService.generatePrescriptionPDF(prescriptionWithDetails);
+          
+          // Upload PDF to S3
+          const fileName = `prescription-${prescription.prescriptionNumber}-${Date.now()}.pdf`;
+          const s3Url = await s3.uploadStream(
+            pdfBuffer,
+            fileName,
+            "application/pdf"
+          );
+
+          // Send WhatsApp notification to patient
+          if (prescriptionWithDetails.patient.phone) {
+            await sendPrescriptionNotification(prescriptionWithDetails.patient.phone, {
+              patientName: prescriptionWithDetails.patient.name,
+              doctorName: prescriptionWithDetails.doctor.name,
+              prescriptionNumber: prescription.prescriptionNumber,
+              prescriptionDate: prescription.createdAt,
+              hospitalName: prescriptionWithDetails.hospital.name,
+              prescriptionUrl: s3Url,
+              validUntil: prescription.validUntil,
+              medicinesCount: prescriptionWithDetails.items.length,
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error('Prescription notification failed:', notificationError);
+        // Don't fail the prescription creation if notification fails
+      }
 
       // Add interactions to response if any
       const response = {

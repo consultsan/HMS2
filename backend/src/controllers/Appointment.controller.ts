@@ -39,9 +39,10 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { doctorId, date } = req.query;
-				const hospitalId = req.user.hospitalId;
+				const { hospitalId, role, id: userId } = req.user as { hospitalId: string; role: string; id: string };
 				if (!hospitalId)
 					throw new AppError("User isn't linked to any hospital", 403);
+				
 				// Convert input date string to Date in UTC, then apply IST offset
 				const queryDateUTC = new Date(date as string);
 				// Create IST start and end of day
@@ -55,15 +56,23 @@ export class AppointmentController {
 				const startOfDayUTC = new Date(startOfDayIST.getTime());
 				const endOfDayUTC = new Date(endOfDayIST.getTime());
 
-				const appointments = await prisma.appointment.findMany({
-					where: {
-						hospitalId,
-						scheduledAt: {
-							gte: startOfDayUTC,
-							lte: endOfDayUTC
-						},
-						doctorId: doctorId as string
+				let whereClause: any = {
+					hospitalId,
+					scheduledAt: {
+						gte: startOfDayUTC,
+						lte: endOfDayUTC
 					},
+					doctorId: doctorId as string
+				};
+
+				// Role-based appointment filtering
+				if (role === "SALES_PERSON") {
+					// Sales person can only see appointments created by themselves
+					whereClause.createdBy = userId;
+				}
+
+				const appointments = await prisma.appointment.findMany({
+					where: whereClause,
 					include: {
 						patient: true,
 						attachments: true,
@@ -96,9 +105,17 @@ export class AppointmentController {
 	async getSurgeryByHospitalId(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const hospitalId = req.user.hospitalId;
+				const { hospitalId, role, id: userId } = req.user as { hospitalId: string; role: string; id: string };
+				let whereClause: any = { appointment: { hospitalId } };
+
+				// Role-based filtering
+				if (role === "SALES_PERSON") {
+					// Sales person can only see surgeries for appointments they created
+					whereClause.appointment.createdBy = userId;
+				}
+
 				const surgeries = await prisma.surgery.findMany({
-					where: { appointment: { hospitalId } },
+					where: whereClause,
 					include: {
 						appointment: {
 							include: {
@@ -264,12 +281,20 @@ export class AppointmentController {
 					scheduleAt: new Date(date as string)
 				};
 
+				// Role-based appointment filtering
+				let whereClause: any = {
+					hospitalId,
+					scheduledAt: data.scheduleAt,
+					patientId: data.patientId
+				};
+
+				// Sales person can only see appointments created by themselves
+				if (req.user.role === "SALES_PERSON") {
+					whereClause.createdBy = req.user.id;
+				}
+
 				const appointments = await prisma.appointment.findMany({
-					where: {
-						hospitalId,
-						scheduledAt: data.scheduleAt,
-						patientId: data.patientId
-					},
+					where: whereClause,
 					include: {
 						doctor: true,
 						attachments: true,
@@ -454,20 +479,60 @@ export class AppointmentController {
 	async getAppointmentsByHospital(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { hospitalId } = req.user;
-				const appointments = await prisma.appointment.findMany({
-					where: { hospitalId },
-					orderBy: {
-						scheduledAt: "desc"
-					},
-					include: {
-						patient: true,
-						doctor: true,
-						diagnosisRecord: true,
-						bills: true,
-						labTests: true
+				const { hospitalId, role, id: userId } = req.user as { hospitalId: string; role: string; id: string };
+				const { visitType } = req.query;
+				let appointments;
+
+				// Role-based appointment filtering
+				if (role === "SALES_PERSON") {
+					// Sales person can only see appointments created by themselves
+					let whereClause: any = {
+						hospitalId,
+						createdBy: userId // Only appointments created by this sales person
+					};
+
+					// Add visitType filter if provided
+					if (visitType) {
+						whereClause.visitType = visitType;
 					}
-				});
+
+					appointments = await prisma.appointment.findMany({
+						where: whereClause,
+						orderBy: {
+							scheduledAt: "desc"
+						},
+						include: {
+							patient: true,
+							doctor: true,
+							diagnosisRecord: true,
+							bills: true,
+							labTests: true
+						}
+					});
+				} else {
+					// Other roles (Receptionist, Hospital Admin, etc.) see all appointments in the hospital
+					let whereClause: any = { hospitalId };
+
+					// Add visitType filter if provided
+					if (visitType) {
+						whereClause.visitType = visitType;
+					}
+
+					appointments = await prisma.appointment.findMany({
+						where: whereClause,
+						orderBy: {
+							scheduledAt: "desc"
+						},
+						include: {
+							patient: true,
+							doctor: true,
+							diagnosisRecord: true,
+							bills: true,
+							labTests: true
+						}
+					});
+				}
+
 				res
 					.status(200)
 					.json(new ApiResponse("Fetched appointments", appointments));
@@ -482,20 +547,44 @@ export class AppointmentController {
 	async getCreatedAppointments(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const userId = req.user.id as string;
-				const appointments = await prisma.appointment.findMany({
-					where: { createdBy: userId },
-					orderBy: {
-						scheduledAt: "desc"
-					},
-					include: {
-						patient: true,
-						doctor: true,
-						diagnosisRecord: true,
-						bills: true,
-						labTests: true
-					}
-				});
+				const { id: userId, role } = req.user as { id: string; role: string };
+				let appointments;
+
+				// Role-based appointment filtering
+				if (role === "SALES_PERSON") {
+					// Sales person can only see appointments created by themselves
+					appointments = await prisma.appointment.findMany({
+						where: {
+							createdBy: userId // Only appointments created by this sales person
+						},
+						orderBy: {
+							scheduledAt: "desc"
+						},
+						include: {
+							patient: true,
+							doctor: true,
+							diagnosisRecord: true,
+							bills: true,
+							labTests: true
+						}
+					});
+				} else {
+					// Other roles see all appointments they created
+					appointments = await prisma.appointment.findMany({
+						where: { createdBy: userId },
+						orderBy: {
+							scheduledAt: "desc"
+						},
+						include: {
+							patient: true,
+							doctor: true,
+							diagnosisRecord: true,
+							bills: true,
+							labTests: true
+						}
+					});
+				}
+
 				if (!appointments) throw new AppError("No appointments found", 404);
 				res
 					.status(200)
@@ -668,14 +757,22 @@ export class AppointmentController {
 						.status(400)
 						.json(new ApiResponse("Date is required", null));
 				}
+				// Role-based appointment filtering
+				let whereClause: any = {
+					hospitalId,
+					scheduledAt: {
+						gte: startOfDay,
+						lte: endOfDay
+					}
+				};
+
+				// Sales person can only see appointments created by themselves
+				if (req.user.role === "SALES_PERSON") {
+					whereClause.createdBy = req.user.id;
+				}
+
 				const appointments = await prisma.appointment.findMany({
-					where: {
-						hospitalId,
-						scheduledAt: {
-							gte: startOfDay,
-							lte: endOfDay
-						}
-					},
+					where: whereClause,
 					include: {
 						patient: {
 							select: {

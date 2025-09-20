@@ -38,4 +38,10 @@ router.post("/lab-completion",
 	notificationController.sendLabTestComplitionNotification.bind(notificationController)
 );
 
+// Prescription notification routes
+router.post(
+	"/prescription/:prescriptionId",
+	notificationController.sendPrescriptionNotification.bind(notificationController)
+);
+
 export default router;

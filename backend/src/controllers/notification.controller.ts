@@ -7,7 +7,8 @@ import {
 	sendLabReportNotification,
 	sendDiagnosisRecordNotification,
 	sendAppointmentNotification,
-	sendLabTestCompletionNotification
+	sendLabTestCompletionNotification,
+	sendPrescriptionNotification
 } from "../services/whatsapp.service";
 import { PDFService } from "../services/pdf.service";
 import s3 from "../services/s3client";
@@ -444,5 +445,83 @@ export class NotificationController {
 		}
 	}
 
+	// Send prescription notification
+	async sendPrescriptionNotification(req: Request, res: Response) {
+		try {
+			const { prescriptionId } = req.params;
+			const { sendWhatsApp = true } = req.body;
 
+			// Get prescription with all related data
+			const prescriptionData = await prisma.prescription.findUnique({
+				where: { id: prescriptionId },
+				include: {
+					patient: true,
+					doctor: true,
+					hospital: true,
+					items: {
+						include: {
+							drug: true
+						}
+					}
+				}
+			});
+
+			if (!prescriptionData) {
+				throw new AppError("Prescription not found", 404);
+			}
+
+			// Generate PDF
+			const { PrescriptionPDFService } = await import("../services/prescriptionPDF.service");
+			const pdfBuffer = await PrescriptionPDFService.generatePrescriptionPDF(prescriptionData);
+
+			// Upload PDF to S3
+			const fileName = `prescription-${prescriptionData.prescriptionNumber}-${Date.now()}.pdf`;
+			const s3Url = await s3.uploadStream(
+				pdfBuffer,
+				fileName,
+				"application/pdf"
+			);
+
+			// Send WhatsApp notification if requested
+			if (sendWhatsApp) {
+				const { patient, doctor, hospital } = prescriptionData;
+
+				if (patient.phone) {
+					try {
+						await sendPrescriptionNotification(patient.phone, {
+							patientName: patient.name,
+							doctorName: doctor.name,
+							prescriptionNumber: prescriptionData.prescriptionNumber,
+							prescriptionDate: prescriptionData.createdAt,
+							hospitalName: hospital.name,
+							prescriptionUrl: s3Url,
+							validUntil: prescriptionData.validUntil,
+							medicinesCount: prescriptionData.items.length,
+						});
+					} catch (whatsappError) {
+						console.error("WhatsApp notification failed:", whatsappError);
+						// Continue even if WhatsApp fails
+					}
+				}
+			}
+
+			res.status(200).json(
+				new ApiResponse("Prescription notification sent successfully", {
+					prescription: {
+						id: prescriptionData.id,
+						prescriptionNumber: prescriptionData.prescriptionNumber,
+						patientName: prescriptionData.patient.name,
+						doctorName: prescriptionData.doctor.name,
+						hospitalName: prescriptionData.hospital.name,
+						medicinesCount: prescriptionData.items.length,
+						validUntil: prescriptionData.validUntil,
+					},
+					pdfUrl: s3Url,
+					whatsappSent: sendWhatsApp && !!prescriptionData.patient.phone
+				})
+			);
+		} catch (error: any) {
+			errorHandler(error, res);
+		}
+	}
 }

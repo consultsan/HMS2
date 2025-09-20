@@ -255,11 +255,66 @@ Your diagnosis record is now available:
 	});
 }
 
+async function sendPrescriptionNotification(
+	phoneNumber: string,
+	data: {
+		patientName: string;
+		doctorName: string;
+		prescriptionNumber: string;
+		prescriptionDate: Date;
+		hospitalName: string;
+		prescriptionUrl: string;
+		validUntil: Date;
+		medicinesCount: number;
+	}
+) {
+	const formattedDate = new Date(data.prescriptionDate).toLocaleDateString(
+		"en-IN",
+		{
+			year: "numeric",
+			month: "long",
+			day: "numeric"
+		}
+	);
+
+	const validUntilFormatted = new Date(data.validUntil).toLocaleDateString(
+		"en-IN",
+		{
+			year: "numeric",
+			month: "long",
+			day: "numeric"
+		}
+	);
+
+	const caption = `💊 *Prescription Ready*
+
+Dear *${data.patientName}*,
+
+Your prescription is now ready:
+
+👨‍⚕️ *Doctor:* Dr. ${data.doctorName}
+📋 *Prescription No:* ${data.prescriptionNumber}
+📅 *Date:* ${formattedDate}
+⏰ *Valid Until:* ${validUntilFormatted}
+💊 *Medicines:* ${data.medicinesCount} items
+🏥 *Hospital:* ${data.hospitalName}
+
+Please collect your medicines from the pharmacy.`;
+
+	return await sendWhatsAppMessage(phoneNumber, {
+		type: "document",
+		body: caption,
+		mediaUrl: data.prescriptionUrl,
+		fileName: `Prescription_${data.prescriptionNumber}.pdf`
+	});
+}
+
 export {
 	sendWhatsAppMessage,
 	sendAppointmentNotification,
 	sendLabReportNotification,
 	sendLabTestCompletionNotification,
-	sendDiagnosisRecordNotification
+	sendDiagnosisRecordNotification,
+	sendPrescriptionNotification
 };
 export default sendWhatsAppMessage;

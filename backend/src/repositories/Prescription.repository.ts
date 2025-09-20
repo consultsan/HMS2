@@ -248,7 +248,7 @@ export class PrescriptionRepository {
     }
   }
 
-  async getPrescriptionById(id: string): Promise<Prescription | null> {
+  async getPrescriptionById(id: string): Promise<any> {
     try {
       return await prisma.prescription.findUnique({
         where: { id },
