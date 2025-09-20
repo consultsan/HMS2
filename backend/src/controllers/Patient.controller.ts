@@ -44,7 +44,10 @@ export class PatientController {
 
 				// Role-based patient filtering
 				if (role === "SALES_PERSON") {
-					// Sales person can only see follow-up and surgery patients created by them
+					// Sales person can see:
+					// 1. Patients created by themselves
+					// 2. Follow-up patients (regardless of who created them)
+					// 3. Surgery patients (regardless of who created them)
 					patients = await this.patientRepository.findFollowUpAndSurgeryPatientsByHospital(id, hospitalId);
 				} else if (role === "RECEPTIONIST") {
 					// Receptionist can see all patients in the hospital (including those created by sales persons)

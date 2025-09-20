@@ -284,29 +284,43 @@ export class PatientRepository {
 		try {
 			return await prisma.patient.findMany({
 				where: {
-					createdBy: createdById,
 					hospitalId,
-					appointments: {
-						some: {
-							OR: [
-								{
+					OR: [
+						// Patients created by this sales person
+						{
+							createdBy: createdById
+						},
+						// Follow-up patients (regardless of who created them)
+						{
+							appointments: {
+								some: {
 									visitType: "FOLLOW_UP"
-								},
-								{
+								}
+							}
+						},
+						// Surgery patients (regardless of who created them)
+						{
+							appointments: {
+								some: {
 									surgery: {
 										isNot: null
 									}
-								},
-								{
+								}
+							}
+						},
+						// Patients with follow-up appointments from diagnosis
+						{
+							appointments: {
+								some: {
 									diagnosisRecord: {
 										followUpAppointment: {
 											isNot: null
 										}
 									}
 								}
-							]
+							}
 						}
-					}
+					]
 				},
 				include: {
 					appointments: {
