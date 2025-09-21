@@ -17,6 +17,10 @@ import { format } from 'date-fns';
 import Handlebars from "handlebars";
 import { sendAppointmentNotification, sendDiagnosisRecordNotification } from "../services/whatsapp.service";
 import { join } from "path";
+import PrescriptionRepository from "../repositories/Prescription.repository";
+import { sendPrescriptionNotification } from "../services/whatsapp.service";
+import { PrescriptionPDFService } from "../services/prescriptionPDF.service";
+import s3 from "../services/s3client";
 
 const calculateAge = (dob: Date): number => {
 	const today = new Date();
@@ -195,6 +199,94 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 					}
 				});
 
+				// Create prescription if medicines are provided
+				let prescription = null;
+				if (medicines && Array.isArray(medicines) && medicines.length > 0) {
+					try {
+						// Generate prescription number
+						const prescriptionNumber = `RX${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+						
+						// Convert medicines to prescription items format
+						const prescriptionItems = await Promise.all(
+							medicines.map(async (medicine: any) => {
+								let drugId = medicine.drugId;
+								
+								// If no drugId provided, try to find or create a drug
+								if (!drugId && medicine.name) {
+									try {
+										// Try to find existing drug by name
+										const existingDrug = await prisma.drug.findFirst({
+											where: { name: { contains: medicine.name, mode: 'insensitive' } }
+										});
+										
+										if (existingDrug) {
+											drugId = existingDrug.id;
+										} else {
+											// Create a new drug entry
+											const newDrug = await prisma.drug.create({
+												data: {
+													name: medicine.name,
+													genericName: medicine.name,
+													category: 'OTHER',
+													form: 'TABLET',
+													strength: 'As directed',
+													unit: 'tablet',
+													description: `Auto-created from prescription: ${medicine.name}`,
+													requiresPrescription: true,
+													isActive: true
+												}
+											});
+											drugId = newDrug.id;
+										}
+									} catch (drugError) {
+										console.error('Error handling drug:', drugError);
+										// Use a fallback approach - skip this medicine
+										return null;
+									}
+								}
+								
+								if (!drugId) {
+									return null; // Skip medicines without valid drugId
+								}
+								
+								return {
+									drugId: drugId,
+									dosage: medicine.dosage || medicine.frequency || 'As directed',
+									frequency: medicine.frequency || 'Once a day',
+									duration: medicine.duration || '7 days',
+									quantity: medicine.quantity || 1,
+									unit: medicine.unit || 'tablet',
+									instructions: medicine.instructions || medicine.notes || '',
+									status: 'PENDING'
+								};
+							})
+						);
+						
+						// Filter out null items
+						const validPrescriptionItems = prescriptionItems.filter(item => item !== null);
+						
+						if (validPrescriptionItems.length > 0) {
+							// Create prescription
+							prescription = await PrescriptionRepository.createPrescription({
+								prescriptionNumber,
+								patientId: appointment.patientId,
+								doctorId: appointment.doctorId,
+								hospitalId: appointment.hospitalId,
+								diagnosis: diagnosis,
+								notes: notes || undefined,
+								instructions: notes || undefined,
+								validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+								admissionId: undefined,
+								visitId: appointmentId,
+								items: validPrescriptionItems
+							});
+						}
+					} catch (prescriptionError) {
+						console.error('Failed to create prescription:', prescriptionError);
+						// Don't fail the diagnosis creation if prescription fails
+					}
+				}
+
 				// Create lab test orders if any
 				if (labTests && labTests.length > 0) {
 					// Create individual lab test orders
@@ -235,8 +327,47 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 					});
 				}
 
-				return record;
+				return { record, prescription };
 			});
+
+			// Generate prescription PDF and send WhatsApp notification if prescription was created
+			if (result.prescription) {
+				try {
+					// Get prescription with all related data for PDF generation
+					const prescriptionWithDetails = await PrescriptionRepository.getPrescriptionById(result.prescription.id);
+					
+					if (prescriptionWithDetails) {
+						// Generate prescription PDF
+						const pdfBuffer = await PrescriptionPDFService.generatePrescriptionPDF(prescriptionWithDetails);
+						
+						// Upload PDF to S3
+						const fileName = `prescription-${result.prescription.prescriptionNumber}-${Date.now()}.pdf`;
+						const s3Url = await s3.uploadStream(
+							pdfBuffer,
+							fileName,
+							"application/pdf"
+						);
+
+						// Send WhatsApp notification to patient
+						if (prescriptionWithDetails.patient.phone) {
+							await sendPrescriptionNotification(prescriptionWithDetails.patient.phone, {
+								patientName: prescriptionWithDetails.patient.name,
+								doctorName: prescriptionWithDetails.doctor.name,
+								prescriptionNumber: result.prescription.prescriptionNumber,
+								prescriptionDate: result.prescription.createdAt,
+								hospitalName: prescriptionWithDetails.hospital.name,
+								prescriptionUrl: s3Url,
+								validUntil: result.prescription.validUntil,
+								medicinesCount: prescriptionWithDetails.items.length,
+							});
+						}
+					}
+				} catch (notificationError) {
+					console.error('Prescription notification failed:', notificationError);
+					// Don't fail the diagnosis creation if notification fails
+				}
+			}
+
 			res
 				.status(200)
 				.json(new ApiResponse("Diagnosis record created successfully", result));
