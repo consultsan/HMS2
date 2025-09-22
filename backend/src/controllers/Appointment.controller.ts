@@ -380,30 +380,7 @@ export class AppointmentController {
 
 				redisClient.lPush(`${hospitalId}_${doctorId}`, JSON.stringify(visit));
 
-				// Send WhatsApp notification to patient
-				try {
-					if (visit.patient.phone) {
-						const appointmentTime = new Date(
-							visit.scheduledAt
-						).toLocaleTimeString("en-GB", {
-							hour: "2-digit",
-							minute: "2-digit",
-							hour12: true,
-							timeZone: "UTC"
-						});
-
-						await sendAppointmentNotification(visit.patient.phone, {
-							patientName: visit.patient.name,
-							doctorName: visit.doctor.name,
-							appointmentDate: visit.scheduledAt,
-							appointmentTime: appointmentTime
-						});
-						
-					}
-				} catch (whatsappError) {
-					console.error("WhatsApp notification failed:", whatsappError);
-					// Don't fail the appointment booking if WhatsApp fails
-				}
+				// Note: WhatsApp notification will be sent when receptionist confirms the appointment
 
 				res
 					.status(200)
@@ -862,8 +839,8 @@ export class AppointmentController {
 					data: { status }
 				});
 
-				if (appointment?.visitType === "FOLLOW_UP" && status === "SCHEDULED") {
-					//means follow up confirmed
+				if (status === "CONFIRMED") {
+					// Send WhatsApp notification when receptionist confirms the appointment
 					try {
 						if (appointment.patient.phone) {
 							const appointmentTime = new Date(
@@ -871,8 +848,8 @@ export class AppointmentController {
 							).toLocaleTimeString("en-GB", {
 								hour: "2-digit",
 								minute: "2-digit",
-								hour12: true
-								,timeZone: "UTC"
+								hour12: true,
+								timeZone: "Asia/Kolkata"
 							});
 
 							await sendAppointmentNotification(appointment.patient.phone, {
