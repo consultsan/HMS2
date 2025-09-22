@@ -396,8 +396,7 @@ export class AppointmentController {
 							patientName: visit.patient.name,
 							doctorName: visit.doctor.name,
 							appointmentDate: visit.scheduledAt,
-							appointmentTime: appointmentTime,
-							hospitalName: visit.hospital.name
+							appointmentTime: appointmentTime
 						});
 						
 					}
@@ -880,8 +879,7 @@ export class AppointmentController {
 								patientName: appointment.patient.name,
 								doctorName: appointment.doctor.name,
 								appointmentDate: appointment.scheduledAt,
-								appointmentTime: appointmentTime,
-								hospitalName: appointment.hospital.name
+								appointmentTime: appointmentTime
 							});
 						}
 					} catch (whatsappError) {

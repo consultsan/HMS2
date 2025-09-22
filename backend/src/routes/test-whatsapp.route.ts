@@ -106,8 +106,7 @@ router.post("/test-appointment", async (req, res) => {
 			patientName,
 			doctorName,
 			appointmentDate: new Date(appointmentDate),
-			appointmentTime,
-			hospitalName
+			appointmentTime
 		});
 
 		if (result.success) {

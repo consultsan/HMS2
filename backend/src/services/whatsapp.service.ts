@@ -112,7 +112,6 @@ async function sendAppointmentNotification(
 		doctorName: string;
 		appointmentDate: Date;
 		appointmentTime: string;
-		hospitalName: string;
 	}
 ) {
 	const formattedDate = new Date(data.appointmentDate).toLocaleDateString("en-GB", {
@@ -123,19 +122,94 @@ async function sendAppointmentNotification(
 		timeZone: "UTC"
 	});
 
+	// Hospital information (hardcoded values only)
+	const hospitalName = "T.R.U.E. Hospitals";
+	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
+	const hospitalContact = "+91 9211940321";
+	
+	// Google Maps link (you can customize this to your actual hospital location)
+	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
 
 	const message = `🏥 *Appointment Confirmation*
 
 Dear *${data.patientName}*,
 
-Your appointment has been scheduled:
+Your appointment has been confirmed with Dr. *${data.doctorName}*.
 
-👨‍⚕️ *Doctor:* ${data.doctorName}
 📅 *Date:* ${formattedDate}
-⏰ *Time:* ${data.appointmentTime}
-🏥 *Hospital:* ${data.hospitalName}
+🕐 *Time:* ${data.appointmentTime}
 
-Please arrive 15 minutes before your scheduled time.`;
+📍 *Hospital Location:*
+${hospitalName}
+${hospitalAddress}
+📞 ${hospitalContact}
+
+🗺️ *Get Directions:*
+${mapsLink}
+
+Please arrive 15 minutes before your scheduled time.
+
+We look forward to seeing you!
+
+Best regards,
+${hospitalName} Team`;
+
+	return await sendWhatsAppMessage(phoneNumber, {
+		type: "text",
+		body: message
+	});
+}
+
+async function sendAppointmentReminder(
+	phoneNumber: string,
+	data: {
+		patientName: string;
+		doctorName: string;
+		appointmentDate: Date;
+		appointmentTime: string;
+	}
+) {
+	const formattedDate = new Date(data.appointmentDate).toLocaleDateString("en-GB", {
+		weekday: "long",
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+		timeZone: "Asia/Kolkata"
+	});
+
+	// Hospital information (hardcoded values only)
+	const hospitalName = "T.R.U.E. Hospitals";
+	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
+	const hospitalContact = "+91 9212395788";
+	
+	// Google Maps link (you can customize this to your actual hospital location)
+	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+
+	const message = `⏰ *Appointment Reminder*
+
+Dear *${data.patientName}*,
+
+This is a friendly reminder about your upcoming appointment with Dr. *${data.doctorName}*.
+
+📅 *Date:* ${formattedDate}
+🕐 *Time:* ${data.appointmentTime}
+
+📍 *Hospital Location:*
+${hospitalName}
+${hospitalAddress}
+📞 ${hospitalContact}
+
+🗺️ *Get Directions:*
+${mapsLink}
+
+⏰ *Your appointment is in 3 hours!*
+
+Please arrive 15 minutes before your scheduled time.
+
+We look forward to seeing you!
+
+Best regards,
+${hospitalName} Team`;
 
 	return await sendWhatsAppMessage(phoneNumber, {
 		type: "text",
@@ -312,6 +386,7 @@ Please collect your medicines from the pharmacy.`;
 export {
 	sendWhatsAppMessage,
 	sendAppointmentNotification,
+	sendAppointmentReminder,
 	sendLabReportNotification,
 	sendLabTestCompletionNotification,
 	sendDiagnosisRecordNotification,

@@ -4,7 +4,7 @@ import { upload } from "../services/upload.service";
 
 const router = Router();
 
-const appointmentController: AppointmentController =
+const  appointmentController: AppointmentController =
 	new AppointmentController();
 router.get(
 	"/history",

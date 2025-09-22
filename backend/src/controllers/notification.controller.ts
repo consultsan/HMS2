@@ -44,8 +44,7 @@ export class NotificationController {
 				patientName,
 				doctorName,
 				appointmentDate: new Date(appointmentDate),
-				appointmentTime,
-				hospitalName
+				appointmentTime
 			});
 
 			if (result.success) {

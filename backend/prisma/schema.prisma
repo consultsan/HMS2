@@ -447,6 +447,7 @@ model Appointment {
   updatedAt   DateTime          @updatedAt
   createdBy   String? 
   creator     HospitalStaff?    @relation("AppointmentCreator", fields: [createdBy], references: [id])
+  reminderSent Boolean          @default(false) // Track if 3-hour reminder has been sent
 
   vitals          Vital[]
   attachments     AppointmentAttachment[]

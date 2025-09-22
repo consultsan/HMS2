@@ -330,6 +330,87 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 				return { record, prescription };
 			});
 
+			// Generate diagnosis PDF and send WhatsApp notification
+			try {
+				// Get appointment with patient details for WhatsApp notification
+				const appointmentWithPatient = await prisma.appointment.findUnique({
+					where: { id: appointmentId },
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
+					}
+				});
+
+				if (appointmentWithPatient && appointmentWithPatient.patient.phone) {
+					// Generate diagnosis PDF using the existing PDFService
+					const diagnosisRecord = await prisma.diagnosisRecord.findUnique({
+						where: { appointmentId },
+						include: {
+							appointment: {
+								include: {
+									patient: true,
+									doctor: true,
+									hospital: true,
+									labTests: {
+										include: {
+											labTest: true
+										}
+									}
+								}
+							},
+							followUpAppointment: {
+								include: {
+									doctor: true
+								}
+							}
+						}
+					});
+
+					if (diagnosisRecord) {
+						// Get lab tests for this appointment
+						const labTests = await prisma.appointmentLabTest.findMany({
+							where: { appointmentId },
+							include: {
+								labTest: true
+							}
+						});
+
+						// Get surgical info for this appointment
+						const surgicalInfo = await prisma.surgery.findUnique({
+							where: { appointmentId }
+						});
+
+						// Generate diagnosis PDF
+						const pdfBuffer = await PDFService.generateDiagnosisRecord(
+							diagnosisRecord,
+							labTests,
+							surgicalInfo
+						);
+
+						// Upload diagnosis PDF to S3
+						const fileName = `diagnosis-record-${appointmentId}-${Date.now()}.pdf`;
+						const s3Url = await s3.uploadStream(
+							pdfBuffer,
+							fileName,
+							"application/pdf"
+						);
+
+						// Send diagnosis PDF via WhatsApp
+						await sendDiagnosisRecordNotification(appointmentWithPatient.patient.phone, {
+							patientName: appointmentWithPatient.patient.name,
+							doctorName: appointmentWithPatient.doctor.name,
+							diagnosisDate: result.record.createdAt,
+							hospitalName: appointmentWithPatient.hospital.name,
+							reportUrl: s3Url
+						});
+					}
+				}
+			} catch (diagnosisNotificationError) {
+				console.error('Diagnosis notification failed:', diagnosisNotificationError);
+				// Don't fail the diagnosis creation if notification fails
+			}
+
 			// Generate prescription PDF and send WhatsApp notification if prescription was created
 			if (result.prescription) {
 				try {

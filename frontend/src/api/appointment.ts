@@ -88,8 +88,8 @@ export const appointmentApi = {
         api.post('/api/appointment/add-surgery', surgery),
 
     // Update surgery status
-    updateSurgeryStatus: (surgeryId: string, status: SurgicalStatus) =>
-        api.patch(`/api/appointment/update-surgery-status/${surgeryId}`, { status }),
+    updateSurgeryStatus: (surgeryId: string, status: SurgicalStatus, scheduledAt: string) =>
+        api.patch(`/api/appointment/update-surgery-status/${surgeryId}`, { status, scheduledAt }),
 
     // Get surgeries by hospital
     getSurgeryByHospitalId: () =>

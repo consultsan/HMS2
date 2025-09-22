@@ -62,11 +62,11 @@ export default function SurgicalAppointments() {
       status: SurgicalStatus;
       scheduledAt: string;
     }) => {
-      return await appointmentApi.updateSurgeryStatus(surgeryId, status);
+      return await appointmentApi.updateSurgeryStatus(surgeryId, status, scheduledAt);
     },
   });
 
-  const handleUpdateSurgeryStatus = async (surgeryId: string, surgicalStatus: SurgicalStatus) => {
+  const handleUpdateSurgeryStatus = async (surgeryId: string, surgicalStatus: SurgicalStatus, scheduledAt: string) => {
     if (!selectedDate && surgicalStatus === SurgicalStatus.CONFIRMED) {
       return toast.error('Please select a surgery date');
     }
@@ -195,7 +195,7 @@ export default function SurgicalAppointments() {
                 </Button>
                 <button
                   onClick={() =>
-                    handleUpdateSurgeryStatus(surgery.id, SurgicalStatus.CANCELLED)
+                    handleUpdateSurgeryStatus(surgery.id, SurgicalStatus.CANCELLED, selectedDate)
                   }
                   className="px-2 py-1 hover:bg-gray-100 rounded-full"
                   title="Cancel Surgery"
@@ -243,7 +243,7 @@ export default function SurgicalAppointments() {
                 <Button
                   className="w-full bg-blue-600 hover:bg-blue-700"
                   onClick={() =>
-                    handleUpdateSurgeryStatus(selectedSurgery?.id!, SurgicalStatus.CONFIRMED)
+                    handleUpdateSurgeryStatus(selectedSurgery?.id!, SurgicalStatus.CONFIRMED, selectedDate)
                   }
                   disabled={confirmingSurgeryId === selectedSurgery?.id}
                 >
@@ -252,7 +252,7 @@ export default function SurgicalAppointments() {
 
                 <button
                   onClick={() =>
-                    handleUpdateSurgeryStatus(selectedSurgery?.id!, SurgicalStatus.CANCELLED)
+                    handleUpdateSurgeryStatus(selectedSurgery?.id!, SurgicalStatus.CANCELLED, selectedDate)
                   }
                   className="px-2 py-1 hover:bg-gray-100 rounded-full"
                   title="Cancel Surgery"

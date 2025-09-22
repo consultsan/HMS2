@@ -28,9 +28,11 @@ import ipdRoute from "./routes/ipd.route";
 import insuranceProcessingRoute from "./routes/insuranceProcessing.route";
 import patientDocumentRoute from "./routes/patientDocument.route";
 import prescriptionRoute from "./routes/prescription.route";
-import hospitalLocationRoute from "./routes/hospitalLocation.route";
+import reminderRoute from "./routes/reminder.route";
+import testReminderRoute from "./routes/test-reminder.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
 import IPDWebSocketService from "./services/ipdWebSocket.service";
+import { ReminderService } from "./services/reminder.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
 const http_port = Number(process.env.HTTP_PORT);
@@ -294,13 +296,12 @@ app.use("/api/insurance-processing", insuranceProcessingRoute);
 // Patient Document Management module routes
 app.use("/api/patient-documents", patientDocumentRoute);
 app.use("/api/prescription", prescriptionRoute);
-
-// Hospital Location Management module routes
-app.use("/api/hospital-location", hospitalLocationRoute);
+app.use("/api/reminder", reminderRoute);
 
 // Test routes (no auth for testing)
 app.use("/api/test", testPdfRoute);
 app.use("/api/test-whatsapp", testWhatsAppRoute);
+app.use("/api/test-reminder", testReminderRoute);
 
 app.post("/api/whatsapp", async (req, res) => {
 	try {
@@ -330,4 +331,7 @@ app.post("/api/whatsapp", async (req, res) => {
 // Start server
 server.listen(http_port, () => {
 	console.log(`Server is running on port ${http_port}`);
+	
+	// Start the appointment reminder service
+	ReminderService.start();
 });
