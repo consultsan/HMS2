@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { sendAppointmentReminder } from "./whatsapp.service";
+import { TimezoneUtil } from "../utils/timezone.util";
 
 const prisma = new PrismaClient();
 
@@ -49,10 +50,8 @@ export class ReminderService {
 		try {
 			console.log("🔍 Checking for 3-hour reminders...");
 
-			const now = new Date();
-			// Convert UTC to IST (UTC+05:30)
-			const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
-			const nowIST = new Date(now.getTime() + istOffset);
+			const now = TimezoneUtil.nowUTC();
+			const nowIST = TimezoneUtil.nowIST();
 			
 			console.log(`⏰ Current time (UTC): ${now.toISOString()}`);
 			console.log(`⏰ Current time (IST): ${nowIST.toISOString()}`);
@@ -105,18 +104,14 @@ export class ReminderService {
 					console.log(`📱 Sending reminder to ${appointment.patient.name} - ${hoursUntil} hours until appointment`);
 
 					// Format time for display (convert to IST)
-					const appointmentIST = new Date(appointment.scheduledAt.getTime() + istOffset);
-					const appointmentTime = appointmentIST.toLocaleTimeString("en-GB", {
-						hour: "2-digit",
-						minute: "2-digit",
-						hour12: true
-					});
+					const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
+					const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
 
 					// Send WhatsApp reminder
 					const result = await sendAppointmentReminder(appointment.patient.phone, {
 						patientName: appointment.patient.name,
 						doctorName: appointment.doctor.name,
-						appointmentDate: appointment.scheduledAt,
+						appointmentDate: appointmentIST,
 						appointmentTime: appointmentTime
 					});
 

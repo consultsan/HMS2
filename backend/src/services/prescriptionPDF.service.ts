@@ -1,5 +1,6 @@
 import { Prescription, PrescriptionItem, Drug, Patient, HospitalStaff, Hospital } from '@prisma/client';
 import PDFDocument from 'pdfkit';
+import { TimezoneUtil } from '../utils/timezone.util';
 
 interface PrescriptionWithDetails {
   id: string;
@@ -70,17 +71,17 @@ export class PrescriptionPDFService {
            .fillColor('#000000')
            .text(`Prescription No: ${prescription.prescriptionNumber}`, 50, 210);
 
-        const prescriptionDate = new Date(prescription.createdAt).toLocaleDateString('en-IN', {
+        const prescriptionDate = TimezoneUtil.formatDateIST(prescription.createdAt, {
           year: 'numeric',
           month: 'long',
-          day: 'numeric',
+          day: 'numeric'
         });
         doc.text(`Date: ${prescriptionDate}`, 50, 235);
 
-        const validUntil = new Date(prescription.validUntil).toLocaleDateString('en-IN', {
+        const validUntil = TimezoneUtil.formatDateIST(prescription.validUntil, {
           year: 'numeric',
           month: 'long',
-          day: 'numeric',
+          day: 'numeric'
         });
         doc.text(`Valid Until: ${validUntil}`, 50, 260);
 

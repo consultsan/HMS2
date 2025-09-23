@@ -20,6 +20,7 @@ interface Document {
 }
 
 const roles: string[] = [
+	UserRole.SUPER_ADMIN,
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.RECEPTIONIST,
 	UserRole.SALES_PERSON,
@@ -301,6 +302,12 @@ export class PatientController {
 				if (!hospitalId)
 					throw new AppError("User ain't linked to any hospital", 400);
 
+				// Check if user exists in HospitalStaff table
+				const userExists = await prisma.hospitalStaff.findUnique({
+					where: { id: req.user.id },
+					select: { id: true }
+				});
+
 				const patient = await this.patientRepository.create({
 					name,
 					dob,
@@ -311,7 +318,7 @@ export class PatientController {
 					registrationSource,
 					registrationSourceDetails,
 					hospitalId,
-					createdBy: req.user.id // Track who created the patient
+					createdBy: userExists ? req.user.id : null // Only set if user exists in HospitalStaff
 				});
 
 				res
@@ -341,7 +348,11 @@ export class PatientController {
 					| "patientUniqueId"
 					| "documents"
 				>;
-				const patient = await this.patientRepository.update(id, body);
+				
+				// Filter out nested relations that shouldn't be updated directly
+				const { appointments, ...updateData } = body as any;
+				
+				const patient = await this.patientRepository.update(id, updateData);
 				res
 					.status(200)
 					.json(new ApiResponse("Patient updated successfully", patient));

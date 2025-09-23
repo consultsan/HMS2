@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { ReminderService } from "../services/reminder.service";
-import { ApiResponse } from "../utils/ApiResponse";
+import ApiResponse from "../utils/ApiResponse";
 
 export class ReminderController {
 	/**
@@ -15,10 +15,7 @@ export class ReminderController {
 			));
 		} catch (error: any) {
 			res.status(500).json(new ApiResponse(
-				"Failed to start reminder service",
-				null,
-				false,
-				error.message
+				`Failed to start reminder service: ${error.message}`
 			));
 		}
 	}
@@ -35,10 +32,7 @@ export class ReminderController {
 			));
 		} catch (error: any) {
 			res.status(500).json(new ApiResponse(
-				"Failed to stop reminder service",
-				null,
-				false,
-				error.message
+				`Failed to stop reminder service: ${error.message}`
 			));
 		}
 	}
@@ -55,10 +49,7 @@ export class ReminderController {
 			));
 		} catch (error: any) {
 			res.status(500).json(new ApiResponse(
-				"Failed to get service status",
-				null,
-				false,
-				error.message
+				`Failed to get service status: ${error.message}`
 			));
 		}
 	}
@@ -75,10 +66,7 @@ export class ReminderController {
 			));
 		} catch (error: any) {
 			res.status(500).json(new ApiResponse(
-				"Failed to trigger reminder check",
-				null,
-				false,
-				error.message
+				`Failed to trigger reminder check: ${error.message}`
 			));
 		}
 	}

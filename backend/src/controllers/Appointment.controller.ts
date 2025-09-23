@@ -17,8 +17,9 @@ import prisma from "../utils/dbConfig";
 import redisClient from "../utils/redisClient";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
-import { sendAppointmentNotification } from "../services/whatsapp.service";
+import { sendAppointmentNotification, sendAppointmentUpdateNotification } from "../services/whatsapp.service";
 import { UhidGenerator } from "../utils/uhidGenerator";
+import { TimezoneUtil } from "../utils/timezone.util";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -43,24 +44,15 @@ export class AppointmentController {
 				if (!hospitalId)
 					throw new AppError("User isn't linked to any hospital", 403);
 				
-				// Convert input date string to Date in UTC, then apply IST offset
-				const queryDateUTC = new Date(date as string);
-				// Create IST start and end of day
-				const startOfDayIST = new Date(queryDateUTC);
-				startOfDayIST.setHours(0, 0, 0, 0);
-
-				const endOfDayIST = new Date(queryDateUTC);
-				endOfDayIST.setHours(23, 59, 59, 999);
-
-				// Convert IST start/end back to UTC timestamps for DB query
-				const startOfDayUTC = new Date(startOfDayIST.getTime());
-				const endOfDayUTC = new Date(endOfDayIST.getTime());
+				// Parse the input date and create start/end of day in UTC for database query
+				const queryDate = TimezoneUtil.parseAsUTC(date as string);
+				const { start: startOfDay, end: endOfDay } = TimezoneUtil.createDateRangeUTC(queryDate);
 
 				let whereClause: any = {
 					hospitalId,
 					scheduledAt: {
-						gte: startOfDayUTC,
-						lte: endOfDayUTC
+						gte: startOfDay,
+						lte: endOfDay
 					},
 					doctorId: doctorId as string
 				};
@@ -800,10 +792,40 @@ export class AppointmentController {
 				const { id } = req.params;
 				const { scheduledAt } = req.body as Pick<Appointment, "scheduledAt">;
 
+				// Get appointment details before updating
+				const appointmentBeforeUpdate = await prisma.appointment.findUnique({
+					where: { id },
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
+					}
+				});
+
 				const appointment = await prisma.appointment.update({
 					where: { id },
 					data: { scheduledAt }
 				});
+
+				// Send WhatsApp notification when appointment schedule is updated
+				if (appointmentBeforeUpdate && appointmentBeforeUpdate.patient.phone) {
+					try {
+						// Convert UTC appointment time to IST for both time and date
+						const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
+						const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+
+						// Send appointment update notification
+						await sendAppointmentUpdateNotification(appointmentBeforeUpdate.patient.phone, {
+							patientName: appointmentBeforeUpdate.patient.name,
+							doctorName: appointmentBeforeUpdate.doctor.name,
+							appointmentDate: appointmentIST,
+							appointmentTime: appointmentTime
+						});
+					} catch (whatsappError) {
+						console.error("WhatsApp notification failed:", whatsappError);
+						// Don't fail the appointment update if WhatsApp fails
+					}
+				}
 
 				res
 					.status(200)
@@ -839,23 +861,21 @@ export class AppointmentController {
 					data: { status }
 				});
 
-				if (status === "CONFIRMED") {
+				if (status === "CONFIRMED" && appointment) {
 					// Send WhatsApp notification when receptionist confirms the appointment
 					try {
 						if (appointment.patient.phone) {
-							const appointmentTime = new Date(
-								visit.scheduledAt
-							).toLocaleTimeString("en-GB", {
-								hour: "2-digit",
-								minute: "2-digit",
-								hour12: true,
-								timeZone: "Asia/Kolkata"
-							});
+							// Convert UTC appointment time to IST for both time and date
+							const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
+							const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+							// console.log("appointmentIST", appointmentIST);
+							// console.log("appointmentTime", appointmentTime);
 
+							// Use the same IST-converted date for consistency
 							await sendAppointmentNotification(appointment.patient.phone, {
 								patientName: appointment.patient.name,
 								doctorName: appointment.doctor.name,
-								appointmentDate: appointment.scheduledAt,
+								appointmentDate: appointmentIST,
 								appointmentTime: appointmentTime
 							});
 						}
