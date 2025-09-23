@@ -315,15 +315,33 @@ export class AppointmentController {
 	async bookAppointment(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { patientId, visitType, doctorId, scheduledAt, status } =
+				const { patientId, visitType, doctorId, scheduledAt, status, hospitalId: requestHospitalId } =
 					req.body as Pick<
 						Appointment,
 						"patientId" | "visitType" | "doctorId" | "scheduledAt" | "status"
-					>;
+					> & { hospitalId?: string };
 
-				const hospitalId = req.user.hospitalId;
-				if (!hospitalId)
-					throw new AppError("User isn't linked to any hospital", 403);
+				// For admin users, allow them to specify hospitalId in request body
+				// For other users, use their linked hospitalId
+				let hospitalId: string;
+				if (req.user.role === "SUPER_ADMIN") {
+					if (!requestHospitalId) {
+						throw new AppError("Hospital ID is required for admin users", 400);
+					}
+					// Validate that the hospital exists
+					const hospital = await prisma.hospital.findUnique({
+						where: { id: requestHospitalId },
+						select: { id: true }
+					});
+					if (!hospital) {
+						throw new AppError("Invalid hospital ID", 400);
+					}
+					hospitalId = requestHospitalId;
+				} else {
+					if (!req.user.hospitalId)
+						throw new AppError("User isn't linked to any hospital", 403);
+					hospitalId = req.user.hospitalId;
+				}
 
 				// Get patient to check if UHID exists
 				const patient = await prisma.patient.findUnique({
@@ -348,6 +366,12 @@ export class AppointmentController {
 					visitType === VisitType.OPD ? "OPD" : visitType === VisitType.IPD ? "IPD" : visitType === VisitType.FOLLOW_UP ? "FUP" : "ER"
 				);
 
+				// Check if user exists in HospitalStaff table
+				const userExists = await prisma.hospitalStaff.findUnique({
+					where: { id: req.user.id },
+					select: { id: true }
+				});
+
 				const visit = await prisma.appointment.create({
 					data: {
 						patientId,
@@ -356,7 +380,7 @@ export class AppointmentController {
 						visitType,
 						doctorId,
 						status: status || AppointmentStatus.SCHEDULED,
-						createdBy: req.user.id as string,
+						createdBy: userExists ? req.user.id : null, // Only set if user exists in HospitalStaff
 						visitId, // Add Visit ID
 						vitals: {
 							create: new Array<Vital>()
