@@ -115,35 +115,14 @@ async function sendAppointmentNotification(
 		appointmentTime: string;
 	}
 ) {
-	// data.appointmentDate is already in IST, so format it directly
-	const formattedDate = data.appointmentDate.toLocaleDateString("en-GB", {
+	// Use TimezoneUtil to format the already IST-converted date properly
+	const formattedDate = TimezoneUtil.formatDateIST(data.appointmentDate, {
 		weekday: "long",
 		year: "numeric",
 		month: "long",
 		day: "numeric"
 	});
 
-	// Convert to Date
-	const appointmentDateObj = new Date(data.appointmentTime);
-
-	// Subtract 5 hours 30 minutes (in ms)
-	const correctedDate = new Date(appointmentDateObj.getTime() - (5 * 60 + 30) * 60 * 1000);
-
-	// const nowIST = TimezoneUtil.nowIST();
-
-	// const formattedDate = nowIST.toLocaleDateString("en-IN", {
-	// 	day: "2-digit",
-	// 	month: "short",
-	// 	year: "numeric",
-	// });
-
-	// const formattedTime = nowIST.toLocaleTimeString("en-IN", {
-	// 	hour: "2-digit",
-	// 	minute: "2-digit",
-	// 	hour12: true,
-	// });
-
-	// const formattedTime = TimezoneUtil.formatTimeIST(nowIST);
 
 	// Hospital information (hardcoded values only)
 	const hospitalName = "T.R.U.E. Hospitals";
@@ -195,8 +174,8 @@ async function sendAppointmentReminder(
 		appointmentTime: string;
 	}
 ) {
-	// data.appointmentDate is already in IST, so format it directly
-	const formattedDate = data.appointmentDate.toLocaleDateString("en-GB", {
+	// Use TimezoneUtil to format the already IST-converted date properly
+	const formattedDate = TimezoneUtil.formatDateIST(data.appointmentDate, {
 		weekday: "long",
 		year: "numeric",
 		month: "long",
@@ -423,25 +402,13 @@ async function sendAppointmentUpdateNotification(
 		appointmentTime: string;
 	}
 ) {
-	// data.appointmentDate is already in IST, so format it directly
-	const formattedDate = data.appointmentDate.toLocaleDateString("en-GB", {
+	// Use TimezoneUtil to format the already IST-converted date properly
+	const formattedDate = TimezoneUtil.formatDateIST(data.appointmentDate, {
 		weekday: "long",
 		year: "numeric",
 		month: "long",
 		day: "numeric"
 	});
-
-	// // Convert to Date
-	// const appointmentDateObj = new Date(data.appointmentTime);
-
-	// // Subtract 5 hours 30 minutes (in ms)
-	// const correctedDate = new Date(appointmentDateObj.getTime() - (5 * 60 + 30) * 60 * 1000);
-
-	// const formattedTime = correctedDate.toLocaleTimeString("en-IN", {
-	// 	hour: "2-digit",
-	// 	minute: "2-digit",
-	// 	hour12: true,
-	// });
 
 	// Hospital information (hardcoded values only)
 	const hospitalName = "T.R.U.E. Hospitals";

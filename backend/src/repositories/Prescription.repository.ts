@@ -1,5 +1,5 @@
 import { PrismaClient, Drug, Prescription, PrescriptionItem, DrugInteraction, PrescriptionStatus, PrescriptionItemStatus, DrugCategory, DrugForm } from '@prisma/client';
-import { AppError } from '../utils/AppError';
+import  AppError  from '../utils/AppError';
 
 const prisma = new PrismaClient();
 

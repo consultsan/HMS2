@@ -19,10 +19,11 @@ export class TimezoneUtil {
     /**
      * Convert a UTC date to IST for display purposes
      * @param utcDate - Date in UTC
-     * @returns Date object adjusted for IST
+     * @returns Date object (no manual offset - let formatting methods handle timezone)
      */
     static toIST(utcDate: Date): Date {
-        return new Date(utcDate.getTime() + this.IST_OFFSET_MS);
+        // Return the original date - let the formatting methods handle timezone conversion
+        return new Date(utcDate);
     }
 
     /**
@@ -103,10 +104,11 @@ export class TimezoneUtil {
 
     /**
      * Get current time in IST
-     * @returns Current time adjusted for IST
+     * @returns Current time (let formatting methods handle timezone conversion)
      */
     static nowIST(): Date {
-        return new Date(Date.now() + this.IST_OFFSET_MS);
+        // Return current time - let the formatting methods handle timezone conversion
+        return new Date();
     }
 
     /**
