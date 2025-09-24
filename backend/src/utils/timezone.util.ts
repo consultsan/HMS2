@@ -60,6 +60,17 @@ export class TimezoneUtil {
         return new Date(date).toLocaleTimeString('en-GB', defaultOptions);
     }
 
+    static formatTimeUTC(date: Date, options: Intl.DateTimeFormatOptions = {}): string {
+        const defaultOptions: Intl.DateTimeFormatOptions = {
+            timeZone: "UTC",   // keep UTC
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            ...options,
+        };
+        return new Date(date).toLocaleTimeString("en-US", defaultOptions);
+    }
+
     /**
      * Format date and time for display in IST timezone
      * @param date - Date to format

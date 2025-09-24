@@ -836,7 +836,7 @@ export class AppointmentController {
 					try {
 						// Convert UTC appointment time to IST for both time and date
 						const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
-						const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+						const appointmentTime = TimezoneUtil.formatTimeUTC(appointment.scheduledAt);
 
 						// Send appointment update notification
 						await sendAppointmentUpdateNotification(appointmentBeforeUpdate.patient.phone, {
@@ -891,7 +891,7 @@ export class AppointmentController {
 						if (appointment.patient.phone) {
 							// Convert UTC appointment time to IST for both time and date
 							const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
-							const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+							const appointmentTime = TimezoneUtil.formatTimeUTC(appointment.scheduledAt);
 							// console.log("appointmentIST", appointmentIST);
 							// console.log("appointmentTime", appointmentTime);
 
