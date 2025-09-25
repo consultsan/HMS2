@@ -17,7 +17,7 @@ import prisma from "../utils/dbConfig";
 import redisClient from "../utils/redisClient";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
-import { sendAppointmentNotification, sendAppointmentUpdateNotification } from "../services/whatsapp.service";
+import { sendAppointmentNotification, sendAppointmentUpdateNotification, sendFollowUpAppointmentNotification } from "../services/whatsapp.service";
 import { UhidGenerator } from "../utils/uhidGenerator";
 import { TimezoneUtil } from "../utils/timezone.util";
 
@@ -396,7 +396,36 @@ export class AppointmentController {
 
 				redisClient.lPush(`${hospitalId}_${doctorId}`, JSON.stringify(visit));
 
-				// Note: WhatsApp notification will be sent when receptionist confirms the appointment
+				// Send WhatsApp notification immediately when appointment is created
+				try {
+					if (visit.patient.phone) {
+						// Convert UTC appointment time to IST for both time and date
+						const appointmentIST = TimezoneUtil.toIST(visit.scheduledAt);
+						const appointmentTime = TimezoneUtil.formatTimeUTC(visit.scheduledAt);
+
+						// Check if this is a follow-up appointment
+						if (visit.visitType === "FOLLOW_UP") {
+							// Send follow-up specific WhatsApp notification
+							await sendFollowUpAppointmentNotification(visit.patient.phone, {
+								patientName: visit.patient.name,
+								doctorName: visit.doctor.name,
+								appointmentDate: appointmentIST,
+								appointmentTime: appointmentTime
+							});
+						} else {
+							// Send regular appointment notification
+							await sendAppointmentNotification(visit.patient.phone, {
+								patientName: visit.patient.name,
+								doctorName: visit.doctor.name,
+								appointmentDate: appointmentIST,
+								appointmentTime: appointmentTime
+							});
+						}
+					}
+				} catch (whatsappError) {
+					console.error("WhatsApp notification failed:", whatsappError);
+					// Don't fail the appointment booking if WhatsApp fails
+				}
 
 				res
 					.status(200)
@@ -836,15 +865,27 @@ export class AppointmentController {
 					try {
 						// Convert UTC appointment time to IST for both time and date
 						const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
-						const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+						const appointmentTime = TimezoneUtil.formatTimeUTC(appointment.scheduledAt);
 
-						// Send appointment update notification
+					// Send appointment update notification
+					// Check if this is a follow-up appointment
+					if (appointmentBeforeUpdate.visitType === "FOLLOW_UP") {
+						// Send follow-up specific WhatsApp notification for updates
+						await sendFollowUpAppointmentNotification(appointmentBeforeUpdate.patient.phone, {
+							patientName: appointmentBeforeUpdate.patient.name,
+							doctorName: appointmentBeforeUpdate.doctor.name,
+							appointmentDate: appointmentIST,
+							appointmentTime: appointmentTime
+						});
+					} else {
+						// Send regular appointment update notification
 						await sendAppointmentUpdateNotification(appointmentBeforeUpdate.patient.phone, {
 							patientName: appointmentBeforeUpdate.patient.name,
 							doctorName: appointmentBeforeUpdate.doctor.name,
 							appointmentDate: appointmentIST,
 							appointmentTime: appointmentTime
 						});
+					}
 					} catch (whatsappError) {
 						console.error("WhatsApp notification failed:", whatsappError);
 						// Don't fail the appointment update if WhatsApp fails
@@ -885,29 +926,8 @@ export class AppointmentController {
 					data: { status }
 				});
 
-				if (status === "CONFIRMED" && appointment) {
-					// Send WhatsApp notification when receptionist confirms the appointment
-					try {
-						if (appointment.patient.phone) {
-							// Convert UTC appointment time to IST for both time and date
-							const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
-							const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
-							// console.log("appointmentIST", appointmentIST);
-							// console.log("appointmentTime", appointmentTime);
-
-							// Use the same IST-converted date for consistency
-							await sendAppointmentNotification(appointment.patient.phone, {
-								patientName: appointment.patient.name,
-								doctorName: appointment.doctor.name,
-								appointmentDate: appointmentIST,
-								appointmentTime: appointmentTime
-							});
-						}
-					} catch (whatsappError) {
-						console.error("WhatsApp notification failed:", whatsappError);
-						// Don't fail the appointment booking if WhatsApp fails
-					}
-				}
+				// Note: WhatsApp notifications are now sent immediately when appointment is created,
+				// not when receptionist confirms it
 				res.status(200).json(new ApiResponse("Status updated", visit));
 			} catch (error: any) {
 				errorHandler(error, res);

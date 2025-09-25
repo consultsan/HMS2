@@ -105,7 +105,7 @@ export class ReminderService {
 
 					// Format time for display (convert to IST)
 					const appointmentIST = TimezoneUtil.toIST(appointment.scheduledAt);
-					const appointmentTime = TimezoneUtil.formatTimeIST(appointment.scheduledAt);
+					const appointmentTime = TimezoneUtil.formatTimeUTC(appointment.scheduledAt);
 
 					// Send WhatsApp reminder
 					const result = await sendAppointmentReminder(appointment.patient.phone, {

@@ -4,7 +4,7 @@ import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import AppError from "../utils/AppError";
 import s3 from "../services/s3client";
-import { sendLabTestCompletionNotification } from "../services/whatsapp.service";
+import { sendLabTestCompletionNotification, sendLabReportNotification } from "../services/whatsapp.service";
 
 // Lab Test Controllers
 const createLabTest = async (req: Request, res: Response) => {
@@ -614,8 +614,29 @@ const getOrderedTestByHospital = async (req: Request, res: Response) => {
 const updateLabTestOrder = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const { sampleType, tentativeReportDate, status } = req.body;
+		const { sampleType, tentativeReportDate, status, sendWhatsApp = true } = req.body;
+		const file = req.file; // Check if a report file was uploaded
 
+		// Get lab test details first
+		const labTest = await prisma.appointmentLabTest.findUnique({
+			where: { id },
+			include: {
+				labTest: true,
+				appointment: {
+					include: {
+						patient: true,
+						hospital: true
+					}
+				},
+				patient: true
+			}
+		});
+
+		if (!labTest) {
+			return res.status(404).json(new ApiResponse("Lab test not found", null));
+		}
+
+		// Update lab test status
 		const order = await prisma.appointmentLabTest.update({
 			where: { id },
 			data: {
@@ -636,18 +657,51 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 			}
 		});
 
-		// Send WhatsApp notification when lab test is completed
-		if (status === "COMPLETED" && order.patient?.phone) {
+		// Handle WhatsApp notification when lab test is completed
+		if (status === "COMPLETED" && order.patient?.phone && sendWhatsApp) {
 			try {
 				const patientData = order.appointment?.patient || order.patient;
 				const hospitalData = order.appointment?.hospital;
 
-				await sendLabTestCompletionNotification(patientData.phone, {
-					patientName: patientData.name,
-					testName: order.labTest.name,
-					completionDate: new Date(),
-					hospitalName: hospitalData?.name || "Hospital"
-				});
+				// If a report file was uploaded, send the actual report
+				if (file) {
+					// Upload the technician's report file to S3
+					const fileExtension = file.originalname.split('.').pop();
+					const fileName = `lab-report-${id}-${Date.now()}.${fileExtension}`;
+					const s3Url = await s3.uploadStream(
+						file.buffer,
+						fileName,
+						file.mimetype
+					);
+
+					// Clear the buffer to free memory
+					file.buffer = Buffer.alloc(0);
+
+					// Save the uploaded report as an attachment
+					await prisma.appointmentLabTestAttachment.create({
+						data: {
+							appointmentLabTestId: id,
+							url: s3Url
+						}
+					});
+
+					// Send WhatsApp notification with the uploaded report
+					await sendLabReportNotification(patientData.phone, {
+						patientName: patientData.name,
+						testName: order.labTest.name,
+						completionDate: new Date(),
+						hospitalName: hospitalData?.name || "Hospital",
+						reportUrl: s3Url
+					});
+				} else {
+					// No file uploaded, send completion notification only
+					await sendLabTestCompletionNotification(patientData.phone, {
+						patientName: patientData.name,
+						testName: order.labTest.name,
+						completionDate: new Date(),
+						hospitalName: hospitalData?.name || "Hospital"
+					});
+				}
 			} catch (whatsappError) {
 				console.error("WhatsApp notification failed:", whatsappError);
 				// Don't fail the lab test update if WhatsApp fails
@@ -872,6 +926,110 @@ const uploadLabTestAttachment = async (req: Request, res: Response) => {
 			.json(
 				new ApiResponse("Lab test attachment uploaded successfully", attachment)
 			);
+	} catch (error: any) {
+		errorHandler(error, res);
+	}
+};
+
+// Complete lab test with technician-uploaded report file
+const completeLabTestWithReport = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const { sendWhatsApp = true } = req.body;
+		const file = req.file;
+
+		if (!file) {
+			return res.status(400).json({ 
+				error: "Report file is required to complete the lab test" 
+			});
+		}
+
+		// Get lab test details
+		const labTest = await prisma.appointmentLabTest.findUnique({
+			where: { id },
+			include: {
+				labTest: true,
+				appointment: {
+					include: {
+						patient: true,
+						hospital: true
+					}
+				},
+				patient: true
+			}
+		});
+
+		if (!labTest) {
+			return res.status(404).json(new ApiResponse("Lab test not found", null));
+		}
+
+		// Upload the technician's report file to S3
+		const fileExtension = file.originalname.split('.').pop();
+		const fileName = `lab-report-${id}-${Date.now()}.${fileExtension}`;
+		const s3Url = await s3.uploadStream(
+			file.buffer,
+			fileName,
+			file.mimetype
+		);
+
+		// Clear the buffer to free memory
+		file.buffer = Buffer.alloc(0);
+
+		// Update lab test status to COMPLETED
+		const updatedLabTest = await prisma.appointmentLabTest.update({
+			where: { id },
+			data: {
+				status: "COMPLETED"
+			},
+			include: {
+				labTest: true,
+				appointment: {
+					include: {
+						patient: true,
+						hospital: true
+					}
+				},
+				patient: true
+			}
+		});
+
+		// Save the uploaded report as an attachment
+		const attachment = await prisma.appointmentLabTestAttachment.create({
+			data: {
+				appointmentLabTestId: id,
+				url: s3Url
+			}
+		});
+
+		// Send WhatsApp notification with the uploaded report
+		if (sendWhatsApp) {
+			const patientData = labTest.appointment?.patient || labTest.patient;
+			const hospitalData = labTest.appointment?.hospital;
+
+			if (patientData?.phone) {
+				try {
+					await sendLabReportNotification(patientData.phone, {
+						patientName: patientData.name,
+						testName: labTest.labTest.name,
+						completionDate: new Date(),
+						hospitalName: hospitalData?.name || "Hospital",
+						reportUrl: s3Url
+					});
+				} catch (whatsappError) {
+					console.error("WhatsApp notification failed:", whatsappError);
+					// Continue even if WhatsApp fails
+				}
+			}
+		}
+
+		res.status(200).json(
+			new ApiResponse("Lab test completed successfully with report", {
+				labTest: updatedLabTest,
+				attachment,
+				reportUrl: s3Url,
+				whatsappSent: sendWhatsApp && !!labTest.patient?.phone
+			})
+		);
 	} catch (error: any) {
 		errorHandler(error, res);
 	}
@@ -1177,6 +1335,7 @@ export {
 	// Lab Test Attachment Controllers
 	uploadLabTestAttachment,
 	getLabTestAttachmentsByAppointmentLabTestId,
+	completeLabTestWithReport,
 
 	// Lab Test Billing Controllers
 	generateLabTestBill,

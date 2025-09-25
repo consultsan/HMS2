@@ -35,7 +35,7 @@ function formatPhoneNumber(phoneNumber: string): string {
 	return cleaned;
 }
 
-type MessageType = "text" | "document";
+type MessageType = "text" | "document" | "image";
 
 interface MessageOptions {
 	type: MessageType;
@@ -78,6 +78,11 @@ async function sendWhatsAppMessage(
 				link: messageOptions.mediaUrl,
 				caption: messageOptions.body || "",
 				filename: messageOptions.fileName || "document.pdf"
+			};
+		} else if (messageOptions.type === "image") {
+			payload.image = {
+				link: messageOptions.mediaUrl,
+				caption: messageOptions.body || ""
 			};
 		}
 
@@ -252,11 +257,31 @@ Your lab report is now available:
 📅 *Report Date:* ${formattedDate}
 🏥 *Hospital:* ${data.hospitalName}`;
 
+	// Determine file type based on URL extension
+	const fileExtension = data.reportUrl.split('.').pop()?.toLowerCase();
+	const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension || '');
+	const isPdf = fileExtension === 'pdf';
+
+	let messageType: MessageType;
+	let fileName: string;
+
+	if (isImage) {
+		messageType = "image";
+		fileName = `LabReport.${fileExtension}`;
+	} else if (isPdf) {
+		messageType = "document";
+		fileName = "LabReport.pdf";
+	} else {
+		// Default to document for other file types
+		messageType = "document";
+		fileName = `LabReport.${fileExtension || 'pdf'}`;
+	}
+
 	return await sendWhatsAppMessage(phoneNumber, {
-		type: "document",
+		type: messageType,
 		body: caption,
 		mediaUrl: data.reportUrl,
-		fileName: "LabReport.pdf"
+		fileName: fileName
 	});
 }
 
@@ -444,11 +469,73 @@ T.R.U.E. Hospitals Team`;
 	});
 }
 
+async function sendFollowUpAppointmentNotification(
+	phoneNumber: string,
+	data: {
+		patientName: string;
+		doctorName: string;
+		appointmentDate: Date;
+		appointmentTime: string;
+		originalDiagnosisDate?: Date;
+	}
+) {
+	// Use TimezoneUtil to format the already IST-converted date properly
+	const formattedDate = TimezoneUtil.formatDateIST(data.appointmentDate, {
+		weekday: "long",
+		year: "numeric",
+		month: "long",
+		day: "numeric"
+	});
+
+	// Hospital information (hardcoded values only)
+	const hospitalName = "T.R.U.E. Hospitals";
+	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
+	const hospitalContact = "+91 9211940321";
+	
+	// Google Maps link (you can customize this to your actual hospital location)
+	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+
+	const message = `🔄 *Follow-up Appointment Confirmation*
+
+Dear *${data.patientName}*,
+
+Your follow-up appointment has been confirmed with Dr. *${data.doctorName}*.
+
+📅 *Date:* ${formattedDate}
+🕐 *Time:* ${data.appointmentTime}
+
+📍 *Hospital Location:*
+${hospitalName}
+${hospitalAddress}
+📞 ${hospitalContact}
+
+🗺️ *Get Directions:*
+${mapsLink}
+
+📋 *Follow-up Details:*
+This is a follow-up appointment to monitor your progress and ensure optimal recovery.
+
+Please bring any previous reports or medications you're currently taking.
+
+Please arrive 15 minutes before your scheduled time.
+
+We look forward to seeing you!
+
+Best regards,
+${hospitalName} Team`;
+
+	return await sendWhatsAppMessage(phoneNumber, {
+		type: "text",
+		body: message
+	});
+}
+
 export {
 	sendWhatsAppMessage,
 	sendAppointmentNotification,
 	sendAppointmentReminder,
 	sendAppointmentUpdateNotification,
+	sendFollowUpAppointmentNotification,
 	sendLabReportNotification,
 	sendLabTestCompletionNotification,
 	sendDiagnosisRecordNotification,

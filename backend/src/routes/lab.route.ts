@@ -39,6 +39,7 @@ import {
 	// Lab Test Attachment Controllers
 	uploadLabTestAttachment,
 	getLabTestAttachmentsByAppointmentLabTestId,
+	completeLabTestWithReport,
 
 	// Lab Test Billing Controllers
 	generateLabTestBill,
@@ -75,7 +76,7 @@ router.patch("/lab-orders/:id", updateLabOrder); // Changed to lab-orders for La
 router.post("/orders", orderLabTest);
 router.get("/appointments/:appointmentId/orders", getOrderedTestsByAppointment);
 router.get("/orders/:id", getOrderedTestById);
-router.patch("/orders/:id", updateLabTestOrder); // Keep as orders for AppointmentLabTest updates
+router.patch("/orders/:id", upload.single("reportFile"), updateLabTestOrder); // Keep as orders for AppointmentLabTest updates
 router.delete("/orders/:id", cancelLabTestOrder);
 router.patch("/orders/:id/mark-external", markTestSentExternal);
 router.patch("/orders/:id/attach-report", attachReportToOrder);
@@ -89,6 +90,13 @@ router.post(
 	uploadLabTestAttachment 
 );
 router.get("/attachments/:id", getLabTestAttachmentsByAppointmentLabTestId);
+
+// Complete lab test with technician-uploaded report
+router.post(
+	"/orders/:id/complete-with-report", 
+	upload.single("reportFile"), 
+	completeLabTestWithReport 
+);
 
 // Lab Test Result Routes
 router.post("/results", recordTestResult);
