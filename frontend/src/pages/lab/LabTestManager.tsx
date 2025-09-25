@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Search, Upload, FileText, X } from "lucide-react";
 import { useSearch } from "@/contexts/SearchContext";
 import {
@@ -37,6 +37,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
     const [isUploading, setIsUploading] = useState(false);
     const [parametersComplete, setParametersComplete] = useState(false);
     const { searchQuery, setSearchQuery } = useSearch();
+    const testParametersRef = useRef<any>(null);
 
     const { data: labOrders } = useQuery<any>({
         queryKey: ['lab-orders', filter],
@@ -54,19 +55,12 @@ export default function LabTestManager({ filter }: { filter: string }) {
     });
 
     const updateTestStatusMutation = useMutation({
-        mutationFn: async ({ testId, status, tentativeReportDate, formData }: { testId: string; status: LabTestStatus; tentativeReportDate?: string; formData?: FormData }) => {
-            if (formData) {
-                // Use FormData for file upload
-                const response = await labApi.updateLabTestOrderWithFile(testId, formData);
-                return response.data;
-            } else {
-                // Regular update without file
-                const response = await labApi.updateLabTestOrder(testId, {
-                    status,
-                    tentativeReportDate: tentativeReportDate ? new Date(tentativeReportDate) : undefined
-                });
-                return response.data;
-            }
+        mutationFn: async ({ testId, status, tentativeReportDate }: { testId: string; status: LabTestStatus; tentativeReportDate?: string }) => {
+            const response = await labApi.updateLabTestOrder(testId, {
+                status,
+                tentativeReportDate: tentativeReportDate ? new Date(tentativeReportDate) : undefined
+            });
+            return response.data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
@@ -311,43 +305,29 @@ export default function LabTestManager({ filter }: { filter: string }) {
                 return;
             }
 
-            // Create FormData to send the first uploaded file as the report
-            const formData = new FormData();
-            formData.append('status', LabTestStatus.COMPLETED);
-            if (test.tentativeReportDate) {
-                formData.append('tentativeReportDate', test.tentativeReportDate);
-            }
-            formData.append('sendWhatsApp', 'true');
-
-            // Get the first uploaded file to send as the main report
-            // Note: We'll use the first file as the main report for WhatsApp
-            const firstFile = uploadedFiles[0];
-            if (firstFile) {
-                // Fetch the file from the URL and append it to FormData
-                try {
-                    const response = await fetch(firstFile.url);
-                    const blob = await response.blob();
-                    const fileName = firstFile.name;
-                    formData.append('reportFile', blob, fileName);
-                } catch (error) {
-                    console.error('Error fetching file for upload:', error);
-                    toast.error('Error preparing file for upload');
-                    return;
+            try {
+                // Save all parameter values before completing the test
+                if (testParametersRef.current?.saveAllParameters) {
+                    await testParametersRef.current.saveAllParameters();
+                    toast.success('Test parameters saved successfully');
                 }
-            }
 
-            updateTestStatusMutation.mutate({
-                testId: selectedTestForCompletion.id,
-                status: LabTestStatus.COMPLETED,
-                tentativeReportDate: test.tentativeReportDate,
-                formData: formData
-            });
-            
-            // Send notification to patient
-            setIsParametersDialogOpen(false);
-            setSelectedTestForCompletion(null);
-            setUploadedFiles([]);
-            setParametersComplete(false);
+                // Update the status to COMPLETED - files are already uploaded as attachments
+                updateTestStatusMutation.mutate({
+                    testId: selectedTestForCompletion.id,
+                    status: LabTestStatus.COMPLETED,
+                    tentativeReportDate: test.tentativeReportDate
+                });
+                
+                // Send notification to patient
+                setIsParametersDialogOpen(false);
+                setSelectedTestForCompletion(null);
+                setUploadedFiles([]);
+                setParametersComplete(false);
+            } catch (error) {
+                console.error('Error saving parameters:', error);
+                toast.error('Failed to save test parameters');
+            }
         }
     };
 
@@ -661,6 +641,7 @@ export default function LabTestManager({ filter }: { filter: string }) {
                                     📊 Test Parameters
                                 </h3>
                                 <TestParameters
+                                    ref={testParametersRef}
                                     testId={selectedTestForCompletion?.labTestId}
                                     appointmentLabTestId={selectedTestForCompletion?.id}
                                     canEdit={true}

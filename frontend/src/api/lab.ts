@@ -26,11 +26,6 @@ export const labApi = {
     getOrderedTestsByAppointment: (appointmentId: string) => api.get(`/api/lab/appointments/${appointmentId}/orders`),
     getOrderedTestById: (id: string) => api.get(`/api/lab/orders/${id}`),
     updateLabTestOrder: (id: string, order: Partial<Pick<AppointmentLabTest, 'status' | 'tentativeReportDate' | 'isSentExternal' | 'externalLabName'>>) => api.patch(`/api/lab/orders/${id}`, order),
-    updateLabTestOrderWithFile: (id: string, formData: FormData) => api.patch(`/api/lab/orders/${id}`, formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-    }),
     cancelLabTestOrder: (id: string) => api.delete(`/api/lab/orders/${id}`),
     markTestSentExternal: (id: string, externalLabName: string) => api.patch(`/api/lab/orders/${id}/mark-external`, { externalLabName }),
     attachReportToOrder: (id: string, report: any) => api.patch(`/api/lab/orders/${id}/attach-report`, report),

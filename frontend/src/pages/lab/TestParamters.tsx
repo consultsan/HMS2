@@ -2,7 +2,7 @@ import { labApi } from "@/api/lab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -33,7 +33,7 @@ interface TestParametersProps {
     onParametersComplete?: (isComplete: boolean) => void;
 }
 
-export default function TestParameters({ testId, appointmentLabTestId, canEdit, onParametersComplete }: TestParametersProps) {
+const TestParameters = forwardRef<any, TestParametersProps>(({ testId, appointmentLabTestId, canEdit, onParametersComplete }, ref) => {
     const [editedParameters, setEditedParameters] = useState<TestResult[]>([]);
     const queryClient = useQueryClient();
 
@@ -117,6 +117,21 @@ export default function TestParameters({ testId, appointmentLabTestId, canEdit, 
             await updateParameterMutation.mutateAsync(result);
         }
     };
+
+    const saveAllParameters = async () => {
+        const promises = editedParameters.map(result => {
+            if (result.value !== undefined) {
+                return updateParameterMutation.mutateAsync(result);
+            }
+            return Promise.resolve();
+        });
+        await Promise.all(promises);
+    };
+
+    // Expose saveAllParameters function to parent component via ref
+    useImperativeHandle(ref, () => ({
+        saveAllParameters
+    }), [editedParameters]);
 
     const getValueStatus = (parameter: Parameter) => {
         const result = editedParameters.find(p => p.parameterId === parameter.id);
@@ -243,4 +258,8 @@ export default function TestParameters({ testId, appointmentLabTestId, canEdit, 
             </div>
         </div>
     );
-}
+});
+
+TestParameters.displayName = 'TestParameters';
+
+export default TestParameters;

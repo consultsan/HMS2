@@ -694,13 +694,31 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 						reportUrl: s3Url
 					});
 				} else {
-					// No file uploaded, send completion notification only
-					await sendLabTestCompletionNotification(patientData.phone, {
-						patientName: patientData.name,
-						testName: order.labTest.name,
-						completionDate: new Date(),
-						hospitalName: hospitalData?.name || "Hospital"
+					// No file uploaded during completion, check for existing attachments
+					const existingAttachments = await prisma.appointmentLabTestAttachment.findMany({
+						where: { appointmentLabTestId: id },
+						orderBy: { createdAt: 'asc' }
 					});
+
+					if (existingAttachments.length > 0) {
+						// Use the first existing attachment for WhatsApp notification
+						const firstAttachment = existingAttachments[0];
+						await sendLabReportNotification(patientData.phone, {
+							patientName: patientData.name,
+							testName: order.labTest.name,
+							completionDate: new Date(),
+							hospitalName: hospitalData?.name || "Hospital",
+							reportUrl: firstAttachment.url
+						});
+					} else {
+						// No attachments found, send completion notification only
+						await sendLabTestCompletionNotification(patientData.phone, {
+							patientName: patientData.name,
+							testName: order.labTest.name,
+							completionDate: new Date(),
+							hospitalName: hospitalData?.name || "Hospital"
+						});
+					}
 				}
 			} catch (whatsappError) {
 				console.error("WhatsApp notification failed:", whatsappError);
