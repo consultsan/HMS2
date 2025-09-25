@@ -119,7 +119,9 @@ export class TimezoneUtil {
      */
     static nowIST(): Date {
         // Return current time - let the formatting methods handle timezone conversion
-        return new Date();
+        const now = new Date();
+        // Convert UTC to IST by adding 5:30 hours
+        return new Date(now.getTime() + this.IST_OFFSET_MS);
     }
 
     /**
