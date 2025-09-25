@@ -54,12 +54,19 @@ export default function LabTestManager({ filter }: { filter: string }) {
     });
 
     const updateTestStatusMutation = useMutation({
-        mutationFn: async ({ testId, status, tentativeReportDate }: { testId: string; status: LabTestStatus; tentativeReportDate?: string }) => {
-            const response = await labApi.updateLabTestOrder(testId, {
-                status,
-                tentativeReportDate: tentativeReportDate ? new Date(tentativeReportDate) : undefined
-            });
-            return response.data;
+        mutationFn: async ({ testId, status, tentativeReportDate, formData }: { testId: string; status: LabTestStatus; tentativeReportDate?: string; formData?: FormData }) => {
+            if (formData) {
+                // Use FormData for file upload
+                const response = await labApi.updateLabTestOrderWithFile(testId, formData);
+                return response.data;
+            } else {
+                // Regular update without file
+                const response = await labApi.updateLabTestOrder(testId, {
+                    status,
+                    tentativeReportDate: tentativeReportDate ? new Date(tentativeReportDate) : undefined
+                });
+                return response.data;
+            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['lab-orders'] });
@@ -304,11 +311,38 @@ export default function LabTestManager({ filter }: { filter: string }) {
                 return;
             }
 
+            // Create FormData to send the first uploaded file as the report
+            const formData = new FormData();
+            formData.append('status', LabTestStatus.COMPLETED);
+            if (test.tentativeReportDate) {
+                formData.append('tentativeReportDate', test.tentativeReportDate);
+            }
+            formData.append('sendWhatsApp', 'true');
+
+            // Get the first uploaded file to send as the main report
+            // Note: We'll use the first file as the main report for WhatsApp
+            const firstFile = uploadedFiles[0];
+            if (firstFile) {
+                // Fetch the file from the URL and append it to FormData
+                try {
+                    const response = await fetch(firstFile.url);
+                    const blob = await response.blob();
+                    const fileName = firstFile.name;
+                    formData.append('reportFile', blob, fileName);
+                } catch (error) {
+                    console.error('Error fetching file for upload:', error);
+                    toast.error('Error preparing file for upload');
+                    return;
+                }
+            }
+
             updateTestStatusMutation.mutate({
                 testId: selectedTestForCompletion.id,
                 status: LabTestStatus.COMPLETED,
-                tentativeReportDate: test.tentativeReportDate
+                tentativeReportDate: test.tentativeReportDate,
+                formData: formData
             });
+            
             // Send notification to patient
             setIsParametersDialogOpen(false);
             setSelectedTestForCompletion(null);
