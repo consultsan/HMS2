@@ -4,7 +4,7 @@ import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import AppError from "../utils/AppError";
 import s3 from "../services/s3client";
-import { sendLabTestCompletionNotification, sendLabReportNotification } from "../services/whatsapp.service";
+import { sendLabTestCompletionNotification, sendLabReportNotification, sendLabReportReadyNotification } from "../services/whatsapp.service";
 
 // Lab Test Controllers
 const createLabTest = async (req: Request, res: Response) => {
@@ -685,13 +685,12 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 						}
 					});
 
-					// Send WhatsApp notification with the uploaded report
-					await sendLabReportNotification(patientData.phone, {
+					// Send WhatsApp notification that report is ready (without PDF)
+					await sendLabReportReadyNotification(patientData.phone, {
 						patientName: patientData.name,
 						testName: order.labTest.name,
 						completionDate: new Date(),
-						hospitalName: hospitalData?.name || "Hospital",
-						reportUrl: s3Url
+						hospitalName: hospitalData?.name || "Hospital"
 					});
 				} else {
 					// No file uploaded during completion, check for existing attachments
@@ -1026,12 +1025,11 @@ const completeLabTestWithReport = async (req: Request, res: Response) => {
 
 			if (patientData?.phone) {
 				try {
-					await sendLabReportNotification(patientData.phone, {
+					await sendLabReportReadyNotification(patientData.phone, {
 						patientName: patientData.name,
 						testName: labTest.labTest.name,
 						completionDate: new Date(),
-						hospitalName: hospitalData?.name || "Hospital",
-						reportUrl: s3Url
+						hospitalName: hospitalData?.name || "Hospital"
 					});
 				} catch (whatsappError) {
 					console.error("WhatsApp notification failed:", whatsappError);

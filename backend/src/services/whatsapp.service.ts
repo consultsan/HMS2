@@ -227,6 +227,43 @@ ${hospitalName} Team`;
 	});
 }
 
+async function sendLabReportReadyNotification(
+	phoneNumber: string,
+	data: {
+		patientName: string;
+		testName: string;
+		completionDate: Date;
+		hospitalName: string;
+	}
+) {
+	const formattedDate = new Date(data.completionDate).toLocaleDateString(
+		"en-IN",
+		{
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+			timeZone: "Asia/Kolkata"
+		}
+	);
+
+	const message = `📋 *Lab Report Ready*
+
+Dear *${data.patientName}*,
+
+Your lab report is now ready for collection:
+
+🧪 *Test:* ${data.testName}
+📅 *Report Date:* ${formattedDate}
+🏥 *Hospital:* ${data.hospitalName}
+
+Please visit the hospital to collect your report. If you need the report to be sent digitally, please contact the receptionist.`;
+
+	return await sendWhatsAppMessage(phoneNumber, {
+		type: "text",
+		body: message
+	});
+}
+
 async function sendLabReportNotification(
 	phoneNumber: string,
 	data: {
@@ -247,11 +284,11 @@ async function sendLabReportNotification(
 		}
 	);
 
-	const caption = `📋 *Lab Report Ready*
+	const caption = `📋 *Lab Report*
 
 Dear *${data.patientName}*,
 
-Your lab report is now available:
+Your lab report is attached:
 
 🧪 *Test:* ${data.testName}
 📅 *Report Date:* ${formattedDate}
@@ -536,6 +573,7 @@ export {
 	sendAppointmentReminder,
 	sendAppointmentUpdateNotification,
 	sendFollowUpAppointmentNotification,
+	sendLabReportReadyNotification,
 	sendLabReportNotification,
 	sendLabTestCompletionNotification,
 	sendDiagnosisRecordNotification,

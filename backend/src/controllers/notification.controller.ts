@@ -149,24 +149,39 @@ export class NotificationController {
 				throw new AppError("Lab test is not completed yet", 400);
 			}
 
-			// Generate PDF report
+		// Check if there's already an uploaded report by technician
+		const existingAttachment = await prisma.appointmentLabTestAttachment.findFirst({
+			where: { appointmentLabTestId },
+			orderBy: { createdAt: 'desc' }
+		});
+
+		let s3Url: string;
+		let attachment;
+
+		if (existingAttachment) {
+			// Use the technician's uploaded report
+			s3Url = existingAttachment.url;
+			attachment = existingAttachment;
+		} else {
+			// Generate PDF report if no technician upload exists
 			const pdfBuffer = await PDFService.generateLabReport(labTest);
 
 			// Upload PDF to S3
 			const fileName = `lab-report-${appointmentLabTestId}-${Date.now()}.pdf`;
-			const s3Url = await s3.uploadStream(
+			s3Url = await s3.uploadStream(
 				pdfBuffer,
 				fileName,
 				"application/pdf"
 			);
 
 			// Save attachment record
-			const attachment = await prisma.appointmentLabTestAttachment.create({
+			attachment = await prisma.appointmentLabTestAttachment.create({
 				data: {
 					appointmentLabTestId,
 					url: s3Url
 				}
 			});
+		}
 
 			// Send WhatsApp notification if requested
 			if (sendWhatsApp) {

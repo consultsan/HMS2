@@ -59,8 +59,28 @@ export class AppointmentController {
 
 				// Role-based appointment filtering
 				if (role === "SALES_PERSON") {
-					// Sales person can only see appointments created by themselves
-					whereClause.createdBy = userId;
+					// Sales person can see:
+					// 1. Appointments created by themselves
+					// 2. Follow-up appointments (regardless of who created them)
+					// 3. Surgery appointments (regardless of who created them)
+					whereClause.OR = [
+						// Appointments created by this sales person
+						{
+							createdBy: userId
+						},
+						// Follow-up appointments (regardless of creator)
+						{
+							visitType: "FOLLOW_UP"
+						},
+						// Surgery appointments (regardless of creator)
+						{
+							surgery: {
+								isNot: null
+							}
+						}
+					];
+					// Remove the direct createdBy filter since we're using OR
+					delete whereClause.createdBy;
 				}
 
 				const appointments = await prisma.appointment.findMany({
@@ -69,7 +89,8 @@ export class AppointmentController {
 						patient: true,
 						attachments: true,
 						vitals: true,
-						bills: true
+						bills: true,
+						surgery: true
 					},
 					orderBy: {
 						scheduledAt: "desc"
@@ -506,10 +527,28 @@ export class AppointmentController {
 
 				// Role-based appointment filtering
 				if (role === "SALES_PERSON") {
-					// Sales person can only see appointments created by themselves
+					// Sales person can see:
+					// 1. Appointments created by themselves
+					// 2. Follow-up appointments (regardless of who created them)
+					// 3. Surgery appointments (regardless of who created them)
 					let whereClause: any = {
 						hospitalId,
-						createdBy: userId // Only appointments created by this sales person
+						OR: [
+							// Appointments created by this sales person
+							{
+								createdBy: userId
+							},
+							// Follow-up appointments (regardless of creator)
+							{
+								visitType: "FOLLOW_UP"
+							},
+							// Surgery appointments (regardless of creator)
+							{
+								surgery: {
+									isNot: null
+								}
+							}
+						]
 					};
 
 					// Add visitType filter if provided
@@ -527,7 +566,8 @@ export class AppointmentController {
 							doctor: true,
 							diagnosisRecord: true,
 							bills: true,
-							labTests: true
+							labTests: true,
+							surgery: true
 						}
 					});
 				} else {
