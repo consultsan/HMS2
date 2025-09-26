@@ -504,8 +504,30 @@ const orderLabTest = async (req: Request, res: Response) => {
 const getOrderedTestsByAppointment = async (req: Request, res: Response) => {
 	try {
 		const { appointmentId } = req.params;
+		
+		// First, get the appointment to find the patient
+		const appointment = await prisma.appointment.findUnique({
+			where: { id: appointmentId },
+			select: { patientId: true }
+		});
+
+		if (!appointment) {
+			return res.status(404).json(new ApiResponse("Appointment not found", null));
+		}
+
+		// Find lab tests that are either:
+		// 1. Directly linked to this appointment (appointmentId = appointmentId)
+		// 2. Linked to the same patient but without appointmentId (external lab orders)
 		const orders = await prisma.appointmentLabTest.findMany({
-			where: { appointmentId },
+			where: {
+				OR: [
+					{ appointmentId: appointmentId },
+					{ 
+						patientId: appointment.patientId,
+						appointmentId: null 
+					}
+				]
+			},
 			include: {
 				labTest: true,
 				results: {
@@ -892,18 +914,29 @@ const getLabTestAttachmentsByAppointmentLabTestId = async (
 		const attachments = await prisma.appointmentLabTestAttachment.findMany({
 			where: { appointmentLabTestId: id },
 			select: {
-				url: true
+				id: true,
+				url: true,
+				createdAt: true
 			},
 			orderBy: {
 				createdAt: "desc"
 			}
 		});
+
+		// Transform the data to include name field for frontend compatibility
+		const transformedAttachments = attachments.map(attachment => ({
+			id: attachment.id,
+			url: attachment.url,
+			name: attachment.url.split('/').pop() || 'Lab Report',
+			createdAt: attachment.createdAt
+		}));
+
 		res
 			.status(200)
 			.json(
 				new ApiResponse(
 					"Lab test attachments fetched successfully",
-					attachments
+					transformedAttachments
 				)
 			);
 	} catch (error: any) {
