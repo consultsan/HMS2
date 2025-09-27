@@ -722,14 +722,13 @@ const updateLabTestOrder = async (req: Request, res: Response) => {
 					});
 
 					if (existingAttachments.length > 0) {
-						// Use the first existing attachment for WhatsApp notification
-						const firstAttachment = existingAttachments[0];
-						await sendLabReportNotification(patientData.phone, {
+						// Send WhatsApp notification that report is ready (without PDF)
+						// Even though attachments exist, we don't send the PDF - just notify that report is ready for collection
+						await sendLabReportReadyNotification(patientData.phone, {
 							patientName: patientData.name,
 							testName: order.labTest.name,
 							completionDate: new Date(),
-							hospitalName: hospitalData?.name || "Hospital",
-							reportUrl: firstAttachment.url
+							hospitalName: hospitalData?.name || "Hospital"
 						});
 					} else {
 						// No attachments found, send completion notification only
