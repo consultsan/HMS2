@@ -2,9 +2,9 @@ import { useState } from "react";
 import { formatDate, calculateAge } from "../../utils/dateUtils";
 import { api } from "@/lib/api";
 import ViewDiagnosisRecordButton from "./viewDiagnosisRecord";
-import { User, Calendar, Phone, Heart, History, ChevronDown, ChevronUp } from "lucide-react";
+import { User, Calendar, Phone, Heart, History, ChevronDown, ChevronUp, FileText, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Patient, RegistrationMode } from "@/types/types";
+import { Patient, RegistrationMode, PatientDocument } from "@/types/types";
 import { patientApi } from "@/api/patient";
 
 function PatientBasicDetails({ patientId }: { patientId: string }) {
@@ -17,6 +17,15 @@ function PatientBasicDetails({ patientId }: { patientId: string }) {
     queryKey: ['patient-details', patientId],
     queryFn: async () => {
       const response = await patientApi.getPatientById(patientId);
+      return response;
+    },
+    enabled: !!patientId,
+  });
+
+  const { data: documents } = useQuery<PatientDocument[]>({
+    queryKey: ['patient-documents', patientId],
+    queryFn: async () => {
+      const response = await patientApi.getDocuments(patientId);
       return response;
     },
     enabled: !!patientId,
@@ -207,7 +216,23 @@ function PatientBasicDetails({ patientId }: { patientId: string }) {
                       {appointment?.diagnosisRecord ? (
                         <ViewDiagnosisRecordButton appointmentId={appointment.id} />
                       ) : (
-                        <span className="text-gray-400 text-xs">No records</span>
+                        <div className="flex flex-col gap-1">
+                          {documents && documents.length > 0 ? (
+                            documents.map((doc) => (
+                              <button
+                                key={doc.id}
+                                onClick={() => window.open(doc.url, '_blank')}
+                                className="flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs underline"
+                              >
+                                <FileText className="w-3 h-3" />
+                                {doc.type.replace('_', ' ')}
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-xs">No records</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
