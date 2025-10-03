@@ -11,12 +11,16 @@ import { FlaskConical, Clock, Send } from "lucide-react";
 import { labApi } from "@/api/lab";
 import ViewTestResult from "@/pages/lab/ViewTestResult";
 import { formatDate } from "@/utils/dateUtils";
-import { api } from "@/lib/api";
 import { notificationApi } from "@/api/notification";
 import { toast } from "sonner";
-import { se } from "date-fns/locale";
 
-export default function ViewAppointmentLabtests({ appointmentId }: { appointmentId: string }) {
+export default function ViewAppointmentLabtests({ 
+    appointmentId, 
+    labTestsData 
+}: { 
+    appointmentId?: string;
+    labTestsData?: any[];
+}) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedLabTestId, setSelectedLabTestId] = useState<string>("");
     const [isResultOpen, setIsResultOpen] = useState(false);
@@ -25,10 +29,14 @@ export default function ViewAppointmentLabtests({ appointmentId }: { appointment
     const { data: labTests, isLoading, isError } = useQuery({
         queryKey: ["appointment-lab-tests", appointmentId],
         queryFn: async () => {
-            const response = await labApi.getOrderedTestsByAppointment(appointmentId);
+            if (labTestsData) {
+                return labTestsData;
+            }
+            const response = await labApi.getOrderedTestsByAppointment(appointmentId!);
             return response.data?.data || [];
         },
-        enabled: !!appointmentId,
+        enabled: !!appointmentId || !!labTestsData,
+        initialData: labTestsData,
     });
 
     const handleViewResult = (testId: string) => {

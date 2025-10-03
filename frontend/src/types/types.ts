@@ -141,6 +141,7 @@ export interface LabOrder {
     id: string;
     status: LabOrderStatus;
     appointmentId?: string; // Optional appointment ID for lab orders
+    orderDate?: string; // For external lab orders
     patient: {
         id: string;
         name: string;

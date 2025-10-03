@@ -20,6 +20,7 @@ import ViewAppointmentLabtests from "@/components/lab/viewAppointmentLabtests";
 
 export default function PendingLabBills() {
   const [filterDate, setFilterDate] = useState<Date>(new Date());
+  const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all'); // 'all', 'internal', 'external'
   const [selectedLabOrder, setSelectedLabOrder] = useState<LabOrder | null>(null);
   const [viewBillDialogOpen, setViewBillDialogOpen] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
@@ -32,12 +33,24 @@ export default function PendingLabBills() {
     return d1.toDateString() === d2.toDateString();
   };
 
-  // Fetch lab orders using React Query with improved error handling
+  // Fetch both internal and external lab orders using React Query with improved error handling
   const { data: labOrders, isLoading, error, refetch } = useQuery<LabOrder[]>({
-    queryKey: ['pendingAndProcessingLabOrders'], // Updated to reflect new filtering
+    queryKey: ['allLabOrders'], // Updated to reflect fetching both internal and external
     queryFn: async () => {
-      const response = await labApi.getInternalLabOrders();
-      return response.data?.data || [];
+      // Fetch both internal and external lab orders in parallel
+      const [internalResponse, externalResponse] = await Promise.all([
+        labApi.getInternalLabOrders(),
+        labApi.getExternalLabOrders()
+      ]);
+      
+      const internalOrders = internalResponse.data?.data || [];
+      const externalOrders = externalResponse.data?.data || [];
+      
+      console.log('Internal orders:', internalOrders);
+      console.log('External orders:', externalOrders);
+      
+      // Combine both arrays
+      return [...internalOrders, ...externalOrders];
     },
     refetchInterval: 30000, // Refetch every 30 seconds
     refetchOnWindowFocus: true,
@@ -50,13 +63,27 @@ export default function PendingLabBills() {
   const filteredLabOrders = useMemo(() => {
     if (!labOrders) return [];
 
-    // Filter by pending and processing status
+    // Filter by pending and processing status (both lab order status and individual lab test statuses)
+    // This works for both internal and external lab orders
     const pendingAndProcessingOrders = labOrders.filter((order: LabOrder) => {
-      return order.status === LabOrderStatus.PENDING || order.status === LabOrderStatus.PROCESSING;
+      const hasOrderStatus = order.status === LabOrderStatus.PENDING || order.status === LabOrderStatus.PROCESSING;
+      const hasPendingOrProcessingTests = order.appointmentLabTests?.some(test => 
+        test.status === 'PENDING' || test.status === 'PROCESSING'
+      );
+      return hasOrderStatus || hasPendingOrProcessingTests;
     });
 
-    // Then apply search and date filters
+    // Then apply search, date, and order type filters
     return pendingAndProcessingOrders.filter((order: LabOrder) => {
+      // Order type filter
+      if (orderTypeFilter !== 'all') {
+        const isInternal = order.appointmentId !== null && order.appointmentId !== undefined;
+        const isExternal = order.appointmentId === null || order.appointmentId === undefined;
+        
+        if (orderTypeFilter === 'internal' && !isInternal) return false;
+        if (orderTypeFilter === 'external' && !isExternal) return false;
+      }
+
       // Search filter takes precedence
       if (searchQuery) {
         return (
@@ -65,9 +92,11 @@ export default function PendingLabBills() {
         );
       }
       // Date filter when no search query
-      return isSameDay(order.createdAt, filterDate);
+      // Handle both internal orders (createdAt) and external orders (orderDate)
+      const orderDate = order.createdAt || order.orderDate;
+      return orderDate ? isSameDay(orderDate, filterDate) : false;
     });
-  }, [labOrders, searchQuery, filterDate]);
+  }, [labOrders, searchQuery, filterDate, orderTypeFilter]);
 
   const handleDateChange = (date: Date | undefined) => {
     if (date) {
@@ -92,16 +121,6 @@ export default function PendingLabBills() {
     // Optionally refresh the lab orders data
   };
 
-  const getStatusBadgeColor = (status: LabOrderStatus) => {
-    switch (status) {
-      case LabOrderStatus.PENDING:
-        return "bg-yellow-100 text-yellow-800";
-      case LabOrderStatus.PROCESSING:
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   // Enhanced loading state
   if (isLoading) {
@@ -134,10 +153,21 @@ export default function PendingLabBills() {
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Lab Orders Management</h2>
-          <DatePicker
-            date={filterDate}
-            onDateChange={handleDateChange}
-          />
+          <div className="flex gap-4 items-center">
+            <select
+              value={orderTypeFilter}
+              onChange={(e) => setOrderTypeFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Orders</option>
+              <option value="internal">Internal Orders</option>
+              <option value="external">External Orders</option>
+            </select>
+            <DatePicker
+              date={filterDate}
+              onDateChange={handleDateChange}
+            />
+          </div>
         </div>
         <div className="rounded-lg border">
           <Table numberOfRows={9}>
@@ -158,24 +188,43 @@ export default function PendingLabBills() {
                     <TableCell className="font-medium">{order.patient?.name}</TableCell>
                     <TableCell>{order.patient?.phone}</TableCell>
                     <TableCell>
-                      {order.appointmentId && (
-                        <ViewAppointmentLabtests appointmentId={order.appointmentId} />
-                      )}
+                      <ViewAppointmentLabtests 
+                        appointmentId={order.appointmentId} 
+                        labTestsData={order.appointmentLabTests}
+                      />
                     </TableCell>
                     <TableCell>
-                      {new Date(order.createdAt).toLocaleString('en-GB', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        timeZone: 'UTC'
-                      })}
+                      {(() => {
+                        const dateToUse = order.createdAt || order.orderDate;
+                        return dateToUse ? new Date(dateToUse).toLocaleString('en-GB', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'UTC'
+                        }) : 'N/A';
+                      })()}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(order.status)}`}>
-                        {order.status}
-                      </span>
+                      <div className="space-y-1">
+                        {order.appointmentLabTests?.map((labTest) => (
+                          <span 
+                            key={labTest.id}
+                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                              labTest.status === 'COMPLETED'
+                                ? 'bg-green-100 text-green-800'
+                                : labTest.status === 'PROCESSING'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : labTest.status === 'SENT_EXTERNAL'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                          {labTest.status}
+                          </span>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2 items-center">
