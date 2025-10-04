@@ -1,6 +1,8 @@
 import { Prescription, PrescriptionItem, Drug, Patient, HospitalStaff, Hospital } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import { TimezoneUtil } from '../utils/timezone.util';
+import path from 'path';
+import fs from 'fs';
 
 interface PrescriptionWithDetails {
   id: string;
@@ -40,6 +42,16 @@ export class PrescriptionPDFService {
           const pdfData = Buffer.concat(buffers);
           resolve(pdfData);
         });
+
+        // Add T.R.U.E. HOSPITALS Logo
+        try {
+          const logoPath = path.join(__dirname, '../../public/Logo11.jpeg');
+          if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 50, 30, { width: 80, height: 60 });
+          }
+        } catch (error) {
+          console.log('Logo not found, using text header instead');
+        }
 
         // Header
         doc.fontSize(24)
@@ -224,6 +236,16 @@ export class PrescriptionPDFService {
            .fillColor('#666666')
            .text('This is a computer-generated prescription.', 50, footerY)
            .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 50, footerY + 15);
+
+        // Add small logo in footer
+        try {
+          const logoPath = path.join(__dirname, '../../public/Logo11.jpeg');
+          if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 50, footerY - 20, { width: 40, height: 30 });
+          }
+        } catch (error) {
+          console.log('Footer logo not found');
+        }
 
         doc.end();
       } catch (error) {

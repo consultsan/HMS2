@@ -152,7 +152,7 @@ export const getHtmlTemplate = async (req: Request, res: Response) => {
 			surgicalInfo,
 			doctor: diagnosisRecord.appointment.doctor,
 			createdAt: diagnosisRecord.createdAt,
-			logoUrl: "/True-Hospital-Logo(White).png"
+			logoUrl: "/Logo11.jpeg"
 		};
 
 		// Generate HTML

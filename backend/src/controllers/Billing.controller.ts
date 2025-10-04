@@ -789,7 +789,7 @@ export class BillingController {
 			const template = Handlebars.compile(templateContent);
 
 			// Prepare data for template
-			const logoUrl = "/True-Hospital-Logo(White).png";
+			const logoUrl = "/Logo11.jpeg";
 
 			const templateData = {
 				...bill,

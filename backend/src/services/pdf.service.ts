@@ -325,7 +325,8 @@ export class PDFService {
 			const logoPath = path.join(
 				process.cwd(),
 				"public",
-				"True-Hospital-Logo(White).png"
+				"logo",
+				"Logo11.jpeg"
 			);
 
 			let logoUrl = "";
@@ -382,7 +383,7 @@ export class PDFService {
 			const logoPath = path.join(
 				process.cwd(),
 				"public",
-				"True-Hospital-Logo(White).png"
+				"Logo11.jpeg"
 			);
 			const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
 			const logoUrl = `data:image/png;base64,${logoBase64}`;
@@ -471,7 +472,8 @@ export class PDFService {
 			const logoPath = path.join(
 				process.cwd(),
 				"public",
-				"True-Hospital-Logo(White).png"
+				"logo",
+				"Logo11.jpeg"
 			);
 			let logoUrl = "";
 
