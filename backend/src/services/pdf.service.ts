@@ -325,7 +325,6 @@ export class PDFService {
 			const logoPath = path.join(
 				process.cwd(),
 				"public",
-				"logo",
 				"Logo11.jpeg"
 			);
 
@@ -472,7 +471,6 @@ export class PDFService {
 			const logoPath = path.join(
 				process.cwd(),
 				"public",
-				"logo",
 				"Logo11.jpeg"
 			);
 			let logoUrl = "";
