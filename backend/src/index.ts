@@ -30,6 +30,8 @@ import patientDocumentRoute from "./routes/patientDocument.route";
 import prescriptionRoute from "./routes/prescription.route";
 import reminderRoute from "./routes/reminder.route";
 import testReminderRoute from "./routes/test-reminder.route";
+import testPublicAppointmentRoute from "./routes/test-public-appointment.route";
+import publicAppointmentRoute from "./routes/publicAppointment.route";
 import sendWhatsAppMessage from "./services/whatsapp.service";
 import IPDWebSocketService from "./services/ipdWebSocket.service";
 import { ReminderService } from "./services/reminder.service";
@@ -302,6 +304,10 @@ app.use("/api/reminder", reminderRoute);
 app.use("/api/test", testPdfRoute);
 app.use("/api/test-whatsapp", testWhatsAppRoute);
 app.use("/api/test-reminder", testReminderRoute);
+app.use("/api/test-public", testPublicAppointmentRoute);
+
+// Public routes (no authentication required)
+app.use("/api/public", publicAppointmentRoute);
 
 app.post("/api/whatsapp", async (req, res) => {
 	try {

@@ -443,6 +443,7 @@ model Appointment {
   scheduledAt DateTime
   visitType   VisitType
   status      AppointmentStatus @default(SCHEDULED)
+  source      String?           // Track the source of appointment booking (WEBSITE, GMB, INTERNAL, etc.)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   createdBy   String? 
@@ -473,6 +474,7 @@ model Appointment {
   @@index([hospitalId])
   @@index([createdBy])
   @@index([visitId])
+  @@index([source])
 }
 
 /// — Lab order to group multiple lab tests ordered together —
