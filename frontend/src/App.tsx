@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "@/pages/Login";
+import PublicLanding from "@/pages/PublicLanding";
+import PublicAppointment from "@/pages/PublicAppointment";
+import PublicAppointmentSuccess from "@/pages/PublicAppointmentSuccess";
 import UnifiedLayout from "@/layouts/UnifiedLayout";
 import Dashboard from "@/pages/super-admin/Dashboard";
 import Hospitals from "@/pages/super-admin/Hospitals";
@@ -39,6 +42,19 @@ export default function App() {
 			<SearchProvider>
 				<Toaster />
 				<Routes>
+					{/* Public Routes */}
+					<Route
+						path="/"
+						element={<PublicLanding />}
+					/>
+					<Route
+						path="/book-appointment"
+						element={<PublicAppointment />}
+					/>
+					<Route
+						path="/appointment-success"
+						element={<PublicAppointmentSuccess />}
+					/>
 					<Route
 						path="/login"
 						element={<Login />}
@@ -324,16 +340,6 @@ export default function App() {
 						/>
 					</Route>
 
-					{/* Redirect root to login */}
-					<Route
-						path="/"
-						element={
-							<Navigate
-								to="/login"
-								replace
-							/>
-						}
-					/>
 				</Routes>
 			</SearchProvider>
 		</AuthProvider>

@@ -273,6 +273,7 @@ export interface Appointment {
     visitType: VisitType;
     status: AppointmentStatus;
     visitId?: string;
+    source?: string; // Track the source of appointment booking (WEBSITE, GMB, INTERNAL, etc.)
     patientId: string;
     doctorId: string;
     hospitalId: string;
