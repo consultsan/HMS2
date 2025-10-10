@@ -6,6 +6,7 @@ import errorHandler from "../utils/errorHandler";
 import { UhidGenerator } from "../utils/uhidGenerator";
 import { TimezoneUtil } from "../utils/timezone.util";
 import { sendAppointmentNotification } from "../services/whatsapp.service";
+import redisClient from "../utils/redisClient";
 
 const prisma = new PrismaClient();
 
@@ -94,6 +95,21 @@ export class PublicAppointmentController {
         throw new AppError("Doctor ID and date are required", 400);
       }
 
+      // Check cache first
+      const cacheKey = `slots_${doctorId}_${date}`;
+      try {
+        const cachedSlots = await redisClient.get(cacheKey);
+        if (cachedSlots) {
+          const parsedSlots = JSON.parse(cachedSlots);
+          return res.status(200).json(
+            new ApiResponse("Available slots retrieved successfully (cached)", parsedSlots)
+          );
+        }
+      } catch (cacheError) {
+        console.error("Cache read error:", cacheError);
+        // Continue with database query if cache fails
+      }
+
       // Verify doctor exists
       const doctor = await prisma.hospitalStaff.findUnique({
         where: { id: doctorId as string },
@@ -117,7 +133,7 @@ export class PublicAppointmentController {
             lte: endOfDay
           },
           status: {
-            in: ["SCHEDULED", "CONFIRMED", "PENDING"]
+            in: ["SCHEDULED", "CONFIRMED", "PENDING", "DIAGNOSED"]
           }
         },
         select: {
@@ -133,32 +149,46 @@ export class PublicAppointmentController {
 
       for (let hour = startHour; hour < endHour; hour++) {
         for (let minute = 0; minute < 60; minute += slotDuration) {
-          // Create slot time in IST
-          const slotTime = new Date(queryDate);
-          slotTime.setUTCHours(hour - 5, minute, 0, 0); // Convert IST to UTC (IST = UTC + 5:30)
+          // Create slot time in IST first, then convert to UTC for database storage
+          const slotTimeIST = new Date(queryDate);
+          slotTimeIST.setUTCHours(hour - 5, minute, 0, 0); // Convert IST to UTC (IST = UTC + 5:30)
+          
+          // Create the actual UTC time for database comparison
+          const slotTimeUTC = new Date(slotTimeIST);
 
           // Check if this slot is available
           const isBooked = existingAppointments.some(appointment => {
             const appointmentTime = new Date(appointment.scheduledAt);
-            return Math.abs(appointmentTime.getTime() - slotTime.getTime()) < 30 * 60 * 1000; // 30 minutes
+            // Check if appointment is within 15 minutes of this slot (to account for 30-min slots)
+            return Math.abs(appointmentTime.getTime() - slotTimeUTC.getTime()) < 15 * 60 * 1000;
           });
 
           if (!isBooked) {
             availableSlots.push({
-              time: TimezoneUtil.formatTimeIST(slotTime),
-              datetime: slotTime.toISOString(),
+              time: TimezoneUtil.formatTimeIST(slotTimeUTC),
+              datetime: slotTimeUTC.toISOString(),
               available: true
             });
           }
         }
       }
 
+      const responseData = {
+        doctor,
+        date: TimezoneUtil.formatDateIST(queryDate),
+        slots: availableSlots
+      };
+
+      // Cache the result for 5 minutes
+      try {
+        await redisClient.setex(cacheKey, 300, JSON.stringify(responseData)); // 5 minutes cache
+      } catch (cacheError) {
+        console.error("Cache write error:", cacheError);
+        // Continue with response even if cache fails
+      }
+
       res.status(200).json(
-        new ApiResponse("Available slots retrieved successfully", {
-          doctor,
-          date: TimezoneUtil.formatDateIST(queryDate),
-          slots: availableSlots
-        })
+        new ApiResponse("Available slots retrieved successfully", responseData)
       );
     } catch (error: any) {
       console.error("Error fetching available slots:", error);
@@ -177,7 +207,8 @@ export class PublicAppointmentController {
         hospitalId,
         doctorId,
         scheduledAt,
-        source = "WEBSITE" // Default source
+        source = "WEBSITE", // Default source
+        referralPersonName // Optional referral person name
       } = req.body;
 
       // Validate required fields
@@ -244,6 +275,7 @@ export class PublicAppointmentController {
             registrationMode: "OPD",
             registrationSource: source,
             registrationSourceDetails: `Public booking from ${source}`,
+            referralPersonName: source === "REFERRAL" ? referralPersonName : null,
             createdBy: null // Public booking, no internal user
           }
         });
@@ -293,6 +325,16 @@ export class PublicAppointmentController {
           }
         }
       });
+
+      // Clear cache for this doctor's slots to ensure real-time availability
+      try {
+        const cacheKey = `slots_${doctorId}_${new Date(scheduledAt).toISOString().split('T')[0]}`;
+        await redisClient.del(cacheKey);
+        console.log(`Cache cleared for doctor ${doctorId} on ${new Date(scheduledAt).toISOString().split('T')[0]}`);
+      } catch (cacheError) {
+        console.error("Cache clearing failed:", cacheError);
+        // Don't fail the appointment if cache clearing fails
+      }
 
       // Send WhatsApp notification
       try {

@@ -286,7 +286,8 @@ export class PatientController {
 					email,
 					registrationMode,
 					registrationSource,
-					registrationSourceDetails
+					registrationSourceDetails,
+					referralPersonName
 				} = req.body as Pick<
 					Patient,
 					| "name"
@@ -297,6 +298,7 @@ export class PatientController {
 					| "registrationMode"
 					| "registrationSource"
 					| "registrationSourceDetails"
+					| "referralPersonName"
 				>;
 				const hospitalId = req.user.hospitalId;
 				if (!hospitalId)
@@ -317,6 +319,7 @@ export class PatientController {
 					registrationMode,
 					registrationSource,
 					registrationSourceDetails,
+					referralPersonName,
 					hospitalId,
 					createdBy: userExists ? req.user.id : null // Only set if user exists in HospitalStaff
 				});

@@ -373,6 +373,7 @@ model Patient {
   registrationMode          RegistrationMode
   registrationSource        RegistrationSource
   registrationSourceDetails String?
+  referralPersonName        String? // Name of the person who referred (for REFERRAL source)
 
   maritalStatus         MaritalStatus?
   address               String?

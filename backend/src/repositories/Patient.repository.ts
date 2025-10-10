@@ -50,6 +50,7 @@ export class PatientRepository {
 			| "registrationMode"
 			| "registrationSource"
 			| "registrationSourceDetails"
+			| "referralPersonName"
 			| "hospitalId"
 			| "createdBy"
 		>
