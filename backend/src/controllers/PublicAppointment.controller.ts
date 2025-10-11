@@ -260,7 +260,22 @@ export class PublicAppointmentController {
         }
       });
       
-      console.log(`Found ${existingAppointments.length} existing appointments for doctor ${doctorId} on this date:`, existingAppointments);
+      // Check existing slots (same as staff system)
+      const existingSlots = await prisma.slot.findMany({
+        where: {
+          doctorId: doctorId as string,
+          timeSlot: {
+            gte: startOfDay,
+            lte: endOfDay
+          }
+        },
+        include: {
+          appointment1: true,
+          appointment2: true
+        }
+      });
+      
+      console.log(`Found ${existingAppointments.length} existing appointments and ${existingSlots.length} existing slots for doctor ${doctorId} on this date`);
 
       // Generate available slots based on doctor's working hours
       const availableSlots = [];
@@ -283,21 +298,45 @@ export class PublicAppointmentController {
         const shiftEndUTC = new Date(queryDate);
         shiftEndUTC.setUTCHours(endHour - 5, endMinute, 0, 0); // IST to UTC conversion
 
-        console.log(`Shift times - Start: ${shiftStartUTC.toISOString()}, End: ${shiftEndUTC.toISOString()}`);
+        // HARDCODE: Start 30 minutes earlier and end 30 minutes earlier for public appointments
+        const publicStartUTC = new Date(shiftStartUTC);
+        publicStartUTC.setUTCMinutes(publicStartUTC.getUTCMinutes() - 30); // Add 30 minutes to start
+        
+        const publicEndUTC = new Date(shiftEndUTC);
+        publicEndUTC.setUTCMinutes(publicEndUTC.getUTCMinutes() - 30); // Subtract 30 minutes from end
 
-        // Generate slots for this shift
-        const currentSlot = new Date(shiftStartUTC);
+        console.log(`Original shift times - Start: ${shiftStartUTC.toISOString()}, End: ${shiftEndUTC.toISOString()}`);
+        console.log(`Public appointment times - Start: ${publicStartUTC.toISOString()}, End: ${publicEndUTC.toISOString()}`);
+
+        // Generate slots for this shift using public times
+        const currentSlot = new Date(publicStartUTC);
         let slotCount = 0;
         
-        console.log(`Generating slots from ${currentSlot.toISOString()} to ${shiftEndUTC.toISOString()}`);
+        console.log(`Generating public slots from ${currentSlot.toISOString()} to ${publicEndUTC.toISOString()}`);
         
-        while (currentSlot < shiftEndUTC) {
-          // Check if this slot is available
-          const isBooked = existingAppointments.some(appointment => {
+        while (currentSlot < publicEndUTC) {
+          // Check if this slot is available (same logic as staff system)
+          const isBookedBySlot = existingSlots.some(slot => {
+            const slotTime = new Date(slot.timeSlot);
+            // Check if slot is within 7.5 minutes of this slot (to account for 15-min slots)
+            const timeDiff = Math.abs(slotTime.getTime() - currentSlot.getTime());
+            const isWithinSlot = timeDiff < 7.5 * 60 * 1000;
+            
+            if (isWithinSlot) {
+              // Check if slot is booked (same as staff system logic)
+              return slot.appointment1 || slot.appointment2;
+            }
+            return false;
+          });
+
+          // Also check direct appointments (for backward compatibility)
+          const isBookedByAppointment = existingAppointments.some(appointment => {
             const appointmentTime = new Date(appointment.scheduledAt);
             // Check if appointment is within 7.5 minutes of this slot (to account for 15-min slots)
             return Math.abs(appointmentTime.getTime() - currentSlot.getTime()) < 7.5 * 60 * 1000;
           });
+
+          const isBooked = isBookedBySlot || isBookedByAppointment;
 
           if (!isBooked) {
             const slotTime = TimezoneUtil.formatTimeIST(currentSlot);
@@ -473,14 +512,16 @@ export class PublicAppointmentController {
           name,
           phone,
           dob: dob ? new Date(dob) : new Date('1990-01-01'),
-          gender: gender || null,
-          hospitalId,
+          gender: gender || "OTHER", // Default to "OTHER" if not provided
+          hospital: {
+            connect: { id: hospitalId }
+          },
           uhid,
           registrationMode: "OPD",
           registrationSource: source,
           registrationSourceDetails: `Public booking from ${source}`,
-          referralPersonName: source === "REFERRAL" ? referralPersonName : null,
-          createdBy: null // Public booking, no internal user
+          referralPersonName: source === "REFERRAL" ? referralPersonName : null
+          // createdBy is omitted for public bookings (no internal user)
         }
       });
 
@@ -566,6 +607,18 @@ export class PublicAppointmentController {
 
         return appointment;
       });
+
+      // Create slot record to block the time for staff members (same as staff system)
+      console.log(`Creating slot for appointment: ${appointment.id} at time: ${scheduledAt}`);
+      const slot = await prisma.slot.create({
+        data: {
+          doctorId: doctorId,
+          timeSlot: new Date(scheduledAt),
+          appointment1Id: appointment.id,
+          appointment2Id: null // Public appointments only use appointment1
+        }
+      });
+      console.log(`Successfully created slot: ${slot.id} for appointment: ${appointment.id}`);
 
       // No Redis dependency - work like other controllers
 
