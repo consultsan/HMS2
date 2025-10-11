@@ -320,6 +320,10 @@ export class PatientRepository {
 									}
 								}
 							}
+						},
+						// Public patients (createdBy: null)
+						{
+							createdBy: null
 						}
 					]
 				},

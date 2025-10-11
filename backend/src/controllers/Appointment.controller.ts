@@ -63,6 +63,7 @@ export class AppointmentController {
 					// 1. Appointments created by themselves
 					// 2. Follow-up appointments (regardless of who created them)
 					// 3. Surgery appointments (regardless of who created them)
+					// 4. Public appointments (createdBy: null)
 					whereClause.OR = [
 						// Appointments created by this sales person
 						{
@@ -77,6 +78,10 @@ export class AppointmentController {
 							surgery: {
 								isNot: null
 							}
+						},
+						// Public appointments (createdBy: null)
+						{
+							createdBy: null
 						}
 					];
 					// Remove the direct createdBy filter since we're using OR
@@ -531,6 +536,7 @@ export class AppointmentController {
 					// 1. Appointments created by themselves
 					// 2. Follow-up appointments (regardless of who created them)
 					// 3. Surgery appointments (regardless of who created them)
+					// 4. Public appointments (createdBy: null)
 					let whereClause: any = {
 						hospitalId,
 						OR: [
@@ -547,6 +553,10 @@ export class AppointmentController {
 								surgery: {
 									isNot: null
 								}
+							},
+							// Public appointments (createdBy: null)
+							{
+								createdBy: null
 							}
 						]
 					};
@@ -834,7 +844,15 @@ export class AppointmentController {
 
 				const appointments = await prisma.appointment.findMany({
 					where: whereClause,
-					include: {
+					select: {
+						id: true,
+						visitId: true,
+						scheduledAt: true,
+						visitType: true,
+						status: true,
+						source: true, // Include source field for frontend
+						createdAt: true,
+						updatedAt: true,
 						patient: {
 							select: {
 								id: true,
