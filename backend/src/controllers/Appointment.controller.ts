@@ -102,14 +102,28 @@ export class AppointmentController {
 					}
 				});
 
+				// Convert public appointment times to IST for staff display (+5:30 hours)
+				const appointmentsWithIST = appointments.map(appointment => {
+					if (appointment.createdBy === null) {
+						// This is a public appointment - add 5:30 hours for staff display
+						const istTime = new Date(appointment.scheduledAt);
+						istTime.setUTCHours(istTime.getUTCHours() + 5, istTime.getUTCMinutes() + 30);
+						return {
+							...appointment,
+							scheduledAt: istTime
+						};
+					}
+					return appointment;
+				});
+
 				res
 					.status(200)
 					.json(
 						new ApiResponse(
-							appointments.length
+							appointmentsWithIST.length
 								? "Fetched appointments"
 								: "No appointments found",
-							appointments
+							appointmentsWithIST
 						)
 					);
 			} catch (error: any) {
@@ -604,9 +618,23 @@ export class AppointmentController {
 					});
 				}
 
+				// Convert public appointment times to IST for staff display (+5:30 hours)
+				const appointmentsWithIST = appointments.map(appointment => {
+					if (appointment.createdBy === null) {
+						// This is a public appointment - add 5:30 hours for staff display
+						const istTime = new Date(appointment.scheduledAt);
+						istTime.setUTCHours(istTime.getUTCHours() + 5, istTime.getUTCMinutes() + 30);
+						return {
+							...appointment,
+							scheduledAt: istTime
+						};
+					}
+					return appointment;
+				});
+
 				res
 					.status(200)
-					.json(new ApiResponse("Fetched appointments", appointments));
+					.json(new ApiResponse("Fetched appointments", appointmentsWithIST));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}

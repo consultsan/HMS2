@@ -300,7 +300,7 @@ export class PublicAppointmentController {
 
         // HARDCODE: Start 30 minutes earlier and end 30 minutes earlier for public appointments
         const publicStartUTC = new Date(shiftStartUTC);
-        publicStartUTC.setUTCMinutes(publicStartUTC.getUTCMinutes() - 30); // Add 30 minutes to start
+        publicStartUTC.setUTCMinutes(publicStartUTC.getUTCMinutes() - 30); // Subtract 30 minutes to start
         
         const publicEndUTC = new Date(shiftEndUTC);
         publicEndUTC.setUTCMinutes(publicEndUTC.getUTCMinutes() - 30); // Subtract 30 minutes from end
@@ -426,6 +426,13 @@ export class PublicAppointmentController {
         source,
         referralPersonName
       });
+
+      // Debug timezone handling
+      console.log(`ScheduledAt received: ${scheduledAt}`);
+      console.log(`ScheduledAt as Date: ${new Date(scheduledAt)}`);
+      console.log(`ScheduledAt ISO: ${new Date(scheduledAt).toISOString()}`);
+      console.log(`ScheduledAt UTC: ${new Date(scheduledAt).getTime()}`);
+      console.log(`ScheduledAt IST: ${new Date(scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
       // Validate required fields
       if (!name || !phone || !hospitalId || !doctorId || !scheduledAt) {
@@ -607,6 +614,11 @@ export class PublicAppointmentController {
 
         return appointment;
       });
+
+      // Debug the stored appointment time
+      console.log(`Stored appointment time: ${appointment.scheduledAt}`);
+      console.log(`Stored appointment ISO: ${appointment.scheduledAt.toISOString()}`);
+      console.log(`Stored appointment IST: ${appointment.scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
       // Create slot record to block the time for staff members (same as staff system)
       console.log(`Creating slot for appointment: ${appointment.id} at time: ${scheduledAt}`);
