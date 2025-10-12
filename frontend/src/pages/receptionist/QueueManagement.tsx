@@ -1,4 +1,4 @@
-import { Appointment } from '@/components/patient/types';
+import { Appointment } from '@/types/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
@@ -235,6 +235,7 @@ export default function QueueManagement() {
                                 <TableHead className="text-gray-700 font-medium">Doctor Name</TableHead>
                                 <TableHead className="text-gray-700 font-medium">Visit Type</TableHead>
                                 <TableHead className="text-gray-700 font-medium">Scheduled At</TableHead>
+                                <TableHead className="text-gray-700 font-medium">Booking Source</TableHead>
                                 <TableHead className="text-gray-700 font-medium">Status</TableHead>
                                 <TableHead className="text-gray-700 font-medium">Actions</TableHead>
                             </TableRow>
@@ -242,7 +243,7 @@ export default function QueueManagement() {
                         <TableBody>
                             {(!appointments || appointments.length === 0) ? (
                                 <TableRow>
-                                    <TableCell colSpan={showQueue ? 7 : 6} className="text-center py-12">
+                                    <TableCell colSpan={showQueue ? 8 : 7} className="text-center py-12">
                                         <div className="flex flex-col items-center gap-2">
                                             {showQueue ?
                                                 <Users className="h-8 w-8 text-gray-400" /> :
@@ -282,6 +283,16 @@ export default function QueueManagement() {
                                                     minute: '2-digit',
                                                     timeZone: 'UTC'
                                                 })}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                            <div className="flex items-center gap-1">
+                                                <Badge 
+                                                    variant="outline" 
+                                                    className="text-xs"
+                                                >
+                                                    {(appointment as any).source || 'INTERNAL'}
+                                                </Badge>
                                             </div>
                                         </TableCell>
                                         <TableCell>

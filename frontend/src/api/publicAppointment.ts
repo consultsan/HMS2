@@ -31,6 +31,7 @@ export interface AppointmentBookingData {
   doctorId: string;
   scheduledAt: string;
   source?: string;
+  referralPersonName?: string;
 }
 
 export interface AppointmentStatus {

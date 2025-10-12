@@ -85,7 +85,8 @@ const PublicAppointmentBooking: React.FC = () => {
         hospitalId: bookingData.hospitalId,
         doctorId: bookingData.doctorId,
         scheduledAt: bookingData.selectedSlot.datetime,
-        source: bookingData.patient.registrationSource || 'DIGITAL'
+        source: bookingData.patient.registrationSource || 'DIGITAL',
+        referralPersonName: bookingData.patient.referralPersonName
       };
       console.log(appointmentData);
 
@@ -107,7 +108,7 @@ const PublicAppointmentBooking: React.FC = () => {
             appointmentTime: new Date(appointmentResponse.scheduledAt).toLocaleTimeString('en-GB', {
               hour: '2-digit',
               minute: '2-digit',
-              timeZone: 'Asia/Kolkata'
+              timeZone: 'UTC'
             }),
             visitId: appointmentResponse.visitId
           }

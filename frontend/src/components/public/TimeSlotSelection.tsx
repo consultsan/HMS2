@@ -74,9 +74,9 @@ const TimeSlotSelection: React.FC<TimeSlotSelectionProps> = ({
       <Card className="w-full max-w-md mx-auto">
         <CardContent className="py-8">
           <div className="text-center">
-            <p className="text-red-500 mb-4">{error}</p>
-            <Button onClick={fetchAvailableSlots} variant="outline">
-              Try Again
+            <p className="text-gray-500 mb-4">No available time slots for this date.</p>
+            <Button onClick={onBack} variant="outline">
+              Back to Date Selection
             </Button>
           </div>
         </CardContent>

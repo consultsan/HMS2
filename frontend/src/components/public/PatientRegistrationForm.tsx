@@ -15,6 +15,7 @@ export interface PatientData {
   dob?: string;
   gender?: string;
   registrationSource?: string;
+  referralPersonName?: string;
 }
 
 const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onNext }) => {
@@ -24,7 +25,8 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onNex
     phone: '',
     dob: '',
     gender: '',
-    registrationSource: 'DIGITAL'
+    registrationSource: 'DIGITAL',
+    referralPersonName: ''
   });
   const [errors, setErrors] = useState<Partial<PatientData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,6 +46,11 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onNex
       newErrors.phone = 'Phone number is required';
     } else if (!/^\d{10}$/.test(formData.phone.trim())) {
       newErrors.phone = 'Phone number must be exactly 10 digits';
+    }
+
+    // Referral person name validation (only if registration source is REFERRAL)
+    if (formData.registrationSource === 'REFERRAL' && !formData.referralPersonName?.trim()) {
+      newErrors.referralPersonName = 'Referral person name is required';
     }
 
     setErrors(newErrors);
@@ -160,6 +167,24 @@ const PatientRegistrationForm: React.FC<PatientRegistrationFormProps> = ({ onNex
               </SelectContent>
             </Select>
           </div>
+
+          {/* Referral Person Name Field - Only show if REFERRAL is selected */}
+          {formData.registrationSource === 'REFERRAL' && (
+            <div className="space-y-2">
+              <Label htmlFor="referralPersonName">Referral Person Name *</Label>
+              <Input
+                id="referralPersonName"
+                type="text"
+                value={formData.referralPersonName || ''}
+                onChange={(e) => handleInputChange('referralPersonName', e.target.value)}
+                placeholder="Enter the name of the person who referred you"
+                className={errors.referralPersonName ? 'border-red-500' : ''}
+              />
+              {errors.referralPersonName && (
+                <p className="text-sm text-red-500">{errors.referralPersonName}</p>
+              )}
+            </div>
+          )}
 
           <Button 
             type="submit" 
