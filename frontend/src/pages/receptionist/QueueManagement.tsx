@@ -137,7 +137,7 @@ export default function QueueManagement() {
     // Filter appointments
     const confirmedAppointments = filteredAppointments?.filter((appointment: Appointment) =>
         appointment.status === 'CONFIRMED' &&
-        (selectedDoctor === appointment.doctor.id)
+        (selectedDoctor === appointment.doctor?.id)
     );
 
     const todayScheduledAppointments = filteredAppointments?.filter((appointment: Appointment) =>
@@ -269,8 +269,8 @@ export default function QueueManagement() {
                                                 #{confirmedQueueMap.get(appointment.id)}
                                             </TableCell>
                                         )}
-                                        <TableCell className="font-medium text-gray-900">{appointment.patient.name}</TableCell>
-                                        <TableCell className="text-gray-700">{appointment.doctor.name}</TableCell>
+                                        <TableCell className="font-medium text-gray-900">{appointment.patient?.name || 'N/A'}</TableCell>
+                                        <TableCell className="text-gray-700">{appointment.doctor?.name || 'N/A'}</TableCell>
                                         <TableCell className="text-gray-700">{appointment.visitType}</TableCell>
                                         <TableCell className="text-gray-600">
                                             <div className="flex items-center gap-1">
