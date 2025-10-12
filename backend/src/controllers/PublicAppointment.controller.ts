@@ -363,6 +363,9 @@ export class PublicAppointmentController {
             source: source,
             vitals: {
               create: []
+            },
+            attachments: { 
+              create: [] 
             }
           }
         });
