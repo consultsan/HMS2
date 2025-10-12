@@ -29,13 +29,13 @@ import ShiftsCalendar from '../../components/shifts/ShiftsCalender';
 export default function ShiftManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [, ] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [, setSelectedStaffId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { searchQuery } = useSearch();
 
-  const { data: shifts, isLoading: isShiftsLoading } = useQuery<Shift[]>({
+  const { isLoading: isShiftsLoading } = useQuery<Shift[]>({
     queryKey: ['hospital-shifts'],
     queryFn: hospitalAdminApi.getShifts,
   });

@@ -1,5 +1,5 @@
 import React from "react";
-import { Stethoscope, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface DiagnosisProps {
     value: string;

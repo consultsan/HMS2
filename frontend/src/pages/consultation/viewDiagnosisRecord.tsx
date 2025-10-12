@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 
 export default function ViewDiagnosisRecordButton({ appointmentId }: { appointmentId: string }) {
-    const [loading, setLoading] = useState(false);
+    const [loading] = useState(false);
     return (
         <>
             <Link

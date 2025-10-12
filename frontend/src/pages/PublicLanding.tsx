@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, Stethoscope, Clock, Shield, Heart } from 'lucide-react';
+import { Calendar, Users, Stethoscope, Clock, Shield } from 'lucide-react';
 
 const PublicLanding: React.FC = () => {
   return (

@@ -98,7 +98,7 @@ const TemplateForm = ({ mode, initialData, onSubmit, onCancel, isSubmitting }: T
     const [searchQuery, setSearchQuery] = useState('');
     const [showTestDropdown, setShowTestDropdown] = useState(false);
 
-    const { data: allTests = [], isLoading: isTestsLoading } = useQuery<LabTest[]>({
+    const { data: allTests = [] } = useQuery<LabTest[]>({
         queryKey: ['lab-tests'],
         queryFn: async () => {
             const response = await labApi.getLabTests();

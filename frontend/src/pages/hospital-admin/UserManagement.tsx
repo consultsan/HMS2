@@ -74,7 +74,7 @@ export default function UserManagement() {
   const updateStaffMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<StaffFormData> }) =>
       hospitalAdminApi.updateStaff(id, data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospital-staff'] });
       setIsEditDialogOpen(false);
       toast.success('Staff member updated successfully');

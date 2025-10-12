@@ -1,10 +1,8 @@
 import { api } from '@/lib/api';
 import {
-    Payment,
     PaymentCreateData,
     PaymentStatus,
-    PaymentMethod,
-    PaymentStats
+    PaymentMethod
 } from '@/types/types';
 
 export const paymentApi = {

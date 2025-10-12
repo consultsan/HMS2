@@ -9,7 +9,7 @@ import { superAdminApi, Hospital } from '../api/superAdmin';
 interface HospitalFormData {
   name: string;
   address: string;
-  phone: string;
+  contactNumber: string;
   email: string;
 }
 
@@ -152,7 +152,7 @@ export default function Hospitals() {
                           {hospital.address}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {hospital.phone}
+                          {hospital.contactNumber}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {hospital.email}
@@ -238,11 +238,11 @@ export default function Hospitals() {
                 </label>
                 <input
                   type="tel"
-                  {...register('phone', { required: 'Phone is required' })}
+                  {...register('contactNumber', { required: 'Contact number is required' })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
-                {errors.phone && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+                {errors.contactNumber && (
+                  <p className="mt-1 text-sm text-red-600">{errors.contactNumber.message}</p>
                 )}
               </div>
 

@@ -348,6 +348,7 @@ export class IPDRepository {
 		try {
 			const vitalData = vitals.map(vital => ({
 				...vital,
+				type: vital.type as any,
 				visitId
 			}));
 

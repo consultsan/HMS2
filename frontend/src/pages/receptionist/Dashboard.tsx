@@ -9,7 +9,7 @@ interface KPIs {
 }
 
 export default function ReceptionistDashboard() {
-  const { data: kpis, isLoading } = useQuery<KPIs>({
+  const { isLoading } = useQuery<KPIs>({
     queryKey: ['receptionist-kpis'],
     queryFn: async () => {
       // const response = await api.get('/api/receptionist/kpis');

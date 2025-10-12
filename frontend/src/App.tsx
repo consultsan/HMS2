@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Login from "@/pages/Login";
@@ -35,6 +35,11 @@ import TestFromDoctors from "./pages/lab/TestFromDoctors";
 import CreateLabTest from "./pages/lab/CreateLabTest";
 import CreateLabTestAppointment from "./pages/receptionist/CreateLabTestAppointment";
 import PendingLabBills from "./pages/receptionist/PendingLabBills";
+
+function PatientDetailsWrapper() {
+	const { patientId } = useParams<{ patientId: string }>();
+	return <PatientDetails patientId={patientId!} />;
+}
 
 export default function App() {
 	return (
@@ -154,7 +159,7 @@ export default function App() {
 									"DOCTOR"
 								]}
 							>
-								<PatientDetails />
+								<PatientDetailsWrapper />
 							</ProtectedRoute>
 						}
 					/>

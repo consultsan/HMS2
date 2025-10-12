@@ -1,11 +1,9 @@
 import { api } from '@/lib/api';
 import {
     Patient, FamilyLink, VitalsData, PatientUpdateData,
-    PatientCreateData, DocumentUploadData, FamilyLinkCreateData,
-    PatientDoc,
+    PatientCreateData, FamilyLinkCreateData,
     PatientDocument
 } from '@/types/types';
-import { get } from 'lodash';
 
 
 

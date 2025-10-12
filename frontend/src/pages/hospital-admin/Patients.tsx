@@ -56,7 +56,7 @@ export default function Patients() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [searchValue, setSearchValue] = useState('');
-  const [searchResult, setSearchResult] = useState<Patient | null>(null);
+  const [, setSearchResult] = useState<Patient | null>(null);
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');

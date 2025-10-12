@@ -41,8 +41,8 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
             timeZone: 'UTC'
         });
     });
-    const [selectedSlotId, setSelectedSlotId] = useState<string>("");
-    const [partiallyBooked, setPartiallyBooked] = useState(false);
+    const [, setSelectedSlotId] = useState<string>("");
+    const [, setPartiallyBooked] = useState(false);
 
     const queryClient = useQueryClient();
 

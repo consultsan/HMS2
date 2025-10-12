@@ -1,5 +1,5 @@
 import { Appointment } from '@/components/patient/types';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
     Table,

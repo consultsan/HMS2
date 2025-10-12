@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import { labApi } from '@/api/lab';
 import { Button } from "@/components/ui/button";
-import { Eye, ArrowLeft, Clock, CheckCircle, AlertCircle, Download, FileText, ExternalLink, Handshake } from "lucide-react";
+import { Eye, ArrowLeft, Clock, CheckCircle, AlertCircle, Download, FileText } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -464,7 +464,7 @@ function DiagnosisRecord() {
                             <span className="font-medium text-gray-700 w-32">Surgical Status:</span>
                             <span className="text-gray-900">
                                 {surgicalInfo && surgicalInfo.length > 0 && surgicalInfo[0].status !== 'NOT_REQUIRED'
-                                    ? surgicalInfo.map((surgery: any, index: number) => (
+                                    ? surgicalInfo.map((surgery: any) => (
                                         `${surgery.category} - ${surgery.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'}${surgery.scheduledAt ? ` (${format(new Date(surgery.scheduledAt), 'dd MMM yyyy')})` : ''}`
                                     )).join(', ')
                                     : 'Non-Surgical Treatment'

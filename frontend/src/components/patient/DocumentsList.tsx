@@ -18,7 +18,6 @@ interface DocumentsListProps {
 }
 
 export function DocumentsList({
-    backendBaseUrl,
     patientId,
     onDocumentsUpdate,
     maxFileSize = 10,

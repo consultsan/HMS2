@@ -6,11 +6,11 @@ interface NotesProps {
     onChange: (value: string) => void;
 }
 
-interface Note {
-    id: number;
-    content: string;
-    timestamp: Date;
-}
+// interface Note {
+//     id: number;
+//     content: string;
+//     timestamp: Date;
+// }
 
 // Common note templates that doctors frequently use
 const noteTemplates = [
@@ -46,31 +46,31 @@ const Notes: React.FC<NotesProps> = ({ value, onChange }) => {
         onChange(template);
     };
 
-    const handleSaveNote = () => {
-        if (value.trim()) {
-            const newNote: Note = {
-                id: Date.now(),
-                content: value,
-                timestamp: new Date()
-            };
-            // Logic to save the note
-            onChange('');
-        }
-    };
+    // const handleSaveNote = () => {
+    //     if (value.trim()) {
+    //         const newNote: Note = {
+    //             id: Date.now(),
+    //             content: value,
+    //             timestamp: new Date()
+    //         };
+    //         // Logic to save the note
+    //         onChange('');
+    //     }
+    // };
 
-    const handleDeleteNote = (noteId: number) => {
-        // Logic to delete the note
-    };
+    // const handleDeleteNote = (noteId: number) => {
+    //     // Logic to delete the note
+    // };
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    // const formatDate = (date: Date) => {
+    //     return date.toLocaleString('en-US', {
+    //         year: 'numeric',
+    //         month: 'short',
+    //         day: 'numeric',
+    //         hour: '2-digit',
+    //         minute: '2-digit'
+    //     });
+    // };
 
     return (
         <div className="space-y-6">

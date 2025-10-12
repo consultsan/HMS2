@@ -27,12 +27,6 @@ interface ShiftsCalendarProps {
     userName?: string;
 }
 
-interface EditingShift {
-    id?: string;
-    day: WeekDay;
-    startTime: string;
-    endTime: string;
-}
 
 // Helper function to get day color
 const getDayColor = (day: WeekDay) => {
@@ -144,8 +138,8 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
             });
             setEditingDay(null);
         },
-        onError: (error) => {
-            console.error('Error creating shift:', error);
+        onError: () => {
+            console.error('Error creating shift');
             toast({
                 title: "Error",
                 description: "Failed to create shift",
@@ -181,8 +175,8 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                 staffId: userId
             });
         },
-        onError: (error) => {
-            console.error('Error creating temp shift:', error);
+        onError: () => {
+            console.error('Error creating temp shift');
             toast({
                 title: "Error",
                 description: "Failed to create temporary shift. Please try again.",
@@ -202,7 +196,7 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
             });
             setEditingDay(null);
         },
-        onError: (error) => {
+        onError: () => {
             toast({
                 title: "Error",
                 description: "Failed to update shift",
@@ -220,7 +214,7 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                 description: "Shift deleted successfully",
             });
         },
-        onError: (error) => {
+        onError: () => {
             toast({
                 title: "Error",
                 description: "Failed to delete shift",
@@ -238,8 +232,8 @@ export default function ShiftsCalendar({ userId, userName }: ShiftsCalendarProps
                 description: "Temporary shift deleted successfully",
             });
         },
-        onError: (error) => {
-            console.error('Error deleting temp shift:', error);
+        onError: () => {
+            console.error('Error deleting temp shift');
             toast({
                 title: "Error",
                 description: "Failed to delete temporary shift",

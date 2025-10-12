@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { labApi } from '@/api/lab';
 import { toast } from 'sonner';
 import { FormDialog } from '@/components/ui/form-dialog';
@@ -41,7 +40,7 @@ export default function CreateLabTest() {
     const [isParametersDialogOpen, setIsParametersDialogOpen] = useState(false);
     const [selectedTest, setSelectedTest] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const { searchQuery, setSearchQuery } = useSearch();
+    const { searchQuery } = useSearch();
     const [formData, setFormData] = useState<LabTestFormData>({
         code: '',
         name: '',

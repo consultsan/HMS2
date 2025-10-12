@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,7 +122,7 @@ export default function CreateLabOrderBill({
         if (!labOrder?.billId) {
             // If no billId in labOrder, try to find the bill by lab order
             try {
-                const response = await billingApi.getBillsByHospital({
+                await billingApi.getBillsByHospital({
                     // Add any relevant filters to find the bill for this lab order
                 });
 

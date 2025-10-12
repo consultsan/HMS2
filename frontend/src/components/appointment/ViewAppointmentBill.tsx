@@ -8,12 +8,12 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, IndianRupee, User, Stethoscope, Receipt, FlaskConical, Clock, CheckCircle, CreditCard, Wallet, Download, CodeSquare } from "lucide-react";
+import { Loader2, User, Receipt, FlaskConical, Clock, CheckCircle, CreditCard, Wallet, Download } from "lucide-react";
 import { toast } from 'sonner';
 import { billingApi } from "@/api/billing";
 import { labApi } from "@/api/lab";
 import { paymentApi } from "@/api/payment";
-import { Bill, BillStatus, PaymentStatus, BillType, LabTestStatus, PaymentMethod, PaymentCreateData, AppointmentStatus } from "@/types/types";
+import { BillStatus, PaymentStatus, BillType, LabTestStatus, PaymentMethod, PaymentCreateData } from "@/types/types";
 import { formatDate } from "@/utils/dateUtils";
 
 interface ViewAppointmentBillProps {
@@ -297,7 +297,7 @@ export default function ViewAppointmentBill({
             toast.error('No bill found');
             return;
         }
-        const finalPrice = calculateFinalPrice(labTest);
+        calculateFinalPrice(labTest);
         const basePrice = labTest.labTest.charge;
         const discountAmount = calculateDiscountAmount(labTest);
 

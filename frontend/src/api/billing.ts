@@ -1,8 +1,5 @@
 import { api } from '@/lib/api';
 import {
-    Bill,
-    BillItem,
-    Payment,
     Insurance,
     Discount,
     BillCreateData,
@@ -10,8 +7,6 @@ import {
     PaymentCreateData,
     InsuranceCreateData,
     DiscountCreateData,
-    BillingStats,
-    PaymentStats,
     BillStatus,
     PaymentStatus
 } from '@/types/types';

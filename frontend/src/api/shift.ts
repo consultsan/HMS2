@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { Shift, Status, TempShift } from '@/types/types';
+import { Shift, TempShift } from '@/types/types';
 
 export const shiftApi = {
     // Get all staff shifts for a hospital

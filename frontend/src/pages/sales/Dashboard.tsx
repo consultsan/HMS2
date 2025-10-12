@@ -1,7 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserGroupIcon, ChartBarIcon, CurrencyDollarIcon, UserIcon } from '@heroicons/react/24/outline';
 import Patients from '../hospital-admin/Patients';
 
 

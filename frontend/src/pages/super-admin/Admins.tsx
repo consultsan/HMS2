@@ -113,19 +113,19 @@ export default function Admins() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/super-admin/admin/delete/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admins'] });
-      toast.success('Admin deleted successfully');
-    },
-    onError: (error) => {
-      toast.error('Failed to delete admin');
-      console.error('Error deleting admin:', error);
-    },
-  });
+  // const deleteMutation = useMutation({
+  //   mutationFn: async (id: string) => {
+  //     await api.delete(`/api/super-admin/admin/delete/${id}`);
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ['admins'] });
+  //     toast.success('Admin deleted successfully');
+  //   },
+  //   onError: (error) => {
+  //     toast.error('Failed to delete admin');
+  //     console.error('Error deleting admin:', error);
+  //   },
+  // });
 
   const handleAddSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

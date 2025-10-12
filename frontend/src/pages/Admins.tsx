@@ -7,9 +7,9 @@ import toast from 'react-hot-toast';
 import { superAdminApi, Admin } from '../api/superAdmin';
 
 interface AdminFormData {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
+  password: string;
   hospitalId: string;
 }
 
@@ -150,13 +150,13 @@ export default function Admins() {
                     {admins?.map((admin) => (
                       <tr key={admin.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {`${admin.firstName} ${admin.lastName}`}
+                          {admin.name}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {admin.email}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {hospitals?.find(h => h.id === admin.hospitalId)?.name || 'Unknown'}
+                          {admin.hospital.name}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <span
@@ -212,11 +212,11 @@ export default function Admins() {
                 </label>
                 <input
                   type="text"
-                  {...register('firstName', { required: 'First name is required' })}
+                  {...register('name', { required: 'Name is required' })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
                 )}
               </div>
 
@@ -226,11 +226,11 @@ export default function Admins() {
                 </label>
                 <input
                   type="text"
-                  {...register('lastName', { required: 'Last name is required' })}
+                  {...register('password', { required: 'Password is required' })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
               </div>
 

@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
-import { useMutation, UseMutationResult, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { labApi } from "@/api/lab";
 import { patientApi } from "@/api/patient";
 import { Patient } from "@/types/types";
@@ -36,7 +35,7 @@ export default function CreateLabOrderDialog({
     const [urgentOrder, setUrgentOrder] = useState<boolean>(false);
     const [batchPatientSearchQuery, setBatchPatientSearchQuery] = useState('');
 
-    const { data: patients, isLoading } = useQuery<Patient[]>({
+    const { data: patients } = useQuery<Patient[]>({
         queryKey: ['hospital-patients'],
         queryFn: async () => {
             const response = await patientApi.getAllPatients();

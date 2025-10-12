@@ -121,7 +121,7 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {combinedResults.map((result: any, index: number) => {
+                                    {combinedResults.map((result: any) => {
                                         const parameter = result.parameter;
                                         const value = result.value ? parseFloat(result.value) : null;
                                         const status = value !== null && !isNaN(value) ? getStatusText(value, parameter?.lowerLimit, parameter?.upperLimit) : 'N/A';

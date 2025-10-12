@@ -6,12 +6,12 @@ import { format } from 'date-fns';
 import {
   Users,
   Calendar,
-  TrendingUp,
+  // TrendingUp,
   IndianRupee,
-  Activity,
+  // Activity,
   UserCheck,
   Building2,
-  User,
+  // User,
   BadgeIndianRupee
 } from 'lucide-react';
 
@@ -64,7 +64,7 @@ export default function Dashboard() {
 
 
 
-  const { data: kpis, isLoading, error } = useQuery<SuperAdminKpis>({
+  const { data: kpis, isLoading } = useQuery<SuperAdminKpis>({
     queryKey: [
       'hospital-admin-kpis',
       startDate?.toISOString() ?? 'today',

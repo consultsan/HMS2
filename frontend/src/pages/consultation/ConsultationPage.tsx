@@ -1,7 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect } from 'react'
-import { useParams, useNavigate, Await } from 'react-router-dom';
-import { Patient } from './interfaces/PatinetInterface'
+import { useParams, useNavigate } from 'react-router-dom';
 import PatientBasicDetails from './PatientBasicDetails';
 import PrescriptionSection from './PrescriptionSection';
 import FollowUpSection from './FollowUpSection';
@@ -230,7 +229,7 @@ function ConsultationPage() {
         }
     }
     const [existingDiagnosis, setExistingDiagnosis] = useState<any>(null);
-    const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(true);
+    const [, setIsDiagnosisLoading] = useState(true);
 
     useEffect(() => {
         const fetchDiagnosis = async () => {

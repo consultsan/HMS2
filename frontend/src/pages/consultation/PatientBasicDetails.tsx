@@ -13,7 +13,7 @@ function PatientBasicDetails({ patientId }: { patientId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { data: patient, isLoading: isPatientLoading } = useQuery<Patient>({
+  const { data: patient } = useQuery<Patient>({
     queryKey: ['patient-details', patientId],
     queryFn: async () => {
       const response = await patientApi.getPatientById(patientId);

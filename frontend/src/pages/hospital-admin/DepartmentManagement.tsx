@@ -23,7 +23,7 @@ import { hospitalAdminApi } from '@/api/hospitalAdmin';
 import { Department } from '@/types/types';
 
 export default function DepartmentManagement() {
-    const { searchQuery, setSearchQuery } = useSearch();
+    const { searchQuery } = useSearch();
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [departmentName, setDepartmentName] = useState('');
     const [departmentDescription, setDepartmentDescription] = useState('');

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Calendar, Clock, User, MapPin, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Stethoscope } from 'lucide-react';
 import { publicAppointmentApi, AppointmentBookingData, AvailableSlot } from '@/api/publicAppointment';
 import { format } from 'date-fns';
 import PublicHeader from './PublicHeader';

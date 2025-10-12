@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearch } from '@/contexts/SearchContext';
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState } from 'react';
 import { Appointment, AppointmentStatus } from '@/types/types';
@@ -53,7 +53,7 @@ function Appointments() {
   });
 
   // Handle consultation start
-  const handleStartConsultation = (patientId: string, appointmentId: string) => {
+  const handleStartConsultation = () => {
     // Set up a one-time check after expected consultation completion
     setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ['appointments', user?.id, date] });
@@ -139,7 +139,7 @@ function Appointments() {
                           className="inline-flex"
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={() => handleStartConsultation(appointment.patient?.id || '', appointment.id)}
+                          onClick={() => handleStartConsultation()}
                         >
                           <Button
                             variant="outline"

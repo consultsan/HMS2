@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DoctorSlots from "@/components/DoctorSlots";
 import { surgeriesBySpecialisation } from '@/constants/doctorSpecialization';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface FollowUpData {
     followUpDays: number;
@@ -27,19 +26,19 @@ interface FollowUpSectionProps {
 }
 
 // Common surgery categories
-const SURGERY_CATEGORIES = [
-    'General Surgery',
-    'Orthopedic Surgery',
-    'Cardiac Surgery',
-    'Neurosurgery',
-    'ENT Surgery',
-    'Ophthalmologic Surgery',
-    'Gynecologic Surgery',
-    'Urologic Surgery',
-    'Plastic Surgery',
-    'Dental Surgery',
-    'Other'
-] as const;
+// const SURGERY_CATEGORIES = [
+//     'General Surgery',
+//     'Orthopedic Surgery',
+//     'Cardiac Surgery',
+//     'Neurosurgery',
+//     'ENT Surgery',
+//     'Ophthalmologic Surgery',
+//     'Gynecologic Surgery',
+//     'Urologic Surgery',
+//     'Plastic Surgery',
+//     'Dental Surgery',
+//     'Other'
+// ] as const;
 
 
 
@@ -62,7 +61,7 @@ const FollowUpSection: React.FC<FollowUpSectionProps> = ({ doctorId, doctorDept,
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showSurgeryDropdown, setShowSurgeryDropdown] = useState(false);
-    const queryClient = useQueryClient();
+    // const queryClient = useQueryClient();
 
     // Ref for dropdown click-outside detection
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -130,7 +129,7 @@ const FollowUpSection: React.FC<FollowUpSectionProps> = ({ doctorId, doctorDept,
         });
     };
 
-    const handleSlotSelect = (time: string, slotId: string, isPartiallyBooked: boolean) => {
+    const handleSlotSelect = (time: string, slotId: string) => {
         setFollowUpData({
             ...followUpData,
             selectedTimeSlot: time,

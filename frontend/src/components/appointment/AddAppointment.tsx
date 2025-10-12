@@ -20,11 +20,8 @@ import {
 import { Search, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
-import { billingApi } from "@/api/billing";
 import { HospitalStaff, VisitType } from "@/types/types";
 import { appointmentApi } from "@/api/appointment";
-import { notificationApi } from "@/api/notification";
-import { toArray } from "lodash";
 
 interface Patient {
     id: string;

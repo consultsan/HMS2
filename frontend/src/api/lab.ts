@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { LabTest, LabTestParameter, AppointmentLabTest, AppointmentLabTestResult, LabOrder, LabOrderStatus } from '@/types/types';
+import { LabTest, LabTestParameter, AppointmentLabTest, AppointmentLabTestResult, LabOrderStatus } from '@/types/types';
 
 export const labApi = {
     // Lab Test APIs
