@@ -102,28 +102,15 @@ export class AppointmentController {
 					}
 				});
 
-				// Convert public appointment times to IST for staff display (+5:30 hours)
-				const appointmentsWithIST = appointments.map(appointment => {
-					if (appointment.createdBy === null) {
-						// This is a public appointment - add 5:30 hours for staff display
-						const istTime = new Date(appointment.scheduledAt);
-						istTime.setUTCHours(istTime.getUTCHours() + 5, istTime.getUTCMinutes() + 30);
-						return {
-							...appointment,
-							scheduledAt: istTime
-						};
-					}
-					return appointment;
-				});
-
+				// No time conversion needed - both staff and public use same logic
 				res
 					.status(200)
 					.json(
 						new ApiResponse(
-							appointmentsWithIST.length
+							appointments.length
 								? "Fetched appointments"
 								: "No appointments found",
-							appointmentsWithIST
+							appointments
 						)
 					);
 			} catch (error: any) {
@@ -320,9 +307,13 @@ export class AppointmentController {
 					patientId: data.patientId
 				};
 
-				// Sales person can only see appointments created by themselves
+				// Sales person can see appointments created by themselves and public appointments
 				if (req.user.role === "SALES_PERSON") {
-					whereClause.createdBy = req.user.id;
+					whereClause.OR = [
+						{ createdBy: req.user.id },
+						{ createdBy: null } // Public appointments
+					];
+					delete whereClause.createdBy;
 				}
 
 				const appointments = await prisma.appointment.findMany({
@@ -618,23 +609,10 @@ export class AppointmentController {
 					});
 				}
 
-				// Convert public appointment times to IST for staff display (+5:30 hours)
-				const appointmentsWithIST = appointments.map(appointment => {
-					if (appointment.createdBy === null) {
-						// This is a public appointment - add 5:30 hours for staff display
-						const istTime = new Date(appointment.scheduledAt);
-						istTime.setUTCHours(istTime.getUTCHours() + 5, istTime.getUTCMinutes() + 30);
-						return {
-							...appointment,
-							scheduledAt: istTime
-						};
-					}
-					return appointment;
-				});
-
+				// No time conversion needed - both staff and public use same logic
 				res
 					.status(200)
-					.json(new ApiResponse("Fetched appointments", appointmentsWithIST));
+					.json(new ApiResponse("Fetched appointments", appointments));
 			} catch (error: any) {
 				errorHandler(error, res);
 			}
@@ -651,10 +629,13 @@ export class AppointmentController {
 
 				// Role-based appointment filtering
 				if (role === "SALES_PERSON") {
-					// Sales person can only see appointments created by themselves
+					// Sales person can see appointments created by themselves and public appointments
 					appointments = await prisma.appointment.findMany({
 						where: {
-							createdBy: userId // Only appointments created by this sales person
+							OR: [
+								{ createdBy: userId }, // Appointments created by this sales person
+								{ createdBy: null }    // Public appointments
+							]
 						},
 						orderBy: {
 							scheduledAt: "desc"
@@ -747,7 +728,10 @@ export class AppointmentController {
 				try {
 					const appointments = await prisma.appointment.findMany({
 						where: {
-							createdBy: userId,
+							OR: [
+								{ createdBy: userId }, // Appointments created by this user
+								{ createdBy: null }   // Public appointments
+							],
 							scheduledAt: {
 								gte: startOfDay,
 								lte: endOfDay
@@ -865,9 +849,13 @@ export class AppointmentController {
 					}
 				};
 
-				// Sales person can only see appointments created by themselves
+				// Sales person can see appointments created by themselves and public appointments
 				if (req.user.role === "SALES_PERSON") {
-					whereClause.createdBy = req.user.id;
+					whereClause.OR = [
+						{ createdBy: req.user.id },
+						{ createdBy: null } // Public appointments
+					];
+					delete whereClause.createdBy;
 				}
 
 				const appointments = await prisma.appointment.findMany({
