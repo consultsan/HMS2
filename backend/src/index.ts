@@ -39,22 +39,10 @@ const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
 const http_port = Number(process.env.HTTP_PORT);
 
-// CORS configuration
-const allowedOrigins = [
-	frontendOrigin,
-	`http://localhost:${http_port}`,
-	"http://localhost:5173" // Add Vite's default development server port
-];
-
+// CORS configuration - Allow all origins with credentials
 app.use(
 	cors({
-		origin: (origin, callback) => {
-			if (!origin || allowedOrigins.includes(origin)) {
-				callback(null, true);
-			} else {
-				callback(new Error("Not allowed by CORS"));
-			}
-		},
+		origin: true, // Allow all origins dynamically
 		methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
 		allowedHeaders: [
 			"Content-Type",
@@ -64,7 +52,7 @@ app.use(
 			"Origin"
 		],
 		exposedHeaders: ["Set-Cookie", "Access-Control-Allow-Origin"],
-		credentials: true,
+		credentials: true, // Allow credentials
 		preflightContinue: false,
 		optionsSuccessStatus: 204
 	})
