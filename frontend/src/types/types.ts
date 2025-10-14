@@ -290,6 +290,19 @@ export interface Appointment {
     bills?: Bill[];
 }
 
+export interface AppointmentBookingRequest {
+    patientId: string;
+    doctorId: string;
+    visitType: VisitType;
+    scheduledAt: Date;
+    status?: AppointmentStatus;
+    hospitalId?: string;
+    slotData?: {
+        partiallyBooked: boolean;
+        selectedSlotId?: string;
+    };
+}
+
 export interface DiagnosisRecord {
     id: string;
     diagnosis: string;
