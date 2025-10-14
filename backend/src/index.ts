@@ -13,7 +13,6 @@ import WebSocket, { WebSocketServer } from "ws";
 import { v4 as uuid } from "uuid";
 import redisService from "./utils/redisClient";
 import { authMiddleware } from "./middleware/auth.middleware";
-import cookieParser from "cookie-parser";
 import login from "./services/login.service";
 import diagnosisRoute from "./routes/diagnosis.route";
 import labRoute from "./routes/lab.route";
@@ -60,7 +59,6 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
 interface Socket extends WebSocket {
 	id: string;

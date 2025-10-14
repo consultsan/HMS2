@@ -16,10 +16,10 @@ export const authMiddleware = (
 	res: Response,
 	next: NextFunction
 ) => {
-	const { accessToken } = req.cookies;
-	if (accessToken) {
-		// have access token
-		const obj = new Token().decrypt(accessToken);
+	const authHeader = req.headers.authorization;
+	if (authHeader && authHeader.startsWith('Bearer ')) {
+		const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+		const obj = new Token().decrypt(token);
 		if (obj) {
 			// have valid access token
 			req.user = obj;

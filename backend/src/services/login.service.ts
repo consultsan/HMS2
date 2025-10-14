@@ -46,12 +46,6 @@ const login = async (req: Request, res: Response) => {
 			role: user.role,
 			hospitalId: user.hospitalId || undefined
 		});
-		res.cookie("accessToken", token, {
-			httpOnly: true,
-			sameSite: "strict",
-			path: "/",
-			maxAge: 2 * 60 * 60 * 1000
-		});
 		res.status(200).json(new ApiResponse("Login successful", { token, user }));
 	} catch (error: any) {
 		console.error("Login error:", error);

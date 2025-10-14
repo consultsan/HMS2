@@ -49,10 +49,11 @@ export class SlotController {
                 res.status(201).json(new ApiResponse("Slot created successfully", slot));
             } catch (error: any) {
                 console.error("Create slot error:", error);
-                res.status(error.code || 500)
+                res.status(500)
                     .json(new ApiResponse(error.message || "Internal Server Error"));
             }
         } else {
+            console.log(req.user,req.user?.role);
             res.status(403).json(new ApiResponse("Unauthorized access"));
         }
     }

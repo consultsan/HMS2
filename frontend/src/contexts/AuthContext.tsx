@@ -100,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		// Listen for localStorage changes from other tabs/windows
 		const handleStorageChange = (event: StorageEvent) => {
-			if (event.key === "accessToken" || event.key === "user") {
-				const token = localStorage.getItem("accessToken");
+			if (event.key === "token" || event.key === "user") {
+				const token = localStorage.getItem("token");
 				const userData = localStorage.getItem("user");
 
 				if (!token || !userData) {

@@ -20,8 +20,6 @@ export default function Login() {
       const response = await api.post('/api/login', {
         email,
         password
-      }, {
-        withCredentials: true
       });
 
       const { token, user } = response.data.data;
