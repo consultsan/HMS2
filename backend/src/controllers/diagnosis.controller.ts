@@ -219,7 +219,7 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 						notes,
 						appointmentId,
 						followUpAppointmentId,
-						createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+						// createdBy field not available in DiagnosisRecord model
 					}
 				});
 

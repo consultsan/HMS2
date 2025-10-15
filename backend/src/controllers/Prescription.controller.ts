@@ -87,8 +87,7 @@ export class PrescriptionController {
           contraindications,
           sideEffects,
           warnings,
-          hospitalId,
-          createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+          // hospitalId and createdBy fields not available in Drug model
         });
 
         res.status(201).json(new ApiResponse('Drug created successfully', drug));

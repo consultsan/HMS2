@@ -41,7 +41,7 @@ export class HospitalStaffController {
 				const staff = await this.staffRepo.create({ 
 					...body, 
 					hospitalId,
-					createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+					// createdBy field not available in HospitalStaff model
 				});
 
 				res.status(201).json(new ApiResponse("Staff created successfully", staff));

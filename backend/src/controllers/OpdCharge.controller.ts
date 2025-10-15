@@ -48,7 +48,7 @@ export class OpdChargeController {
 
 				const opdCharge = await this.opdChargeRepo.create({
 					...data,
-					createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+					// createdBy field not available in OpdCharge model
 				});
 
 				res.status(201).json(new ApiResponse("OPD Charge created successfully", opdCharge));

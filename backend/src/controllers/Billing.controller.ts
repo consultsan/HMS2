@@ -16,8 +16,7 @@ const roles: string[] = [
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.DOCTOR,
 	UserRole.RECEPTIONIST,
-	UserRole.SALES_PERSON,
-	UserRole.FINANCE_MANAGER
+	UserRole.SALES_PERSON
 ];
 
 export class BillingController {
@@ -180,7 +179,7 @@ export class BillingController {
 					billDate: billDate ? new Date(billDate) : new Date(),
 					dueDate: dueDate ? new Date(dueDate) : new Date(),
 					notes,
-					createdBy: userExists ? req.user.id : null, // Same pattern as patient creation
+					// createdBy field not available in Bill model
 					billItems: {
 						create: billItems
 					}

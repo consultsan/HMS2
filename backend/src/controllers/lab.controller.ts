@@ -43,8 +43,7 @@ const createLabTest = async (req: Request, res: Response) => {
 					description,
 					charge,
 					sampleType,
-					hospitalId,
-					createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+					// hospitalId and createdBy fields not available in LabTest model
 				}
 			});
 			
