@@ -5,25 +5,56 @@ import errorHandler from "../utils/errorHandler";
 import AppError from "../utils/AppError";
 import s3 from "../services/s3client";
 import { sendLabTestCompletionNotification, sendLabReportNotification, sendLabReportReadyNotification } from "../services/whatsapp.service";
+import { UserRole } from "@prisma/client";
+
+// Same roles array as patient creation
+const roles: string[] = [
+	UserRole.SUPER_ADMIN,
+	UserRole.HOSPITAL_ADMIN,
+	UserRole.DOCTOR,
+	UserRole.RECEPTIONIST,
+	UserRole.SALES_PERSON,
+	UserRole.LAB_TECHNICIAN
+];
 
 // Lab Test Controllers
 const createLabTest = async (req: Request, res: Response) => {
-	try {
-		const { code, name, description, sampleType, charge } = req.body;
-		const labTest = await prisma.labTest.create({
-			data: {
-				code,
-				name,
-				description,
-				charge,
-				sampleType
+	// Apply the SAME SUCCESSFUL PATTERN as patient creation
+	if (req.user && roles.includes(req.user.role)) {
+		try {
+			const { code, name, description, sampleType, charge } = req.body;
+			
+			// Hospital validation (same as patient creation)
+			const hospitalId = req.user.hospitalId;
+			if (!hospitalId) {
+				throw new AppError("User ain't linked to any hospital", 400);
 			}
-		});
-		res
-			.status(201)
-			.json(new ApiResponse("Lab test created successfully", labTest));
-	} catch (error: any) {
-		errorHandler(error, res);
+			
+			// User existence check (same as patient creation)
+			const userExists = await prisma.hospitalStaff.findUnique({
+				where: { id: req.user.id },
+				select: { id: true }
+			});
+			
+			const labTest = await prisma.labTest.create({
+				data: {
+					code,
+					name,
+					description,
+					charge,
+					sampleType,
+					hospitalId,
+					createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+				}
+			});
+			
+			res.status(201).json(new ApiResponse("Lab test created successfully", labTest));
+		} catch (error: any) {
+			console.error("Error creating lab test:", error);
+			res.status(error.code || 500).json(new ApiResponse(error.message || "Internal Server Error"));
+		}
+	} else {
+		res.status(403).json(new ApiResponse("Unauthorized access"));
 	}
 };
 

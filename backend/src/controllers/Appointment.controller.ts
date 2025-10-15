@@ -346,17 +346,11 @@ export class AppointmentController {
 	async bookAppointment(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { patientId, visitType, doctorId, scheduledAt, status, hospitalId: requestHospitalId, slotData } =
+				const { patientId, visitType, doctorId, scheduledAt, status, hospitalId: requestHospitalId } =
 					req.body as Pick<
 						Appointment,
 						"patientId" | "visitType" | "doctorId" | "scheduledAt" | "status"
-					> & { 
-						hospitalId?: string;
-						slotData?: {
-							partiallyBooked: boolean;
-							selectedSlotId?: string;
-						};
-					};
+					> & { hospitalId?: string };
 
 				// For admin users, allow them to specify hospitalId in request body
 				// For other users, use their linked hospitalId
@@ -409,55 +403,26 @@ export class AppointmentController {
 					select: { id: true }
 				});
 
-				// Create appointment and handle slot booking in a transaction
-				const visit = await prisma.$transaction(async (prisma) => {
-					const appointment = await prisma.appointment.create({
-						data: {
-							patientId,
-							scheduledAt,
-							hospitalId,
-							visitType,
-							doctorId,
-							status: status || AppointmentStatus.SCHEDULED,
-							createdBy: userExists ? req.user!.id : null, // Only set if user exists in HospitalStaff
-							visitId, // Add Visit ID
-							vitals: {
-								create: new Array<Vital>()
-							},
-							attachments: { create: new Array<AppointmentAttachment>() }
+				const visit = await prisma.appointment.create({
+					data: {
+						patientId,
+						scheduledAt,
+						hospitalId,
+						visitType,
+						doctorId,
+						status: status || AppointmentStatus.SCHEDULED,
+						createdBy: userExists ? req.user!.id : null, // Only set if user exists in HospitalStaff
+						visitId, // Add Visit ID
+						vitals: {
+							create: new Array<Vital>()
 						},
-						include: {
-							patient: true,
-							doctor: true,
-							hospital: true
-						}
-					});
-
-					// Handle slot booking if slotData is provided
-					if (slotData) {
-						if (slotData.partiallyBooked && slotData.selectedSlotId) {
-							// Update existing slot with second appointment
-							await prisma.slot.update({
-								where: { id: slotData.selectedSlotId },
-								data: {
-									appointment2Id: appointment.id,
-									timeSlot: new Date(scheduledAt)
-								}
-							});
-						} else {
-							// Create new slot for the appointment
-							await prisma.slot.create({
-								data: {
-									doctorId: doctorId,
-									timeSlot: new Date(scheduledAt),
-									appointment1Id: appointment.id,
-									appointment2Id: null
-								}
-							});
-						}
+						attachments: { create: new Array<AppointmentAttachment>() }
+					},
+					include: {
+						patient: true,
+						doctor: true,
+						hospital: true
 					}
-
-					return appointment;
 				});
 
 				redisClient.lPush(`${hospitalId}_${doctorId}`, JSON.stringify(visit));

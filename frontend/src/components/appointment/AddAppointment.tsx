@@ -20,7 +20,7 @@ import {
 import { Search, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
-import { HospitalStaff, VisitType, AppointmentBookingRequest } from "@/types/types";
+import { HospitalStaff, VisitType } from "@/types/types";
 import { appointmentApi } from "@/api/appointment";
 
 interface Patient {
@@ -86,19 +86,13 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             selectedSlotId: string;
             partiallyBooked: boolean;
         }) => {
-
-            // Book appointment with slot booking in a single API call
+            // EXACT SAME PATTERN AS ADD PATIENT - SIMPLE AND DIRECT
             const appointmentResponse = await appointmentApi.bookAppointment({
                 patientId: data.patientId,
                 doctorId: data.doctorId,
                 visitType: data.visitType as VisitType,
-                scheduledAt: new Date(data.scheduledAt),
-                // Include slot booking data
-                slotData: {
-                    partiallyBooked: data.partiallyBooked,
-                    selectedSlotId: data.selectedSlotId
-                }
-            } as AppointmentBookingRequest);
+                scheduledAt: new Date(data.scheduledAt)
+            });
 
             return appointmentResponse.data;
         },

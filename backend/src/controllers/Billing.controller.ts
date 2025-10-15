@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { PrismaClient, BillStatus, BillType } from "@prisma/client";
+import { PrismaClient, BillStatus, BillType, UserRole } from "@prisma/client";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import { PDFService } from "../services/pdf.service";
@@ -9,6 +9,16 @@ import { format } from "date-fns";
 import Handlebars from "handlebars";
 
 const prisma = new PrismaClient();
+
+// Same roles array as patient creation
+const roles: string[] = [
+	UserRole.SUPER_ADMIN,
+	UserRole.HOSPITAL_ADMIN,
+	UserRole.DOCTOR,
+	UserRole.RECEPTIONIST,
+	UserRole.SALES_PERSON,
+	UserRole.FINANCE_MANAGER
+];
 
 export class BillingController {
 	// Register Handlebars helpers
@@ -90,27 +100,41 @@ export class BillingController {
 
 	// Create a new bill
 	createBill = async (req: Request, res: Response) => {
-		try {
-			const {
-				patientId,
-				hospitalId,
-				appointmentId,
-				items,
-				dueDate,
-				paidAmount,
-				dueAmount,
-				status,
-				billDate,
-				notes
-			} = req.body;
+		// Apply the SAME SUCCESSFUL PATTERN as patient creation
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const {
+					patientId,
+					hospitalId,
+					appointmentId,
+					items,
+					dueDate,
+					paidAmount,
+					dueAmount,
+					status,
+					billDate,
+					notes
+				} = req.body;
 
-			// Validate required fields
-			if (!patientId || !hospitalId || !items || !Array.isArray(items)) {
-				throw new AppError(
-					"Patient ID, Hospital ID, and items array are required",
-					400
-				);
-			}
+				// Hospital validation (same as patient creation)
+				const userHospitalId = req.user.hospitalId;
+				if (!userHospitalId) {
+					throw new AppError("User ain't linked to any hospital", 400);
+				}
+
+				// User existence check (same as patient creation)
+				const userExists = await prisma.hospitalStaff.findUnique({
+					where: { id: req.user.id },
+					select: { id: true }
+				});
+
+				// Validate required fields
+				if (!patientId || !items || !Array.isArray(items)) {
+					throw new AppError(
+						"Patient ID and items array are required",
+						400
+					);
+				}
 
 			// Get appointment details to include Visit ID
 			let visitId = null;
@@ -142,12 +166,12 @@ export class BillingController {
 				});
 			}
 
-			// Create bill with items
+			// Create bill with items (same pattern as patient creation)
 			const bill = await prisma.bill.create({
 				data: {
 					billNumber: this.generateBillNumber(),
 					patientId,
-					hospitalId,
+					hospitalId: userHospitalId, // Use user's hospital ID
 					appointmentId,
 					totalAmount,
 					dueAmount: dueAmount,
@@ -156,6 +180,7 @@ export class BillingController {
 					billDate: billDate ? new Date(billDate) : new Date(),
 					dueDate: dueDate ? new Date(dueDate) : new Date(),
 					notes,
+					createdBy: userExists ? req.user.id : null, // Same pattern as patient creation
 					billItems: {
 						create: billItems
 					}
@@ -188,12 +213,13 @@ export class BillingController {
 				}
 			});
 
-			res.status(201).json(new ApiResponse("Bill created successfully", bill));
-		} catch (error: any) {
-			console.error("Error in createBill:", error);
-			res
-				.status(error.code || 500)
-				.json(new ApiResponse(error.message || "Failed to create bill"));
+				res.status(201).json(new ApiResponse("Bill created successfully", bill));
+			} catch (error: any) {
+				console.error("Error creating bill:", error);
+				res.status(error.code || 500).json(new ApiResponse(error.message || "Internal Server Error"));
+			}
+		} else {
+			res.status(403).json(new ApiResponse("Unauthorized access"));
 		}
 	};
 

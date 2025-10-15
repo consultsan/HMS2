@@ -21,28 +21,36 @@ export class HospitalStaffController {
 	}
 
 	createStaff = async (req: Request, res: Response) => {
-		if (req.user && req.user.role == "HOSPITAL_ADMIN") {
+		// Apply the SAME SUCCESSFUL PATTERN as patient creation
+		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const body = req.body as HospitalStaff;
+				
+				// Hospital validation (same as patient creation)
 				const hospitalId = req.user.hospitalId;
-
 				if (!hospitalId) {
-					throw new AppError("User isn't linked to any hospital", 403);
+					throw new AppError("User ain't linked to any hospital", 400);
 				}
 
-				const staff = await this.staffRepo.create({ ...body, hospitalId });
+				// User existence check (same as patient creation)
+				const userExists = await prisma.hospitalStaff.findUnique({
+					where: { id: req.user.id },
+					select: { id: true }
+				});
 
-				res
-					.status(201)
-					.json(new ApiResponse("Staff created successfully", staff));
+				const staff = await this.staffRepo.create({ 
+					...body, 
+					hospitalId,
+					createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+				});
+
+				res.status(201).json(new ApiResponse("Staff created successfully", staff));
 			} catch (error: any) {
-				console.error("Error in createStaff:", error);
-				res
-					.status(error.code || 500)
-					.json(new ApiResponse(error.message || "Internal Server Error"));
+				console.error("Error creating staff:", error);
+				res.status(error.code || 500).json(new ApiResponse(error.message || "Internal Server Error"));
 			}
 		} else {
-			res.status(403).json(new ApiResponse("Forbidden: Access denied"));
+			res.status(403).json(new ApiResponse("Unauthorized access"));
 		}
 	};
 

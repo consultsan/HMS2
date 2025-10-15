@@ -3,10 +3,21 @@ import PrescriptionRepository from '../repositories/Prescription.repository';
 import  ApiResponse  from '../utils/ApiResponse';
 import  AppError  from '../utils/AppError';
 import  errorHandler  from '../utils/errorHandler';
-import { PrescriptionStatus, PrescriptionItemStatus, DrugCategory, DrugForm } from '@prisma/client';
+import { PrescriptionStatus, PrescriptionItemStatus, DrugCategory, DrugForm, UserRole } from '@prisma/client';
 import { sendPrescriptionNotification } from '../services/whatsapp.service';
 import { PrescriptionPDFService } from '../services/prescriptionPDF.service';
 import s3 from '../services/s3client';
+import prisma from '../utils/dbConfig';
+
+// Same roles array as patient creation
+const roles: string[] = [
+	UserRole.SUPER_ADMIN,
+	UserRole.HOSPITAL_ADMIN,
+	UserRole.DOCTOR,
+	UserRole.RECEPTIONIST,
+	UserRole.SALES_PERSON,
+	UserRole.PHARMACIST
+];
 
 export class PrescriptionController {
   // ========================================
@@ -14,59 +25,79 @@ export class PrescriptionController {
   // ========================================
 
   async createDrug(req: Request, res: Response, next: NextFunction) {
-    try {
-      const {
-        name,
-        genericName,
-        brandName,
-        category,
-        form,
-        strength,
-        unit,
-        description,
-        isControlledSubstance,
-        requiresPrescription,
-        currentStock,
-        minimumStock,
-        maximumStock,
-        reorderLevel,
-        unitPrice,
-        costPrice,
-        contraindications,
-        sideEffects,
-        warnings,
-      } = req.body;
+    // Apply the SAME SUCCESSFUL PATTERN as patient creation
+    if (req.user && roles.includes(req.user.role)) {
+      try {
+        const {
+          name,
+          genericName,
+          brandName,
+          category,
+          form,
+          strength,
+          unit,
+          description,
+          isControlledSubstance,
+          requiresPrescription,
+          currentStock,
+          minimumStock,
+          maximumStock,
+          reorderLevel,
+          unitPrice,
+          costPrice,
+          contraindications,
+          sideEffects,
+          warnings,
+        } = req.body;
 
-      // Validation
-      if (!name || !category || !form || !strength || !unit) {
-        throw new AppError('Required fields: name, category, form, strength, unit', 400);
+        // Hospital validation (same as patient creation)
+        const hospitalId = req.user.hospitalId;
+        if (!hospitalId) {
+          throw new AppError("User ain't linked to any hospital", 400);
+        }
+
+        // User existence check (same as patient creation)
+        const userExists = await prisma.hospitalStaff.findUnique({
+          where: { id: req.user.id },
+          select: { id: true }
+        });
+
+        // Validation
+        if (!name || !category || !form || !strength || !unit) {
+          throw new AppError('Required fields: name, category, form, strength, unit', 400);
+        }
+
+        const drug = await PrescriptionRepository.createDrug({
+          name,
+          genericName,
+          brandName,
+          category,
+          form,
+          strength,
+          unit,
+          description,
+          isControlledSubstance: isControlledSubstance || false,
+          requiresPrescription: requiresPrescription !== false,
+          currentStock: currentStock || 0,
+          minimumStock: minimumStock || 0,
+          maximumStock: maximumStock || 0,
+          reorderLevel: reorderLevel || 0,
+          unitPrice,
+          costPrice,
+          contraindications,
+          sideEffects,
+          warnings,
+          hospitalId,
+          createdBy: userExists ? req.user.id : null // Same pattern as patient creation
+        });
+
+        res.status(201).json(new ApiResponse('Drug created successfully', drug));
+      } catch (error: any) {
+        console.error("Error creating drug:", error);
+        res.status(error.code || 500).json(new ApiResponse(error.message || "Internal Server Error"));
       }
-
-      const drug = await PrescriptionRepository.createDrug({
-        name,
-        genericName,
-        brandName,
-        category,
-        form,
-        strength,
-        unit,
-        description,
-        isControlledSubstance: isControlledSubstance || false,
-        requiresPrescription: requiresPrescription !== false,
-        currentStock: currentStock || 0,
-        minimumStock: minimumStock || 0,
-        maximumStock: maximumStock || 0,
-        reorderLevel: reorderLevel || 0,
-        unitPrice,
-        costPrice,
-        contraindications,
-        sideEffects,
-        warnings,
-      });
-
-      res.status(201).json(new ApiResponse('Drug created successfully', drug));
-    } catch (error) {
-      errorHandler(error, res);
+    } else {
+      res.status(403).json(new ApiResponse("Unauthorized access"));
     }
   }
 

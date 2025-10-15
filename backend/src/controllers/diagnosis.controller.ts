@@ -6,7 +6,8 @@ import {
 	LabTestStatus,
 	Prisma,
 	Surgery,
-	SurgicalStatus
+	SurgicalStatus,
+	UserRole
 } from "@prisma/client";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
@@ -21,6 +22,15 @@ import PrescriptionRepository from "../repositories/Prescription.repository";
 import { sendPrescriptionNotification } from "../services/whatsapp.service";
 import { PrescriptionPDFService } from "../services/prescriptionPDF.service";
 import s3 from "../services/s3client";
+
+// Same roles array as patient creation
+const roles: string[] = [
+	UserRole.SUPER_ADMIN,
+	UserRole.HOSPITAL_ADMIN,
+	UserRole.DOCTOR,
+	UserRole.RECEPTIONIST,
+	UserRole.SALES_PERSON
+];
 
 const calculateAge = (dob: Date): number => {
 	const today = new Date();
@@ -171,13 +181,26 @@ export const getHtmlTemplate = async (req: Request, res: Response) => {
 };
 
 export const createDiagnosisRecord = async (req: Request, res: Response) => {
-	if (req.user && req.user.role == "DOCTOR") {
+	// Apply the SAME SUCCESSFUL PATTERN as patient creation
+	if (req.user && roles.includes(req.user.role)) {
 		try {
 			const { appointmentId } = req.query as { appointmentId: string };
 			const { diagnosis, medicines, notes, labTests, followUpAppointmentId } = req.body as Pick<
 				DiagnosisRecord,
 				"diagnosis" | "medicines" | "notes" | "followUpAppointmentId"
 			> & { labTests: { id: string }[] };
+
+			// Hospital validation (same as patient creation)
+			const hospitalId = req.user.hospitalId;
+			if (!hospitalId) {
+				throw new AppError("User ain't linked to any hospital", 400);
+			}
+
+			// User existence check (same as patient creation)
+			const userExists = await prisma.hospitalStaff.findUnique({
+				where: { id: req.user.id },
+				select: { id: true }
+			});
 
 			if (!diagnosis) throw new AppError("Diagnosis is required", 401);
 
@@ -188,14 +211,15 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 
 			// Use transaction to ensure data consistency
 			const result = await prisma.$transaction(async (prisma) => {
-				// Create diagnosis record
+				// Create diagnosis record (same pattern as patient creation)
 				const record = await prisma.diagnosisRecord.create({
 					data: {
 						diagnosis,
 						medicines: medicines as Prisma.InputJsonValue,
 						notes,
 						appointmentId,
-						followUpAppointmentId
+						followUpAppointmentId,
+						createdBy: userExists ? req.user.id : null // Same pattern as patient creation
 					}
 				});
 
@@ -453,13 +477,11 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 				.status(200)
 				.json(new ApiResponse("Diagnosis record created successfully", result));
 		} catch (error: any) {
-			console.error("create visit error:", error);
-			res
-				.status(error.code || 500)
-				.json(new ApiResponse(error.message || "Internal Server Error"));
+			console.error("Error creating diagnosis:", error);
+			res.status(error.code || 500).json(new ApiResponse(error.message || "Internal Server Error"));
 		}
 	} else {
-		res.status(403).json(new ApiResponse("Unauthorized access", null));
+		res.status(403).json(new ApiResponse("Unauthorized access"));
 	}
 };
 
