@@ -21,6 +21,7 @@ import SalesDashboard from "@/pages/sales/Dashboard";
 import { SearchProvider } from "@/contexts/SearchContext";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import Appointments from "./pages/doctor/Appointments";
+import IPDManagement from "./pages/doctor/IPDManagement";
 import ConsultationPage from "./pages/consultation/ConsultationPage";
 import DiseaseTemplate from "./pages/doctor/DiseaseTemplate";
 import DiagnosisRecord from "./pages/consultation/DiagnosisRecord";
@@ -31,10 +32,14 @@ import SurgicalAppointments from "./pages/receptionist/SurgicalAppointments";
 import DepartmentManagement from "./pages/hospital-admin/DepartmentManagement";
 import CompletedTests from "./pages/lab/CompletedTests";
 import TestsFromReceptionist from "./pages/lab/TestsFromReceptionist";
+import IPDQueuePage from "./pages/ipd/IPDQueuePage";
 import TestFromDoctors from "./pages/lab/TestFromDoctors";
 import CreateLabTest from "./pages/lab/CreateLabTest";
 import CreateLabTestAppointment from "./pages/receptionist/CreateLabTestAppointment";
 import PendingLabBills from "./pages/receptionist/PendingLabBills";
+import IPDAdminDashboard from "./pages/admin/IPDAdminDashboard";
+import WardManagement from "./pages/admin/WardManagement";
+import InsuranceManagement from "./pages/admin/InsuranceManagement";
 
 function PatientDetailsWrapper() {
 	const { patientId } = useParams<{ patientId: string }>();
@@ -145,6 +150,18 @@ export default function App() {
 							path="department"
 							element={<DepartmentManagement />}
 						/>
+						<Route
+							path="ipd-dashboard"
+							element={<IPDAdminDashboard />}
+						/>
+						<Route
+							path="ward-management"
+							element={<WardManagement />}
+						/>
+						<Route
+							path="insurance-management"
+							element={<InsuranceManagement />}
+						/>
 					</Route>
 
 					{/* Patient Details View Route (Standalone) */}
@@ -209,6 +226,10 @@ export default function App() {
 						<Route
 							path="pending-lab-bills"
 							element={<PendingLabBills />}
+						/>
+						<Route
+							path="ipd-queue"
+							element={<IPDQueuePage />}
 						/>
 					</Route>
 
@@ -277,6 +298,10 @@ export default function App() {
 						<Route
 							path="appointments"
 							element={<Appointments />}
+						/>
+						<Route
+							path="ipd-management"
+							element={<IPDManagement />}
 						/>
 						<Route
 							path="template"

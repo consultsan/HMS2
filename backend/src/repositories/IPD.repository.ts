@@ -216,8 +216,7 @@ export class IPDRepository {
 						},
 						orderBy: {
 							visitDate: 'desc'
-						},
-						take: 1
+						}
 					}
 				},
 				orderBy: {

@@ -12,6 +12,7 @@ const roleConfigs = {
     sections: [
       { name: 'Dashboard', path: '/doctor/dashboard' },
       { name: 'Appointments', path: '/doctor/appointments' },
+      { name: 'IPD Management', path: '/doctor/ipd-management' },
       { name: 'Disease Templates', path: '/doctor/template' },
       { name: 'Create Test', path: '/doctor/create' },
     ],
@@ -24,11 +25,14 @@ const roleConfigs = {
     basePath: '/hospital-admin',
     sections: [
       { name: 'Dashboard', path: '/hospital-admin/dashboard' },
+      { name: 'IPD Dashboard', path: '/hospital-admin/ipd-dashboard' },
       { name: 'Department Management', path: '/hospital-admin/department' },
       { name: 'User Management', path: '/hospital-admin/users' },
       { name: 'Shift Management', path: '/hospital-admin/shifts' },
       { name: 'Doctor OPD Fees', path: '/hospital-admin/opd-fees' },
       { name: 'Manage Patients', path: '/hospital-admin/patients' },
+      { name: 'Ward Management', path: '/hospital-admin/ward-management' },
+      { name: 'Insurance Management', path: '/hospital-admin/insurance-management' },
     ],
     searchPlaceholders: {
       'opd-fees': 'Search doctors by name or specialisation',
@@ -44,6 +48,7 @@ const roleConfigs = {
       { name: 'Dashboard', path: '/receptionist/dashboard' },
       { name: 'Patients', path: '/receptionist/patients' },
       { name: 'Appointments', path: '/receptionist/appointments' },
+      { name: 'IPD Queue', path: '/receptionist/ipd-queue' },
       { name: 'Pending Lab Test Bills', path: '/receptionist/pending-lab-bills' },
       { name: 'Follow Ups', path: '/receptionist/follow-ups' },
       { name: 'Surgical Appointments', path: '/receptionist/surgical-appointments' },
