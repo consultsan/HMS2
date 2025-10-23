@@ -1,4 +1,4 @@
-import { PrismaClient, IPDStatus, InsuranceType, WardType } from "@prisma/client";
+import { PrismaClient, IPDStatus, InsuranceType, WardType, WardSubType, PatientDocumentCategory } from "@prisma/client";
 import prisma from "../utils/dbConfig";
 import AppError from "../utils/AppError";
 
@@ -145,7 +145,10 @@ export class IPDRepository {
 		insuranceCompany?: string;
 		policyNumber?: string;
 		tpaName?: string;
+		insuranceNumber?: string;
+		insuranceCardUrl?: string;
 		wardType: WardType;
+		wardSubType?: WardSubType;
 		roomNumber?: string;
 		bedNumber?: string;
 		chiefComplaint?: string;
@@ -473,11 +476,14 @@ export class IPDRepository {
 	async createWard(data: {
 		name: string;
 		type: WardType;
+		subType?: WardSubType;
 		totalBeds: number;
 		hospitalId: string;
+		pricePerDay?: number;
+		description?: string;
 	}) {
 		try {
-			return await prisma.ward.create({
+			const ward = await prisma.ward.create({
 				data: {
 					...data,
 					availableBeds: data.totalBeds
@@ -491,6 +497,21 @@ export class IPDRepository {
 					}
 				}
 			});
+
+			// Create individual beds for the ward
+			const beds = [];
+			for (let i = 1; i <= data.totalBeds; i++) {
+				const bed = await prisma.bed.create({
+					data: {
+						bedNumber: i.toString(),
+						wardId: ward.id,
+						pricePerDay: data.pricePerDay
+					}
+				});
+				beds.push(bed);
+			}
+
+			return { ...ward, beds };
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
@@ -584,6 +605,132 @@ export class IPDRepository {
 				totalDischarged,
 				wardOccupancy
 			};
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// Bed Operations
+	async getAvailableBeds(wardId: string) {
+		try {
+			return await prisma.bed.findMany({
+				where: {
+					wardId,
+					isOccupied: false
+				},
+				orderBy: {
+					bedNumber: 'asc'
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async assignBedToAdmission(bedId: string, admissionId: string) {
+		try {
+			return await prisma.bed.update({
+				where: { id: bedId },
+				data: {
+					isOccupied: true,
+					admission: {
+						connect: { id: admissionId }
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async releaseBed(bedId: string) {
+		try {
+			return await prisma.bed.update({
+				where: { id: bedId },
+				data: {
+					isOccupied: false,
+					admission: {
+						disconnect: true
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// IPD Patient Document Operations
+	async uploadIPDPatientDocument(data: {
+		admissionId: string;
+		uploadedById: string;
+		fileName: string;
+		fileUrl: string;
+		fileSize: number;
+		mimeType: string;
+		category: PatientDocumentCategory;
+		description?: string;
+	}) {
+		try {
+			return await prisma.iPDPatientDocument.create({
+				data,
+				include: {
+					admission: {
+						include: {
+							queue: {
+								include: {
+									patient: {
+										select: {
+											id: true,
+											name: true,
+											phone: true,
+											uhid: true
+										}
+									}
+								}
+							}
+						}
+					},
+					uploadedBy: {
+						select: {
+							id: true,
+							name: true,
+							role: true
+						}
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async getIPDPatientDocuments(admissionId: string) {
+		try {
+			return await prisma.iPDPatientDocument.findMany({
+				where: { admissionId },
+				include: {
+					uploadedBy: {
+						select: {
+							id: true,
+							name: true,
+							role: true
+						}
+					}
+				},
+				orderBy: {
+					uploadedAt: 'desc'
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async deleteIPDPatientDocument(id: string) {
+		try {
+			return await prisma.iPDPatientDocument.delete({
+				where: { id }
+			});
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}

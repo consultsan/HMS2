@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
-import { IPDStatus, InsuranceType, WardType, UserRole } from "@prisma/client";
+import { IPDStatus, InsuranceType, WardType, WardSubType, UserRole, PatientDocumentCategory } from "@prisma/client";
 import { IPDRepository } from "../repositories/IPD.repository";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import IPDWebSocketService from "../services/ipdWebSocket.service";
+import s3 from "../services/s3.service";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -154,7 +155,11 @@ export class IPDController {
 					insuranceCompany,
 					policyNumber,
 					tpaName,
+					insuranceNumber,
 					wardType,
+					wardSubType,
+					wardId,
+					bedId,
 					roomNumber,
 					bedNumber,
 					chiefComplaint,
@@ -173,6 +178,16 @@ export class IPDController {
 					throw new AppError("Invalid ward type", 400);
 				}
 
+				if (wardSubType && !Object.values(WardSubType).includes(wardSubType)) {
+					throw new AppError("Invalid ward sub type", 400);
+				}
+
+				// Handle insurance card upload if provided
+				let insuranceCardUrl = null;
+				if (req.file && insuranceType !== 'NA') {
+					insuranceCardUrl = await s3.uploadStream(req.file.buffer, req.file.originalname, req.file.mimetype);
+				}
+
 				const admission = await this.ipdRepository.createIPDAdmission({
 					queueId,
 					assignedDoctorId,
@@ -180,12 +195,20 @@ export class IPDController {
 					insuranceCompany,
 					policyNumber,
 					tpaName,
+					insuranceNumber,
+					insuranceCardUrl,
 					wardType,
+					wardSubType,
 					roomNumber,
 					bedNumber,
 					chiefComplaint,
 					admissionNotes
 				});
+
+				// Assign bed if bedId is provided
+				if (bedId) {
+					await this.ipdRepository.assignBedToAdmission(bedId, admission.id);
+				}
 
 				// Update queue status to ADMITTED
 				await this.ipdRepository.updateIPDQueueStatus(queueId, IPDStatus.ADMITTED);
@@ -564,7 +587,7 @@ export class IPDController {
 	async createWard(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { name, type, totalBeds } = req.body;
+				const { name, type, subType, totalBeds, pricePerDay, description } = req.body;
 				const hospitalId = req.user.hospitalId;
 
 				if (!hospitalId) {
@@ -579,11 +602,18 @@ export class IPDController {
 					throw new AppError("Invalid ward type", 400);
 				}
 
+				if (subType && !Object.values(WardSubType).includes(subType)) {
+					throw new AppError("Invalid ward sub type", 400);
+				}
+
 				const ward = await this.ipdRepository.createWard({
 					name,
 					type,
+					subType,
 					totalBeds: parseInt(totalBeds),
-					hospitalId
+					hospitalId,
+					pricePerDay: pricePerDay ? parseFloat(pricePerDay) : undefined,
+					description
 				});
 
 				res.status(201).json(
@@ -682,6 +712,174 @@ export class IPDController {
 
 				res.status(200).json(
 					new ApiResponse("IPD dashboard statistics retrieved successfully", stats)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// Bed Management
+	async getAvailableBeds(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { wardId } = req.params;
+
+				if (!wardId) {
+					throw new AppError("Ward ID is required", 400);
+				}
+
+				const beds = await this.ipdRepository.getAvailableBeds(wardId);
+
+				res.status(200).json(
+					new ApiResponse("Available beds retrieved successfully", beds)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async assignBed(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { bedId, admissionId } = req.body;
+
+				if (!bedId || !admissionId) {
+					throw new AppError("Bed ID and admission ID are required", 400);
+				}
+
+				const bed = await this.ipdRepository.assignBedToAdmission(bedId, admissionId);
+
+				res.status(200).json(
+					new ApiResponse("Bed assigned successfully", bed)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async releaseBed(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { bedId } = req.params;
+
+				if (!bedId) {
+					throw new AppError("Bed ID is required", 400);
+				}
+
+				const bed = await this.ipdRepository.releaseBed(bedId);
+
+				res.status(200).json(
+					new ApiResponse("Bed released successfully", bed)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// IPD Patient Document Management
+	async uploadIPDPatientDocument(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId, category, description } = req.body;
+				const uploadedById = req.user.id;
+
+				if (!admissionId || !category) {
+					throw new AppError("Admission ID and category are required", 400);
+				}
+
+				if (!Object.values(PatientDocumentCategory).includes(category)) {
+					throw new AppError("Invalid document category", 400);
+				}
+
+				if (!req.file) {
+					throw new AppError("No file uploaded", 400);
+				}
+
+				// Upload file to S3
+				const fileUrl = await s3.uploadStream(req.file.buffer, req.file.originalname, req.file.mimetype);
+
+				// Save document record to database
+				const document = await this.ipdRepository.uploadIPDPatientDocument({
+					admissionId,
+					uploadedById,
+					fileName: req.file.originalname,
+					fileUrl: fileUrl,
+					fileSize: req.file.size,
+					mimeType: req.file.mimetype,
+					category,
+					description
+				});
+
+				res.status(201).json(
+					new ApiResponse("IPD patient document uploaded successfully", document)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDPatientDocuments(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const documents = await this.ipdRepository.getIPDPatientDocuments(admissionId);
+
+				res.status(200).json(
+					new ApiResponse("IPD patient documents retrieved successfully", documents)
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async deleteIPDPatientDocument(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+
+				if (!id) {
+					throw new AppError("Document ID is required", 400);
+				}
+
+				await this.ipdRepository.deleteIPDPatientDocument(id);
+
+				res.status(200).json(
+					new ApiResponse("IPD patient document deleted successfully", null)
 				);
 			} catch (error) {
 				errorHandler(error, res);

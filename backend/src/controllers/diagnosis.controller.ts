@@ -650,17 +650,17 @@ export const updateDiseaseTemplate = async (req: Request, res: Response) => {
 
 				// Connect new lab tests
 				return await tx.diseaseTemplate.update({
-					where: { id },
-					data: {
-						name,
-						medicines: medicines as Prisma.InputJsonValue,
-						labTests: {
+				where: { id },
+				data: {
+					name,
+					medicines: medicines as Prisma.InputJsonValue,
+					labTests: {
 							connect: labTests
-						}
-					},
-					include: {
-						labTests: true
 					}
+				},
+				include: {
+					labTests: true
+				}
 				});
 			});
 

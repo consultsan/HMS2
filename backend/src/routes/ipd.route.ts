@@ -37,6 +37,16 @@ router.post("/ward", ipdController.createWard.bind(ipdController));
 router.get("/ward", ipdController.getWards.bind(ipdController));
 router.patch("/ward/:id/bed-count", ipdController.updateWardBedCount.bind(ipdController));
 
+// Bed Management Routes
+router.get("/ward/:wardId/beds", ipdController.getAvailableBeds.bind(ipdController));
+router.post("/bed/assign", ipdController.assignBed.bind(ipdController));
+router.patch("/bed/:bedId/release", ipdController.releaseBed.bind(ipdController));
+
+// IPD Patient Document Routes
+router.post("/patient-document", ipdController.uploadIPDPatientDocument.bind(ipdController));
+router.get("/patient-document/:admissionId", ipdController.getIPDPatientDocuments.bind(ipdController));
+router.delete("/patient-document/:id", ipdController.deleteIPDPatientDocument.bind(ipdController));
+
 // Dashboard Routes
 router.get("/dashboard/stats", ipdController.getIPDDashboardStats.bind(ipdController));
 

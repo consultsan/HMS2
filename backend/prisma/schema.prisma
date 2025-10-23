@@ -159,6 +159,15 @@ enum WardType {
   EMERGENCY
 }
 
+enum WardSubType {
+  AC
+  NON_AC
+  SINGLE
+  DOUBLE
+  TRIPLE
+  QUADRUPLE
+}
+
 enum InsuranceVerificationStatus {
   PENDING
   VERIFIED
@@ -296,6 +305,7 @@ model HospitalStaff {
   documentAccessLogs DocumentAccessLog[]
   prescriptions       Prescription[]
   createdPatients     Patient[] @relation("PatientCreator")
+  uploadedIPDPatientDocuments IPDPatientDocument[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -913,9 +923,12 @@ model IPDAdmission {
   insuranceCompany String?
   policyNumber String?
   tpaName String?
+  insuranceCardUrl String? // For uploaded insurance card
+  insuranceNumber String? // Alternative insurance number if policy number not available
   
   // Ward details
   wardType WardType
+  wardSubType WardSubType?
   roomNumber String?
   bedNumber String?
   
@@ -933,12 +946,16 @@ model IPDAdmission {
   assignedDoctor   HospitalStaff @relation(fields: [assignedDoctorId], references: [id])
   assignedDoctorId String
   
+  bed     Bed? @relation(fields: [bedId], references: [id])
+  bedId   String? @unique
+  
   visits IPDVisit[]
   dischargeSummary IPDDischargeSummary?
   insuranceDocuments InsuranceDocument[]
   insuranceVerification InsuranceVerification?
-  patientDocuments PatientDocumentFile[]
+  patientDocuments IPDPatientDocument[]
   prescriptions Prescription[]
+  patientDocumentFiles PatientDocumentFile[]
   
   @@index([queueId])
   @@index([assignedDoctorId])
@@ -1037,18 +1054,41 @@ model Ward {
   id        String   @id @default(uuid())
   name      String
   type      WardType
+  subType   WardSubType?
   totalBeds Int
   occupiedBeds Int @default(0)
   availableBeds Int
+  pricePerDay Float?
+  description String?
   
   hospital   Hospital @relation(fields: [hospitalId], references: [id])
   hospitalId String
+  
+  beds      Bed[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@index([hospitalId])
   @@index([type])
+}
+
+model Bed {
+  id        String   @id @default(uuid())
+  bedNumber String   // e.g., "1", "2", "3" or "A", "B", "C"
+  isOccupied Boolean @default(false)
+  pricePerDay Float?
+  
+  ward      Ward @relation(fields: [wardId], references: [id])
+  wardId    String
+  
+  admission IPDAdmission?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([wardId, bedNumber])
+  @@index([wardId])
 }
 
 /// Insurance Document Management
@@ -1063,6 +1103,28 @@ model InsuranceDocument {
   
   // Relations
   admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  @@index([admissionId])
+  @@index([uploadedById])
+}
+
+/// IPD Patient Document Management
+model IPDPatientDocument {
+  id        String   @id @default(uuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  category  PatientDocumentCategory
+  description String?
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  admission IPDAdmission @relation(fields: [admissionId], references: [id])
   admissionId String
   
   uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
