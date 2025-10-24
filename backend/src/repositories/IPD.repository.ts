@@ -498,20 +498,24 @@ export class IPDRepository {
 				}
 			});
 
-			// Create individual beds for the ward
-			const beds = [];
-			for (let i = 1; i <= data.totalBeds; i++) {
-				const bed = await prisma.bed.create({
-					data: {
-						bedNumber: i.toString(),
-						wardId: ward.id,
-						pricePerDay: data.pricePerDay
-					}
-				});
-				beds.push(bed);
-			}
+			// Create all beds in a single operation for better performance
+			const bedData = Array.from({ length: data.totalBeds }, (_, i) => ({
+				bedNumber: (i + 1).toString(),
+				wardId: ward.id,
+				pricePerDay: data.pricePerDay
+			}));
 
-			return { ...ward, beds };
+			await prisma.bed.createMany({
+				data: bedData
+			});
+
+			// Fetch the created beds to return them
+			const createdBeds = await prisma.bed.findMany({
+				where: { wardId: ward.id },
+				orderBy: { bedNumber: 'asc' }
+			});
+
+			return { ...ward, beds: createdBeds };
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
@@ -633,7 +637,7 @@ export class IPDRepository {
 				where: { id: bedId },
 				data: {
 					isOccupied: true,
-					admission: {
+					admissions: {
 						connect: { id: admissionId }
 					}
 				}
@@ -649,8 +653,8 @@ export class IPDRepository {
 				where: { id: bedId },
 				data: {
 					isOccupied: false,
-					admission: {
-						disconnect: true
+					admissions: {
+						set: []
 					}
 				}
 			});

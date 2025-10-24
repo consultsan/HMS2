@@ -5,7 +5,7 @@ import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import IPDWebSocketService from "../services/ipdWebSocket.service";
-import s3 from "../services/s3.service";
+import s3 from "../services/s3client";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -155,7 +155,7 @@ export class IPDController {
 					insuranceCompany,
 					policyNumber,
 					tpaName,
-					insuranceNumber,
+					insuranceNumber: rawInsuranceNumber,
 					wardType,
 					wardSubType,
 					wardId,
@@ -165,6 +165,9 @@ export class IPDController {
 					chiefComplaint,
 					admissionNotes
 				} = req.body;
+
+				// Handle null/undefined insurance number
+				const insuranceNumber = rawInsuranceNumber || undefined;
 
 				if (!queueId || !assignedDoctorId || !wardType) {
 					throw new AppError("Queue ID, assigned doctor ID, and ward type are required", 400);
@@ -183,7 +186,7 @@ export class IPDController {
 				}
 
 				// Handle insurance card upload if provided
-				let insuranceCardUrl = null;
+				let insuranceCardUrl: string | undefined = undefined;
 				if (req.file && insuranceType !== 'NA') {
 					insuranceCardUrl = await s3.uploadStream(req.file.buffer, req.file.originalname, req.file.mimetype);
 				}
