@@ -947,7 +947,7 @@ model IPDAdmission {
   assignedDoctorId String
   
   bed     Bed? @relation(fields: [bedId], references: [id])
-  bedId   String? @unique
+  bedId   String?
   
   visits IPDVisit[]
   dischargeSummary IPDDischargeSummary?
@@ -1082,7 +1082,7 @@ model Bed {
   ward      Ward @relation(fields: [wardId], references: [id])
   wardId    String
   
-  admission IPDAdmission?
+  admissions IPDAdmission[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
