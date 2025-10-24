@@ -24,11 +24,13 @@ import {
   Shield, 
   Building, 
   FileText,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
-import { IPDAdmissionData, IPDQueueEntry, Doctor, Ward, InsuranceCompany } from '@/types/ipd';
+import { IPDAdmissionData, IPDQueueEntry, Doctor, Ward, WardSubType, Bed, InsuranceCompany } from '@/types/ipd';
 
 interface IPDAdmissionFormProps {
   isOpen: boolean;
@@ -51,8 +53,11 @@ export default function IPDAdmissionForm({
   });
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
+  const [beds, setBeds] = useState<Bed[]>([]);
   const [insuranceCompanies, setInsuranceCompanies] = useState<InsuranceCompany[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+  const [insuranceCardFile, setInsuranceCardFile] = useState<File | null>(null);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -62,14 +67,19 @@ export default function IPDAdmissionForm({
         assignedDoctorId: '',
         insuranceType: 'NA' as any,
         wardType: 'GENERAL' as any,
+        wardSubType: undefined,
+        wardId: '',
+        bedId: '',
         insuranceCompany: '',
         policyNumber: '',
+        insuranceNumber: '',
         tpaName: '',
         roomNumber: '',
         bedNumber: '',
         chiefComplaint: '',
         admissionNotes: '',
       });
+      setInsuranceCardFile(null);
     }
   }, [isOpen, queueEntry]);
 
@@ -112,45 +122,80 @@ export default function IPDAdmissionForm({
     }
   };
 
-  const handleInputChange = (field: keyof IPDAdmissionData, value: string) => {
+  const fetchBeds = async (wardId: string) => {
+    try {
+      const response = await ipdApi.getAvailableBeds(wardId);
+      setBeds(response.data.data);
+    } catch (error) {
+      console.error('Error fetching beds:', error);
+      toast.error('Failed to fetch beds');
+    }
+  };
+
+  const handleInputChange = (field: keyof IPDAdmissionData, value: string | WardSubType | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+
+    // Reset ward and bed selection when ward type or sub type changes
+    if (field === 'wardType' || field === 'wardSubType') {
+      setFormData(prev => ({
+        ...prev,
+        wardId: '',
+        bedId: '',
+        bedNumber: '',
+        roomNumber: ''
+      }));
+      setSelectedWard(null);
+      setBeds([]);
+    }
+
+    // If ward is selected, fetch beds for that ward and set ward name
+    if (field === 'wardId' && value) {
+      const ward = wards.find(w => w.id === value);
+      if (ward) {
+        setSelectedWard(ward);
+        // Auto-set ward name in form data
+        setFormData(prev => ({
+          ...prev,
+          roomNumber: ward.name
+        }));
+        fetchBeds(value);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.assignedDoctorId || !formData.wardType) {
+    if (!formData.assignedDoctorId || !formData.wardType || !formData.wardId) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await ipdApi.createAdmission(formData);
       
-      // Update ward bed count after successful admission
-      try {
-        // Find the ward that matches the wardType
-        const selectedWard = wards.find(ward => ward.type === formData.wardType);
-        if (selectedWard) {
-          // Calculate new occupied beds (current + 1)
-          const newOccupiedBeds = selectedWard.occupiedBeds + 1;
-          const newAvailableBeds = selectedWard.totalBeds - newOccupiedBeds;
-          
-          // Update the ward bed count
-          await ipdApi.updateWardBedCount(selectedWard.id, {
-            occupiedBeds: newOccupiedBeds,
-            availableBeds: newAvailableBeds
-          });
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      
+      // Add all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formDataToSend.append(key, value.toString());
         }
-      } catch (bedUpdateError) {
-        console.error('Error updating bed count:', bedUpdateError);
-        // Don't fail the admission if bed update fails
+      });
+      
+      // Add insurance card file if provided
+      if (insuranceCardFile) {
+        formDataToSend.append('insuranceCard', insuranceCardFile);
       }
       
+      console.log('Sending admission data:', formData);
+      console.log('FormData entries:', [...formDataToSend.entries()]);
+      
+      await ipdApi.createAdmission(formDataToSend);
       toast.success('Patient admitted successfully!');
       onSuccess();
       onClose();
@@ -341,6 +386,18 @@ export default function IPDAdmissionForm({
                     </div>
 
                     <div>
+                      <Label htmlFor="insuranceNumber" className="text-sm font-medium text-gray-700">
+                        Insurance Number
+                      </Label>
+                      <Input
+                        id="insuranceNumber"
+                        value={formData.insuranceNumber || ''}
+                        onChange={(e) => handleInputChange('insuranceNumber', e.target.value)}
+                        placeholder="Enter insurance number"
+                      />
+                    </div>
+
+                    <div>
                       <Label htmlFor="tpaName" className="text-sm font-medium text-gray-700">
                         TPA Name
                       </Label>
@@ -350,6 +407,63 @@ export default function IPDAdmissionForm({
                         onChange={(e) => handleInputChange('tpaName', e.target.value)}
                         placeholder="Enter TPA name"
                       />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="insuranceCard" className="text-sm font-medium text-gray-700">
+                        Insurance Card Document
+                      </Label>
+                      <div className="space-y-2">
+                        {!insuranceCardFile ? (
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                            <input
+                              type="file"
+                              id="insuranceCard"
+                              accept="image/*,.pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setInsuranceCardFile(file);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="insuranceCard"
+                              className="cursor-pointer flex flex-col items-center gap-2"
+                            >
+                              <Upload className="h-8 w-8 text-gray-400" />
+                              <span className="text-sm text-gray-600">
+                                Click to upload insurance card
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Supports: JPG, PNG, PDF
+                              </span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">
+                                {insuranceCardFile.name}
+                              </span>
+                              <span className="text-xs text-green-600">
+                                ({(insuranceCardFile.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setInsuranceCardFile(null)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -366,7 +480,7 @@ export default function IPDAdmissionForm({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="wardType" className="text-sm font-medium text-gray-700">
                     Ward Type <span className="text-red-500">*</span>
@@ -389,6 +503,112 @@ export default function IPDAdmissionForm({
                 </div>
 
                 <div>
+                  <Label htmlFor="wardSubType" className="text-sm font-medium text-gray-700">
+                    Ward Sub Type
+                  </Label>
+                  <Select
+                    value={formData.wardSubType || 'none'}
+                    onValueChange={(value) => handleInputChange('wardSubType', value === 'none' ? undefined : value as WardSubType)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ward sub type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value={WardSubType.AC}>AC</SelectItem>
+                      <SelectItem value={WardSubType.NON_AC}>Non-AC</SelectItem>
+                      <SelectItem value={WardSubType.SINGLE}>Single</SelectItem>
+                      <SelectItem value={WardSubType.DOUBLE}>Double</SelectItem>
+                      <SelectItem value={WardSubType.TRIPLE}>Triple</SelectItem>
+                      <SelectItem value={WardSubType.QUADRUPLE}>Quadruple</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="wardId" className="text-sm font-medium text-gray-700">
+                    Select Ward <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.wardId || 'none'}
+                    onValueChange={(value) => handleInputChange('wardId', value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a ward" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select ward</SelectItem>
+                      {wards
+                        .filter(ward => {
+                          // Filter by ward type
+                          if (ward.type !== formData.wardType) return false;
+                          
+                          // Filter by ward sub type if specified
+                          if (formData.wardSubType && ward.subType !== formData.wardSubType) return false;
+                          
+                          return true;
+                        })
+                        .map((ward) => (
+                          <SelectItem key={ward.id} value={ward.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{ward.name}</span>
+                              <span className="text-sm text-gray-500">
+                                {ward.availableBeds} of {ward.totalBeds} beds available
+                                {ward.subType && ` • ${ward.subType}`}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Bed Selection Grid */}
+              {selectedWard && beds.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Select Bed - {selectedWard.name}
+                  </Label>
+                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                    {beds.map((bed) => (
+                      <div
+                        key={bed.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          formData.bedId === bed.id
+                            ? 'bg-blue-100 border-blue-300 text-blue-800'
+                            : 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200'
+                        }`}
+                        onClick={() => {
+                          handleInputChange('bedId', bed.id);
+                          handleInputChange('bedNumber', bed.bedNumber);
+                        }}
+                      >
+                        <div className="text-center">
+                          <div className="font-medium text-sm">Bed {bed.bedNumber}</div>
+                          {bed.pricePerDay && (
+                            <div className="text-xs text-gray-600">₹{bed.pricePerDay}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                      <span>Available</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
+                      <span>Selected</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Room/Bed Entry */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="roomNumber" className="text-sm font-medium text-gray-700">
                     Room Number
                   </Label>
@@ -410,44 +630,6 @@ export default function IPDAdmissionForm({
                     onChange={(e) => handleInputChange('bedNumber', e.target.value)}
                     placeholder="Enter bed number"
                   />
-                </div>
-              </div>
-
-              {/* Available Wards */}
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Available Wards
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {wards
-                    .filter(ward => ward.type === formData.wardType)
-                    .map((ward) => (
-                      <div
-                        key={ward.id}
-                        className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                        onClick={() => {
-                          // Auto-fill room and bed if available
-                          if (ward.availableBeds > 0) {
-                            handleInputChange('roomNumber', ward.name);
-                            handleInputChange('bedNumber', `Bed ${ward.occupiedBeds + 1}`);
-                          }
-                        }}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="font-medium">{ward.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {ward.availableBeds} of {ward.totalBeds} beds available
-                            </div>
-                          </div>
-                          <Badge 
-                            className={getWardTypeColor(ward.type)}
-                          >
-                            {ward.type}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
                 </div>
               </div>
             </CardContent>
@@ -502,10 +684,13 @@ export default function IPDAdmissionForm({
                     <div>• Insurance: <Badge className={getInsuranceTypeColor(formData.insuranceType)}>
                       {formData.insuranceType}
                     </Badge></div>
+                    {formData.insuranceNumber && <div>• Insurance Number: <span className="font-medium">{formData.insuranceNumber}</span></div>}
+                    {insuranceCardFile && <div>• Insurance Card: <span className="font-medium text-green-600">Uploaded</span></div>}
                     <div>• Ward: <Badge className={getWardTypeColor(formData.wardType)}>
                       {formData.wardType}
                     </Badge></div>
-                    {formData.roomNumber && <div>• Room: <span className="font-medium">{formData.roomNumber}</span></div>}
+                    {formData.wardSubType && <div>• Sub Type: <span className="font-medium">{formData.wardSubType}</span></div>}
+                    {selectedWard && <div>• Ward: <span className="font-medium">{selectedWard.name}</span></div>}
                     {formData.bedNumber && <div>• Bed: <span className="font-medium">{formData.bedNumber}</span></div>}
                   </div>
                 </div>
@@ -525,7 +710,7 @@ export default function IPDAdmissionForm({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !formData.assignedDoctorId || !formData.wardType}
+              disabled={isSubmitting || !formData.assignedDoctorId || !formData.wardType || !formData.wardId}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isSubmitting ? (

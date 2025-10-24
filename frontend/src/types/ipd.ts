@@ -20,6 +20,15 @@ export enum WardType {
   EMERGENCY = 'EMERGENCY'
 }
 
+export enum WardSubType {
+  AC = 'AC',
+  NON_AC = 'NON_AC',
+  SINGLE = 'SINGLE',
+  DOUBLE = 'DOUBLE',
+  TRIPLE = 'TRIPLE',
+  QUADRUPLE = 'QUADRUPLE'
+}
+
 export enum InsuranceVerificationStatus {
   PENDING = 'PENDING',
   VERIFIED = 'VERIFIED',
@@ -35,6 +44,19 @@ export enum InsuranceDocumentType {
   MEDICAL_REPORTS = 'MEDICAL_REPORTS',
   PRESCRIPTION = 'PRESCRIPTION',
   OTHER = 'OTHER'
+}
+
+export enum PatientDocumentCategory {
+  MEDICAL_REPORTS = 'MEDICAL_REPORTS',
+  LAB_REPORTS = 'LAB_REPORTS',
+  IMAGING_REPORTS = 'IMAGING_REPORTS',
+  PRESCRIPTION = 'PRESCRIPTION',
+  CONSENT_FORMS = 'CONSENT_FORMS',
+  DISCHARGE_SUMMARY = 'DISCHARGE_SUMMARY',
+  REFERRAL_LETTERS = 'REFERRAL_LETTERS',
+  INSURANCE_DOCUMENTS = 'INSURANCE_DOCUMENTS',
+  ID_PROOF = 'ID_PROOF',
+  EMERGENCY_CONTACT = 'EMERGENCY_CONTACT'
 }
 
 // IPD Queue Interfaces
@@ -103,8 +125,12 @@ export interface IPDAdmissionData {
   insuranceType: InsuranceType;
   insuranceCompany?: string;
   policyNumber?: string;
+  insuranceNumber?: string;
   tpaName?: string;
   wardType: WardType;
+  wardSubType?: WardSubType;
+  wardId?: string;
+  bedId?: string;
   roomNumber?: string;
   bedNumber?: string;
   chiefComplaint?: string;
@@ -214,10 +240,23 @@ export interface Ward {
   id: string;
   name: string;
   type: WardType;
+  subType?: WardSubType;
   totalBeds: number;
   occupiedBeds: number;
   availableBeds: number;
+  pricePerDay?: number;
+  description?: string;
   hospitalId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bed {
+  id: string;
+  bedNumber: string;
+  isOccupied: boolean;
+  pricePerDay?: number;
+  wardId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -225,7 +264,10 @@ export interface Ward {
 export interface CreateWardData {
   name: string;
   type: WardType;
+  subType?: WardSubType;
   totalBeds: number;
+  pricePerDay?: number;
+  description?: string;
 }
 
 export interface UpdateWardBedCountData {
@@ -346,6 +388,33 @@ export interface IPDDashboardStatsResponse {
 export interface WardsResponse {
   message: string;
   data: Ward[];
+}
+
+// IPD Patient Document Interfaces
+export interface IPDPatientDocument {
+  id: string;
+  admissionId: string;
+  uploadedById: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  category: PatientDocumentCategory;
+  description?: string;
+  uploadedBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UploadIPDPatientDocumentData {
+  admissionId: string;
+  category: PatientDocumentCategory;
+  description?: string;
+  file: File;
 }
 
 export interface InsuranceCompaniesResponse {

@@ -27,7 +27,8 @@ import {
   Stethoscope,
   Building,
   Bed,
-  MapPin
+  MapPin,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
@@ -36,6 +37,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import AddQueueModal from '@/components/ipd/AddQueueModal';
 import IPDAdmissionForm from '@/components/ipd/IPDAdmissionForm';
 import ReceptionistDischargeForm from '@/components/ipd/ReceptionistDischargeForm';
+import IPDPatientDocumentUpload from '@/components/ipd/IPDPatientDocumentUpload';
 
 export default function IPDQueuePage() {
   const [queueEntries, setQueueEntries] = useState<IPDQueueEntry[]>([]);
@@ -48,6 +50,8 @@ export default function IPDQueuePage() {
   const [isAdmissionModalOpen, setIsAdmissionModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<IPDQueueEntry | null>(null);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [selectedAdmissionForDocuments, setSelectedAdmissionForDocuments] = useState<IPDQueueEntry | null>(null);
   const [selectedQueueEntryForDischarge, setSelectedQueueEntryForDischarge] = useState<IPDQueueEntry | null>(null);
 
   // WebSocket connection for real-time updates (disabled for now)
@@ -350,6 +354,17 @@ export default function IPDQueuePage() {
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAdmissionForDocuments(entry);
+                        setIsDocumentModalOpen(true);
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Documents
                     </Button>
                     <Button
                       variant="default"
@@ -772,6 +787,26 @@ export default function IPDQueuePage() {
                 </div>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Upload Modal */}
+      <Dialog open={isDocumentModalOpen} onOpenChange={setIsDocumentModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Patient Documents - {selectedAdmissionForDocuments?.patient.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedAdmissionForDocuments?.admission && (
+            <IPDPatientDocumentUpload
+              admissionId={selectedAdmissionForDocuments.admission.id}
+              patientName={selectedAdmissionForDocuments.patient.name}
+              onDocumentUploaded={() => {
+                // Optionally refresh data or show success message
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>
