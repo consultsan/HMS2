@@ -150,8 +150,10 @@ export interface IPDAdmission {
   policyNumber?: string;
   tpaName?: string;
   wardType: WardType;
+  wardSubType?: WardSubType;
   roomNumber?: string;
   bedNumber?: string;
+  bedId?: string;
   chiefComplaint?: string;
   admissionNotes?: string;
   dischargeNotes?: string;

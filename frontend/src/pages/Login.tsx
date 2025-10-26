@@ -45,6 +45,9 @@ export default function Login() {
         case 'LAB_TECHNICIAN':
           navigate('/lab/dashboard');
           break;
+        case 'NURSE':
+          navigate('/nurse/dashboard');
+          break;
         // Add more cases for other roles as needed
         default:
           navigate('/hospital-admin/dashboard');

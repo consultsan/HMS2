@@ -31,6 +31,7 @@ import {
   FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import { ipdApi } from '@/api/ipd';
 import { IPDQueueEntry, IPDDashboardStats } from '@/types/ipd';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -40,6 +41,7 @@ import ReceptionistDischargeForm from '@/components/ipd/ReceptionistDischargeFor
 import IPDPatientDocumentUpload from '@/components/ipd/IPDPatientDocumentUpload';
 
 export default function IPDQueuePage() {
+  const { user } = useAuth();
   const [queueEntries, setQueueEntries] = useState<IPDQueueEntry[]>([]);
   const [activeTab, setActiveTab] = useState<string>('queued');
   const [isLoading, setIsLoading] = useState(true);
@@ -103,7 +105,18 @@ export default function IPDQueuePage() {
       
       const response = await ipdApi.getQueue(params); 
       console.log(response.data.data);
-      setQueueEntries(response.data.data);
+      
+      // Filter based on user role
+      let filteredEntries = response.data.data;
+      
+      // If user is a doctor, show only patients assigned to them
+      if (user?.role === 'DOCTOR') {
+        filteredEntries = response.data.data.filter((entry: IPDQueueEntry) => 
+          entry.admission?.assignedDoctor?.id === user.id
+        );
+      }
+      
+      setQueueEntries(filteredEntries);
     } catch (error) {
       console.error('Error fetching queue entries:', error);
       // Show mock data for development/testing
@@ -193,8 +206,15 @@ export default function IPDQueuePage() {
       return (
         <div className="text-center py-8">
           <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No patients in queue</h3>
-          <p className="text-gray-500">No IPD queue entries found for the selected criteria.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {user?.role === 'DOCTOR' ? 'No assigned patients in queue' : 'No patients in queue'}
+          </h3>
+          <p className="text-gray-500">
+            {user?.role === 'DOCTOR' 
+              ? 'No patients assigned to you are currently in the IPD queue.' 
+              : 'No IPD queue entries found for the selected criteria.'
+            }
+          </p>
         </div>
       );
     }
@@ -218,7 +238,6 @@ export default function IPDQueuePage() {
                 <TableCell>
                   <div>
                     <div className="font-medium">{entry.patient.name}</div>
-                    <div className="text-sm text-gray-500">ID: {entry.patient.uhid}</div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -277,8 +296,15 @@ export default function IPDQueuePage() {
       return (
         <div className="text-center py-8">
           <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No admitted patients</h3>
-          <p className="text-gray-500">No admitted patients found for the selected criteria.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {user?.role === 'DOCTOR' ? 'No assigned admitted patients' : 'No admitted patients'}
+          </h3>
+          <p className="text-gray-500">
+            {user?.role === 'DOCTOR' 
+              ? 'No patients assigned to you are currently admitted.' 
+              : 'No admitted patients found for the selected criteria.'
+            }
+          </p>
         </div>
       );
     }
@@ -303,7 +329,6 @@ export default function IPDQueuePage() {
                 <TableCell>
                   <div>
                     <div className="font-medium">{entry.patient.name}</div>
-                    <div className="text-sm text-gray-500">ID: {entry.patient.uhid}</div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -323,14 +348,18 @@ export default function IPDQueuePage() {
                         <Building className="h-3 w-3 text-blue-600" />
                         <span className="text-sm font-medium">{entry.admission.wardType}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-green-600" />
-                        <span className="text-sm text-gray-600">{entry.admission.roomNumber}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Bed className="h-3 w-3 text-purple-600" />
-                        <span className="text-sm text-gray-600">{entry.admission.bedNumber}</span>
-                      </div>
+                      {entry.admission.roomNumber && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-green-600" />
+                          <span className="text-sm text-gray-600">Room: {entry.admission.roomNumber}</span>
+                        </div>
+                      )}
+                      {entry.admission.bedNumber && (
+                        <div className="flex items-center gap-1">
+                          <Bed className="h-3 w-3 text-purple-600" />
+                          <span className="text-sm text-gray-600">Bed: {entry.admission.bedNumber}</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <span className="text-gray-400">No ward assigned</span>
@@ -401,8 +430,15 @@ export default function IPDQueuePage() {
       return (
         <div className="text-center py-8">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No discharged patients</h3>
-          <p className="text-gray-500">No discharged patients found for the selected criteria.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {user?.role === 'DOCTOR' ? 'No assigned discharged patients' : 'No discharged patients'}
+          </h3>
+          <p className="text-gray-500">
+            {user?.role === 'DOCTOR' 
+              ? 'No patients assigned to you have been discharged recently.' 
+              : 'No discharged patients found for the selected criteria.'
+            }
+          </p>
         </div>
       );
     }
@@ -427,7 +463,6 @@ export default function IPDQueuePage() {
                 <TableCell>
                   <div>
                     <div className="font-medium">{entry.patient.name}</div>
-                    <div className="text-sm text-gray-500">ID: {entry.patient.uhid}</div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -447,14 +482,18 @@ export default function IPDQueuePage() {
                         <Building className="h-3 w-3 text-blue-600" />
                         <span className="text-sm font-medium">{entry.admission.wardType}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-green-600" />
-                        <span className="text-sm text-gray-600">{entry.admission.roomNumber}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Bed className="h-3 w-3 text-purple-600" />
-                        <span className="text-sm text-gray-600">{entry.admission.bedNumber}</span>
-                      </div>
+                      {entry.admission.roomNumber && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-green-600" />
+                          <span className="text-sm text-gray-600">Room: {entry.admission.roomNumber}</span>
+                        </div>
+                      )}
+                      {entry.admission.bedNumber && (
+                        <div className="flex items-center gap-1">
+                          <Bed className="h-3 w-3 text-purple-600" />
+                          <span className="text-sm text-gray-600">Bed: {entry.admission.bedNumber}</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <span className="text-gray-400">No ward assigned</span>
@@ -503,9 +542,11 @@ export default function IPDQueuePage() {
   };
 
   useEffect(() => {
-    fetchQueueEntries();
-    fetchDashboardStats();
-  }, [activeTab]);
+    if (user?.id) {
+      fetchQueueEntries();
+      fetchDashboardStats();
+    }
+  }, [activeTab, user?.id]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -515,19 +556,26 @@ export default function IPDQueuePage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="h-8 w-8 text-blue-600" />
-              Queue Management
+              {user?.role === 'DOCTOR' ? 'My IPD Patients' : 'Queue Management'}
             </h1>
-            <p className="text-gray-600 mt-1">Manage today's IPD patient queue and confirmations</p>
+            <p className="text-gray-600 mt-1">
+              {user?.role === 'DOCTOR' 
+                ? `Patients assigned to Dr. ${user.name}` 
+                : 'Manage today\'s IPD patient queue and confirmations'
+              }
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
-              size="lg"
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Add Queue
-            </Button>
+            {user?.role !== 'DOCTOR' && (
+              <Button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+                size="lg"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Add Queue
+              </Button>
+            )}
           </div>
         </div>
 
@@ -617,14 +665,18 @@ export default function IPDQueuePage() {
               <TabsContent value="queued" className="p-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Queue Management</h3>
-                    <Button
-                      onClick={() => setIsAddModalOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add to Queue
-                    </Button>
+                    <h3 className="text-lg font-semibold">
+                      {user?.role === 'DOCTOR' ? 'My Assigned Patients' : 'Queue Management'}
+                    </h3>
+                    {user?.role !== 'DOCTOR' && (
+                      <Button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to Queue
+                      </Button>
+                    )}
                   </div>
                   {renderQueueTable()}
                 </div>

@@ -35,6 +35,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         return <Navigate to="/sales/dashboard" replace />;
       case 'DOCTOR':
         return <Navigate to="/doctor/dashboard" replace />;
+      case 'NURSE':
+        return <Navigate to="/nurse/dashboard" replace />;
+      case 'LAB_TECHNICIAN':
+        return <Navigate to="/lab/dashboard" replace />;
       // Add more cases for other roles as needed
       default:
         return <Navigate to="/hospital-admin/dashboard" replace />;
