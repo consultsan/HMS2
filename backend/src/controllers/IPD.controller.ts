@@ -893,4 +893,433 @@ export class IPDController {
 			);
 		}
 	}
+
+	// IPD Lab Test Management
+	async createIPDLabTest(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const {
+					admissionId,
+					testName,
+					testCode,
+					category,
+					priority,
+					instructions,
+					fastingRequired,
+					fastingHours,
+					specialInstructions,
+					testCost,
+					labTestId
+				} = req.body;
+
+				if (!admissionId || !testName || !priority) {
+					throw new AppError("Admission ID, test name, and priority are required", 400);
+				}
+
+				const labTest = await this.ipdRepository.createIPDLabTest({
+					admissionId,
+					orderedById: req.user.id,
+					testName,
+					testCode,
+					category,
+					priority,
+					instructions,
+					fastingRequired,
+					fastingHours,
+					specialInstructions,
+					testCost,
+					labTestId
+				});
+
+				res.status(201).json(
+					new ApiResponse("Lab test ordered successfully", labTest)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDLabTests(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+				const { status } = req.query;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const labTests = await this.ipdRepository.getIPDLabTests(admissionId, status as string);
+
+				res.status(200).json(
+					new ApiResponse("Lab tests retrieved successfully", labTests)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async updateIPDLabTest(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+				const updateData = req.body;
+
+				if (!id) {
+					throw new AppError("Lab test ID is required", 400);
+				}
+
+				const labTest = await this.ipdRepository.updateIPDLabTest(id, updateData);
+
+				res.status(200).json(
+					new ApiResponse("Lab test updated successfully", labTest)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async uploadIPDLabTestAttachment(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { labTestId } = req.body;
+				const { attachmentType, description } = req.body;
+
+				if (!req.file || !labTestId || !attachmentType) {
+					throw new AppError("File, lab test ID, and attachment type are required", 400);
+				}
+
+				// Upload file to S3
+				const fileUrl = await s3.uploadStream(req.file.buffer, req.file.originalname, req.file.mimetype);
+
+				const attachment = await this.ipdRepository.uploadIPDLabTestAttachment({
+					labTestId,
+					uploadedById: req.user.id,
+					fileName: req.file.originalname,
+					fileUrl,
+					fileSize: req.file.size,
+					mimeType: req.file.mimetype,
+					attachmentType,
+					description
+				});
+
+				res.status(201).json(
+					new ApiResponse("Lab test attachment uploaded successfully", attachment)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// IPD Surgery Management
+	async createIPDSurgery(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const {
+					admissionId,
+					surgeryName,
+					surgeryCode,
+					category,
+					priority,
+					scheduledAt,
+					estimatedDuration,
+					procedureDescription,
+					preoperativeDiagnosis,
+					postoperativeDiagnosis,
+					anesthesiaType,
+					anesthesiaNotes,
+					surgicalNotes,
+					complications,
+					bloodLoss,
+					bloodTransfusion,
+					bloodUnits,
+					primarySurgeon,
+					assistantSurgeon,
+					anesthesiologist,
+					scrubNurse,
+					circulatingNurse,
+					surgeryCost,
+					anesthesiaCost,
+					totalCost,
+					primarySurgeonId
+				} = req.body;
+
+				if (!admissionId || !surgeryName || !priority) {
+					throw new AppError("Admission ID, surgery name, and priority are required", 400);
+				}
+
+				const surgery = await this.ipdRepository.createIPDSurgery({
+					admissionId,
+					orderedById: req.user.id,
+					surgeryName,
+					surgeryCode,
+					category,
+					priority,
+					scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+					estimatedDuration,
+					procedureDescription,
+					preoperativeDiagnosis,
+					postoperativeDiagnosis,
+					anesthesiaType,
+					anesthesiaNotes,
+					surgicalNotes,
+					complications,
+					bloodLoss,
+					bloodTransfusion,
+					bloodUnits,
+					primarySurgeon,
+					assistantSurgeon,
+					anesthesiologist,
+					scrubNurse,
+					circulatingNurse,
+					surgeryCost,
+					anesthesiaCost,
+					totalCost,
+					primarySurgeonId
+				});
+
+				res.status(201).json(
+					new ApiResponse("Surgery scheduled successfully", surgery)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDSurgeries(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+				const { status } = req.query;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const surgeries = await this.ipdRepository.getIPDSurgeries(admissionId, status as string);
+
+				res.status(200).json(
+					new ApiResponse("Surgeries retrieved successfully", surgeries)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async updateIPDSurgery(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+				const updateData = req.body;
+
+				if (!id) {
+					throw new AppError("Surgery ID is required", 400);
+				}
+
+				// Convert date strings to Date objects
+				if (updateData.scheduledAt) {
+					updateData.scheduledAt = new Date(updateData.scheduledAt);
+				}
+				if (updateData.actualStartTime) {
+					updateData.actualStartTime = new Date(updateData.actualStartTime);
+				}
+				if (updateData.actualEndTime) {
+					updateData.actualEndTime = new Date(updateData.actualEndTime);
+				}
+
+				const surgery = await this.ipdRepository.updateIPDSurgery(id, updateData);
+
+				res.status(200).json(
+					new ApiResponse("Surgery updated successfully", surgery)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async uploadIPDSurgeryAttachment(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { surgeryId } = req.body;
+				const { attachmentType, description } = req.body;
+
+				if (!req.file || !surgeryId || !attachmentType) {
+					throw new AppError("File, surgery ID, and attachment type are required", 400);
+				}
+
+				// Upload file to S3
+				const fileUrl = await s3.uploadStream(req.file.buffer, req.file.originalname, req.file.mimetype);
+
+				const attachment = await this.ipdRepository.uploadIPDSurgeryAttachment({
+					surgeryId,
+					uploadedById: req.user.id,
+					fileName: req.file.originalname,
+					fileUrl,
+					fileSize: req.file.size,
+					mimeType: req.file.mimetype,
+					attachmentType,
+					description
+				});
+
+				res.status(201).json(
+					new ApiResponse("Surgery attachment uploaded successfully", attachment)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// IPD Transfer Management
+	async createIPDTransfer(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const {
+					admissionId,
+					transferType,
+					transferReason,
+					transferNotes,
+					fromWardType,
+					fromWardSubType,
+					fromRoomNumber,
+					fromBedNumber,
+					fromDoctorId,
+					toWardType,
+					toWardSubType,
+					toRoomNumber,
+					toBedNumber,
+					toDoctorId
+				} = req.body;
+
+				if (!admissionId || !transferType || !transferReason || !toWardType) {
+					throw new AppError("Admission ID, transfer type, transfer reason, and destination ward type are required", 400);
+				}
+
+				const transfer = await this.ipdRepository.createIPDTransfer({
+					admissionId,
+					transferType,
+					transferReason,
+					transferNotes,
+					fromWardType,
+					fromWardSubType,
+					fromRoomNumber,
+					fromBedNumber,
+					fromDoctorId,
+					toWardType,
+					toWardSubType,
+					toRoomNumber,
+					toBedNumber,
+					toDoctorId,
+					requestedByStaffId: req.user.id
+				});
+
+				res.status(201).json(
+					new ApiResponse("Transfer request created successfully", transfer)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDTransfers(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+				const { status } = req.query;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const transfers = await this.ipdRepository.getIPDTransfers(admissionId, status as string);
+
+				res.status(200).json(
+					new ApiResponse("Transfers retrieved successfully", transfers)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async updateIPDTransfer(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { id } = req.params;
+				const updateData = req.body;
+
+				if (!id) {
+					throw new AppError("Transfer ID is required", 400);
+				}
+
+				// Convert date strings to Date objects
+				if (updateData.approvedAt) {
+					updateData.approvedAt = new Date(updateData.approvedAt);
+				}
+				if (updateData.completedAt) {
+					updateData.completedAt = new Date(updateData.completedAt);
+				}
+
+				const transfer = await this.ipdRepository.updateIPDTransfer(id, updateData);
+
+				res.status(200).json(
+					new ApiResponse("Transfer updated successfully", transfer)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
 }

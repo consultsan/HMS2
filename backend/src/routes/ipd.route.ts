@@ -50,4 +50,21 @@ router.delete("/patient-document/:id", ipdController.deleteIPDPatientDocument.bi
 // Dashboard Routes
 router.get("/dashboard/stats", ipdController.getIPDDashboardStats.bind(ipdController));
 
+// IPD Lab Test Routes
+router.post("/lab-test", ipdController.createIPDLabTest.bind(ipdController));
+router.get("/lab-test/:admissionId", ipdController.getIPDLabTests.bind(ipdController));
+router.patch("/lab-test/:id", ipdController.updateIPDLabTest.bind(ipdController));
+router.post("/lab-test/attachment", ipdController.uploadIPDLabTestAttachment.bind(ipdController));
+
+// IPD Surgery Routes
+router.post("/surgery", ipdController.createIPDSurgery.bind(ipdController));
+router.get("/surgery/:admissionId", ipdController.getIPDSurgeries.bind(ipdController));
+router.patch("/surgery/:id", ipdController.updateIPDSurgery.bind(ipdController));
+router.post("/surgery/attachment", ipdController.uploadIPDSurgeryAttachment.bind(ipdController));
+
+// IPD Transfer Routes
+router.post("/transfer", ipdController.createIPDTransfer.bind(ipdController));
+router.get("/transfer/:admissionId", ipdController.getIPDTransfers.bind(ipdController));
+router.patch("/transfer/:id", ipdController.updateIPDTransfer.bind(ipdController));
+
 export default router;

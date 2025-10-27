@@ -306,6 +306,18 @@ model HospitalStaff {
   prescriptions       Prescription[]
   createdPatients     Patient[] @relation("PatientCreator")
   uploadedIPDPatientDocuments IPDPatientDocument[]
+  
+  // New IPD relations
+  orderedLabTests     IPDLabTest[] @relation("LabTestOrderedBy")
+  performedLabTests   IPDLabTest[] @relation("LabTestPerformedBy")
+  orderedSurgeries    IPDSurgery[] @relation("SurgeryOrderedBy")
+  primarySurgeries    IPDSurgery[] @relation("PrimarySurgeon")
+  requestedTransfers  IPDTransfer[] @relation("TransferRequester")
+  approvedTransfers   IPDTransfer[] @relation("TransferApprover")
+  fromDoctorTransfers IPDTransfer[] @relation("FromDoctor")
+  toDoctorTransfers   IPDTransfer[] @relation("ToDoctor")
+  uploadedLabTestAttachments IPDLabTestAttachment[]
+  uploadedSurgeryAttachments IPDSurgeryAttachment[]
 
   hospital   Hospital   @relation(fields: [hospitalId], references: [id])
   hospitalId String
@@ -531,6 +543,7 @@ model LabTest {
   diseaseTemplate DiseaseTemplate[]
   parameters      LabTestParameter[]
   orders          AppointmentLabTest[]
+  ipdOrders       IPDLabTest[]
 }
 
 /// — Static definitions of each parameter for a given test —
@@ -957,6 +970,11 @@ model IPDAdmission {
   prescriptions Prescription[]
   patientDocumentFiles PatientDocumentFile[]
   
+  // New IPD relations
+  labTests IPDLabTest[]
+  surgeries IPDSurgery[]
+  transfers IPDTransfer[]
+  
   @@index([queueId])
   @@index([assignedDoctorId])
   @@index([status])
@@ -1134,6 +1152,218 @@ model IPDPatientDocument {
   @@index([uploadedById])
 }
 
+/// IPD Lab Tests
+model IPDLabTest {
+  id        String   @id @default(uuid())
+  testName  String
+  testCode  String?
+  category  String?
+  priority  TestPriority @default(ROUTINE)
+  status    TestStatus @default(ORDERED)
+  orderedAt DateTime @default(now())
+  scheduledAt DateTime?
+  completedAt DateTime?
+  resultDate DateTime?
+  
+  // Test details
+  instructions String?
+  fastingRequired Boolean @default(false)
+  fastingHours Int?
+  specialInstructions String?
+  
+  // Results
+  resultValue String?
+  resultUnit String?
+  normalRange String?
+  abnormalFlag Boolean @default(false)
+  resultNotes String?
+  
+  // Cost
+  testCost Float?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  orderedBy   HospitalStaff @relation("LabTestOrderedBy", fields: [orderedById], references: [id])
+  orderedById String
+  
+  performedBy   HospitalStaff? @relation("LabTestPerformedBy", fields: [performedById], references: [id])
+  performedById String?
+  
+  labTest   LabTest? @relation(fields: [labTestId], references: [id])
+  labTestId String?
+  
+  attachments IPDLabTestAttachment[]
+  
+  @@index([admissionId])
+  @@index([orderedById])
+  @@index([status])
+}
+
+/// IPD Lab Test Attachments
+model IPDLabTestAttachment {
+  id        String   @id @default(uuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  attachmentType LabTestAttachmentType
+  description String?
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  labTest   IPDLabTest @relation(fields: [labTestId], references: [id])
+  labTestId String
+  
+  uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  @@index([labTestId])
+  @@index([uploadedById])
+}
+
+/// IPD Surgery
+model IPDSurgery {
+  id        String   @id @default(uuid())
+  surgeryName String
+  surgeryCode String?
+  category  String?
+  priority  SurgeryPriority @default(ROUTINE)
+  status    SurgicalStatus @default(NOT_CONFIRMED)
+  
+  // Scheduling
+  scheduledAt DateTime?
+  estimatedDuration Int? // in minutes
+  actualStartTime DateTime?
+  actualEndTime DateTime?
+  
+  // Surgery details
+  procedureDescription String?
+  preoperativeDiagnosis String?
+  postoperativeDiagnosis String?
+  anesthesiaType String?
+  anesthesiaNotes String?
+  surgicalNotes String?
+  complications String?
+  bloodLoss Int? // in ml
+  bloodTransfusion Boolean @default(false)
+  bloodUnits Int?
+  
+  // Team
+  primarySurgeon String?
+  assistantSurgeon String?
+  anesthesiologist String?
+  scrubNurse String?
+  circulatingNurse String?
+  
+  // Cost
+  surgeryCost Float?
+  anesthesiaCost Float?
+  totalCost Float?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  orderedBy   HospitalStaff @relation("SurgeryOrderedBy", fields: [orderedById], references: [id])
+  orderedById String
+  
+  primarySurgeonStaff   HospitalStaff? @relation("PrimarySurgeon", fields: [primarySurgeonId], references: [id])
+  primarySurgeonId String?
+  
+  attachments IPDSurgeryAttachment[]
+  
+  @@index([admissionId])
+  @@index([orderedById])
+  @@index([status])
+}
+
+/// IPD Surgery Attachments
+model IPDSurgeryAttachment {
+  id        String   @id @default(uuid())
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  attachmentType SurgeryAttachmentType
+  description String?
+  uploadedAt DateTime @default(now())
+  
+  // Relations
+  surgery   IPDSurgery @relation(fields: [surgeryId], references: [id])
+  surgeryId String
+  
+  uploadedBy   HospitalStaff @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  
+  @@index([surgeryId])
+  @@index([uploadedById])
+}
+
+/// IPD Patient Transfer
+model IPDTransfer {
+  id        String   @id @default(uuid())
+  transferType TransferType
+  status    TransferStatus @default(REQUESTED)
+  
+  // Transfer details
+  transferDate DateTime @default(now())
+  transferReason String
+  transferNotes String?
+  
+  // From location
+  fromWardType WardType?
+  fromWardSubType WardSubType?
+  fromRoomNumber String?
+  fromBedNumber String?
+  fromDoctorId String?
+  
+  // To location
+  toWardType WardType
+  toWardSubType WardSubType?
+  toRoomNumber String?
+  toBedNumber String?
+  toDoctorId String?
+  
+  // Approval
+  requestedBy String?
+  approvedBy String?
+  approvedAt DateTime?
+  approvalNotes String?
+  
+  // Completion
+  completedAt DateTime?
+  completedBy String?
+  completionNotes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  admission   IPDAdmission @relation(fields: [admissionId], references: [id])
+  admissionId String
+  
+  requestedByStaff   HospitalStaff? @relation("TransferRequester", fields: [requestedByStaffId], references: [id])
+  requestedByStaffId String?
+  
+  approvedByStaff   HospitalStaff? @relation("TransferApprover", fields: [approvedByStaffId], references: [id])
+  approvedByStaffId String?
+  
+  fromDoctor   HospitalStaff? @relation("FromDoctor", fields: [fromDoctorId], references: [id])
+  toDoctor   HospitalStaff? @relation("ToDoctor", fields: [toDoctorId], references: [id])
+  
+  @@index([admissionId])
+  @@index([transferType])
+  @@index([status])
+}
+
 /// Insurance Verification Tracking
 model InsuranceVerification {
   id        String   @id @default(uuid())
@@ -1305,6 +1535,68 @@ enum PrescriptionItemStatus {
   PARTIALLY_DISPENSED
   CANCELLED
   OUT_OF_STOCK
+}
+
+// IPD-specific enums
+enum TestPriority {
+  ROUTINE
+  URGENT
+  STAT
+  EMERGENCY
+}
+
+enum TestStatus {
+  ORDERED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SurgeryPriority {
+  ROUTINE
+  URGENT
+  EMERGENCY
+  ELECTIVE
+}
+
+enum TransferType {
+  WARD_TO_WARD
+  WARD_TO_ICU
+  ICU_TO_WARD
+  ICU_TO_ICU
+  WARD_TO_OPERATION_THEATER
+  OPERATION_THEATER_TO_WARD
+  OPERATION_THEATER_TO_ICU
+  DISCHARGE
+}
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum LabTestAttachmentType {
+  RESULT_REPORT
+  IMAGE
+  DOCUMENT
+  PRESCRIPTION
+  OTHER
+}
+
+enum SurgeryAttachmentType {
+  PRE_OPERATIVE_REPORT
+  OPERATIVE_REPORT
+  POST_OPERATIVE_REPORT
+  IMAGE
+  VIDEO
+  DOCUMENT
+  OTHER
 }
 
 model Drug {

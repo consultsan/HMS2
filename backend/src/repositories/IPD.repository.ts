@@ -1,4 +1,4 @@
-import { PrismaClient, IPDStatus, InsuranceType, WardType, WardSubType, PatientDocumentCategory } from "@prisma/client";
+import { PrismaClient, IPDStatus, InsuranceType, WardType, WardSubType, PatientDocumentCategory, TestPriority, TestStatus, SurgeryPriority, SurgicalStatus, TransferType, TransferStatus, LabTestAttachmentType, SurgeryAttachmentType } from "@prisma/client";
 import prisma from "../utils/dbConfig";
 import AppError from "../utils/AppError";
 
@@ -734,6 +734,568 @@ export class IPDRepository {
 		try {
 			return await prisma.iPDPatientDocument.delete({
 				where: { id }
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// IPD Lab Test Management
+	async createIPDLabTest(data: {
+		admissionId: string;
+		orderedById: string;
+		testName: string;
+		testCode?: string;
+		category?: string;
+		priority: TestPriority;
+		instructions?: string;
+		fastingRequired?: boolean;
+		fastingHours?: number;
+		specialInstructions?: string;
+		testCost?: number;
+		labTestId?: string;
+	}) {
+		try {
+			return await prisma.iPDLabTest.create({
+				data,
+				include: {
+					admission: {
+						include: {
+							queue: {
+								include: {
+									patient: {
+										select: {
+											id: true,
+											name: true,
+											uhid: true,
+											phone: true
+										}
+									}
+								}
+							}
+						}
+					},
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					performedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					labTest: true,
+					attachments: true
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async getIPDLabTests(admissionId: string, status?: string) {
+		try {
+			const whereClause: any = { admissionId };
+			if (status) {
+				whereClause.status = status;
+			}
+
+			return await prisma.iPDLabTest.findMany({
+				where: whereClause,
+				include: {
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					performedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					labTest: true,
+					attachments: true
+				},
+				orderBy: { orderedAt: 'desc' }
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async updateIPDLabTest(id: string, data: {
+		status?: TestStatus;
+		scheduledAt?: Date;
+		completedAt?: Date;
+		resultDate?: Date;
+		resultValue?: string;
+		resultUnit?: string;
+		normalRange?: string;
+		abnormalFlag?: boolean;
+		resultNotes?: string;
+		performedById?: string;
+	}) {
+		try {
+			return await prisma.iPDLabTest.update({
+				where: { id },
+				data,
+				include: {
+					admission: {
+					include: {
+						queue: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										uhid: true,
+										phone: true
+									}
+								}
+							}
+						}
+					}
+				},
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					performedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					labTest: true,
+					attachments: true
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async uploadIPDLabTestAttachment(data: {
+		labTestId: string;
+		uploadedById: string;
+		fileName: string;
+		fileUrl: string;
+		fileSize: number;
+		mimeType: string;
+		attachmentType: LabTestAttachmentType;
+		description?: string;
+	}) {
+		try {
+			return await prisma.iPDLabTestAttachment.create({
+				data,
+				include: {
+					uploadedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// IPD Surgery Management
+	async createIPDSurgery(data: {
+		admissionId: string;
+		orderedById: string;
+		surgeryName: string;
+		surgeryCode?: string;
+		category?: string;
+		priority: SurgeryPriority;
+		scheduledAt?: Date;
+		estimatedDuration?: number;
+		procedureDescription?: string;
+		preoperativeDiagnosis?: string;
+		postoperativeDiagnosis?: string;
+		anesthesiaType?: string;
+		anesthesiaNotes?: string;
+		surgicalNotes?: string;
+		complications?: string;
+		bloodLoss?: number;
+		bloodTransfusion?: boolean;
+		bloodUnits?: number;
+		primarySurgeon?: string;
+		assistantSurgeon?: string;
+		anesthesiologist?: string;
+		scrubNurse?: string;
+		circulatingNurse?: string;
+		surgeryCost?: number;
+		anesthesiaCost?: number;
+		totalCost?: number;
+		primarySurgeonId?: string;
+	}) {
+		try {
+			return await prisma.iPDSurgery.create({
+				data,
+				include: {
+					admission: {
+					include: {
+						queue: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										uhid: true,
+										phone: true
+									}
+								}
+							}
+						}
+					}
+				},
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					primarySurgeonStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					attachments: true
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async getIPDSurgeries(admissionId: string, status?: string) {
+		try {
+			const whereClause: any = { admissionId };
+			if (status) {
+				whereClause.status = status;
+			}
+
+			return await prisma.iPDSurgery.findMany({
+				where: whereClause,
+				include: {
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					primarySurgeonStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					attachments: true
+				},
+				orderBy: { createdAt: 'desc' }
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async updateIPDSurgery(id: string, data: {
+		status?: SurgicalStatus;
+		scheduledAt?: Date;
+		actualStartTime?: Date;
+		actualEndTime?: Date;
+		procedureDescription?: string;
+		preoperativeDiagnosis?: string;
+		postoperativeDiagnosis?: string;
+		anesthesiaType?: string;
+		anesthesiaNotes?: string;
+		surgicalNotes?: string;
+		complications?: string;
+		bloodLoss?: number;
+		bloodTransfusion?: boolean;
+		bloodUnits?: number;
+		primarySurgeon?: string;
+		assistantSurgeon?: string;
+		anesthesiologist?: string;
+		scrubNurse?: string;
+		circulatingNurse?: string;
+		surgeryCost?: number;
+		anesthesiaCost?: number;
+		totalCost?: number;
+		primarySurgeonId?: string;
+	}) {
+		try {
+			return await prisma.iPDSurgery.update({
+				where: { id },
+				data,
+				include: {
+					admission: {
+					include: {
+						queue: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										uhid: true,
+										phone: true
+									}
+								}
+							}
+						}
+					}
+				},
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					primarySurgeonStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					attachments: true
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async uploadIPDSurgeryAttachment(data: {
+		surgeryId: string;
+		uploadedById: string;
+		fileName: string;
+		fileUrl: string;
+		fileSize: number;
+		mimeType: string;
+		attachmentType: SurgeryAttachmentType;
+		description?: string;
+	}) {
+		try {
+			return await prisma.iPDSurgeryAttachment.create({
+				data,
+				include: {
+					uploadedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// IPD Transfer Management
+	async createIPDTransfer(data: {
+		admissionId: string;
+		transferType: TransferType;
+		transferReason: string;
+		transferNotes?: string;
+		fromWardType?: WardType;
+		fromWardSubType?: WardSubType;
+		fromRoomNumber?: string;
+		fromBedNumber?: string;
+		fromDoctorId?: string;
+		toWardType: WardType;
+		toWardSubType?: WardSubType;
+		toRoomNumber?: string;
+		toBedNumber?: string;
+		toDoctorId?: string;
+		requestedByStaffId?: string;
+	}) {
+		try {
+			return await prisma.iPDTransfer.create({
+				data,
+				include: {
+					admission: {
+					include: {
+						queue: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										uhid: true,
+										phone: true
+									}
+								}
+							}
+						}
+					}
+				},
+					requestedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					approvedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					fromDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					toDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					}
+				}
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async getIPDTransfers(admissionId: string, status?: string) {
+		try {
+			const whereClause: any = { admissionId };
+			if (status) {
+				whereClause.status = status;
+			}
+
+			return await prisma.iPDTransfer.findMany({
+				where: whereClause,
+				include: {
+					requestedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					approvedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					fromDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					toDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					}
+				},
+				orderBy: { transferDate: 'desc' }
+			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async updateIPDTransfer(id: string, data: {
+		status?: TransferStatus;
+		approvedBy?: string;
+		approvedAt?: Date;
+		approvalNotes?: string;
+		completedAt?: Date;
+		completedBy?: string;
+		completionNotes?: string;
+		approvedByStaffId?: string;
+	}) {
+		try {
+			return await prisma.iPDTransfer.update({
+				where: { id },
+				data,
+				include: {
+					admission: {
+					include: {
+						queue: {
+							include: {
+								patient: {
+									select: {
+										id: true,
+										name: true,
+										uhid: true,
+										phone: true
+									}
+								}
+							}
+						}
+					}
+				},
+					requestedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					approvedByStaff: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					fromDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					toDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					}
+				}
 			});
 		} catch (error: any) {
 			throw new AppError(error.message);
