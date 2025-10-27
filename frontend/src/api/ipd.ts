@@ -8,6 +8,7 @@ import {
   IPDVisitData,
   IPDVisit,
   Ward,
+  Bed,
   InsuranceCompany,
   CreateWardData,
   UpdateWardBedCountData,
@@ -35,8 +36,12 @@ export const ipdApi = {
     api.patch<IPDQueueResponse>(`/api/ipd/queue/${id}/status`, data),
 
   // IPD Admission Management
-  createAdmission: (data: IPDAdmissionData) =>
-    api.post<IPDAdmissionResponse>('/api/ipd/admission', data),
+  createAdmission: (data: IPDAdmissionData | FormData) =>
+    api.post<IPDAdmissionResponse>('/api/ipd/admission', data, {
+      headers: {
+        'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+      }
+    }),
 
   getAdmissions: (params?: { status?: string }) =>
     api.get<{ data: IPDAdmission[] }>('/api/ipd/admission', { params }),
@@ -80,6 +85,24 @@ export const ipdApi = {
 
   updateWardBedCount: (id: string, data: UpdateWardBedCountData) =>
     api.patch<{ message: string; data: Ward }>(`/api/ipd/ward/${id}/bed-count`, data),
+
+  // Bed Management
+  getAvailableBeds: (wardId: string) =>
+    api.get<{ message: string; data: Bed[] }>(`/api/ipd/ward/${wardId}/beds`),
+
+  // IPD Patient Document APIs
+  uploadIPDPatientDocument: (data: FormData) =>
+    api.post<{ message: string; data: any }>('/api/ipd/patient-document', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }),
+  
+  getIPDPatientDocuments: (admissionId: string) =>
+    api.get<{ message: string; data: any[] }>(`/api/ipd/patient-document/${admissionId}`),
+  
+  deleteIPDPatientDocument: (documentId: string) =>
+    api.delete<{ message: string }>(`/api/ipd/patient-document/${documentId}`),
 
   // Insurance Companies
   getInsuranceCompanies: () =>

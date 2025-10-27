@@ -40,6 +40,8 @@ import PendingLabBills from "./pages/receptionist/PendingLabBills";
 import IPDAdminDashboard from "./pages/admin/IPDAdminDashboard";
 import WardManagement from "./pages/admin/WardManagement";
 import InsuranceManagement from "./pages/admin/InsuranceManagement";
+import NurseDashboard from "./pages/nurse/NurseDashboard";
+import NurseIPDManagement from "./pages/nurse/NurseIPDManagement";
 
 function PatientDetailsWrapper() {
 	const { patientId } = useParams<{ patientId: string }>();
@@ -310,6 +312,34 @@ export default function App() {
 						<Route
 							path="create"
 							element={<CreateLabTest />}
+						/>
+					</Route>
+
+					{/* Nurse Routes */}
+					<Route
+						path="/nurse/*"
+						element={
+							<ProtectedRoute allowedRoles={["NURSE"]}>
+								<UnifiedLayout />
+							</ProtectedRoute>
+						}
+					>
+						<Route
+							index
+							element={
+								<Navigate
+									to="/nurse/dashboard"
+									replace
+								/>
+							}
+						/>
+						<Route
+							path="dashboard"
+							element={<NurseDashboard />}
+						/>
+						<Route
+							path="ipd-management"
+							element={<NurseIPDManagement />}
 						/>
 					</Route>
 
