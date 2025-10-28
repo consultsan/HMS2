@@ -88,6 +88,17 @@ const roleConfigs = {
       default: 'Search...',
     },
   },
+  NURSE: {
+    basePath: '/nurse',
+    sections: [
+      { name: 'Dashboard', path: '/nurse/dashboard' },
+      { name: 'IPD Management', path: '/nurse/ipd-management' },
+    ],
+    searchPlaceholders: {
+      'ipd-management': 'Search patients by name or UHID',
+      default: 'Search...',
+    },
+  },
   SUPER_ADMIN: {
     basePath: '/super-admin',
     sections: [

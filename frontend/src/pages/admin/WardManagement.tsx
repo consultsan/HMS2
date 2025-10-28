@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
-import { Ward, WardType, CreateWardData } from '@/types/ipd';
+import { Ward, WardType, WardSubType, CreateWardData } from '@/types/ipd';  
 
 export default function WardManagement() {
   const [wards, setWards] = useState<Ward[]>([]);
@@ -48,7 +48,10 @@ export default function WardManagement() {
   const [formData, setFormData] = useState<CreateWardData>({
     name: '',
     type: WardType.GENERAL,
+    subType: undefined,
     totalBeds: 0,
+    pricePerDay: undefined,
+    description: '',
   });
 
   // Fetch wards
@@ -70,7 +73,7 @@ export default function WardManagement() {
   }, []);
 
   // Handle form input changes
-  const handleInputChange = (field: keyof CreateWardData, value: string | number) => {
+  const handleInputChange = (field: keyof CreateWardData, value: string | number | WardSubType | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -91,7 +94,14 @@ export default function WardManagement() {
       await ipdApi.createWard(formData);
       toast.success('Ward created successfully!');
       setIsCreateModalOpen(false);
-      setFormData({ name: '', type: WardType.GENERAL, totalBeds: 0 });
+      setFormData({ 
+        name: '', 
+        type: WardType.GENERAL, 
+        subType: undefined,
+        totalBeds: 0, 
+        pricePerDay: undefined,
+        description: ''
+      });
       fetchWards();
     } catch (error: any) {
       console.error('Error creating ward:', error);
@@ -273,9 +283,11 @@ export default function WardManagement() {
                     <TableRow>
                       <TableHead>Ward Name</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Sub Type</TableHead>
                       <TableHead>Total Beds</TableHead>
                       <TableHead>Occupied</TableHead>
                       <TableHead>Available</TableHead>
+                      <TableHead>Price/Day</TableHead>
                       <TableHead>Occupancy</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -287,15 +299,38 @@ export default function WardManagement() {
                       
                       return (
                         <TableRow key={ward.id}>
-                          <TableCell className="font-medium">{ward.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              <div>{ward.name}</div>
+                              {ward.description && (
+                                <div className="text-xs text-gray-500 mt-1">{ward.description}</div>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge className={getWardTypeColor(ward.type)}>
                               {ward.type}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            {ward.subType ? (
+                              <Badge variant="outline" className="text-xs">
+                                {ward.subType}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400 text-sm">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>{ward.totalBeds}</TableCell>
                           <TableCell>{ward.occupiedBeds}</TableCell>
                           <TableCell>{ward.availableBeds}</TableCell>
+                          <TableCell>
+                            {ward.pricePerDay ? (
+                              <span className="font-medium">₹{ward.pricePerDay}</span>
+                            ) : (
+                              <span className="text-gray-400 text-sm">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <div className="w-16 bg-gray-200 rounded-full h-2">
@@ -377,6 +412,29 @@ export default function WardManagement() {
               </div>
 
               <div>
+                <Label htmlFor="subType" className="text-sm font-medium text-gray-700">
+                  Ward Sub Type
+                </Label>
+                <Select
+                  value={formData.subType || 'none'}
+                  onValueChange={(value) => handleInputChange('subType', value === 'none' ? undefined : value as WardSubType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ward sub type (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value={WardSubType.AC}>AC</SelectItem>
+                    <SelectItem value={WardSubType.NON_AC}>Non-AC</SelectItem>
+                    <SelectItem value={WardSubType.SINGLE}>Single</SelectItem>
+                    <SelectItem value={WardSubType.DOUBLE}>Double</SelectItem>
+                    <SelectItem value={WardSubType.TRIPLE}>Triple</SelectItem>
+                    <SelectItem value={WardSubType.QUADRUPLE}>Quadruple</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="totalBeds" className="text-sm font-medium text-gray-700">
                   Total Beds <span className="text-red-500">*</span>
                 </Label>
@@ -388,6 +446,33 @@ export default function WardManagement() {
                   onChange={(e) => handleInputChange('totalBeds', parseInt(e.target.value) || 0)}
                   placeholder="Enter total number of beds"
                   required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="pricePerDay" className="text-sm font-medium text-gray-700">
+                  Price Per Day (₹)
+                </Label>
+                <Input
+                  id="pricePerDay"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.pricePerDay || ''}
+                  onChange={(e) => handleInputChange('pricePerDay', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  placeholder="Enter price per day (optional)"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                  Description
+                </Label>
+                <Input
+                  id="description"
+                  value={formData.description || ''}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter ward description (optional)"
                 />
               </div>
 

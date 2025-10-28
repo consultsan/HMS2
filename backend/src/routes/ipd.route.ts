@@ -1,9 +1,18 @@
 import { Router } from "express";
 import { IPDController } from "../controllers/IPD.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
+import multer from "multer";
 
 const router = Router();
 const ipdController = new IPDController();
+
+// Configure multer for file uploads
+const upload = multer({
+	storage: multer.memoryStorage(),
+	limits: {
+		fileSize: 10 * 1024 * 1024, // 10MB limit
+	},
+});
 
 // Apply authentication middleware to all routes
 router.use(authMiddleware);
@@ -15,7 +24,7 @@ router.get("/queue/:id", ipdController.getIPDQueueById.bind(ipdController));
 router.patch("/queue/:id/status", ipdController.updateIPDQueueStatus.bind(ipdController));
 
 // IPD Admission Routes
-router.post("/admission", ipdController.createIPDAdmission.bind(ipdController));
+router.post("/admission", upload.single('insuranceCard'), ipdController.createIPDAdmission.bind(ipdController));
 router.get("/admission", ipdController.getIPDAdmissions.bind(ipdController));
 router.get("/admission/:id", ipdController.getIPDAdmissionById.bind(ipdController));
 router.patch("/admission/:id", ipdController.updateIPDAdmission.bind(ipdController));
@@ -43,7 +52,7 @@ router.post("/bed/assign", ipdController.assignBed.bind(ipdController));
 router.patch("/bed/:bedId/release", ipdController.releaseBed.bind(ipdController));
 
 // IPD Patient Document Routes
-router.post("/patient-document", ipdController.uploadIPDPatientDocument.bind(ipdController));
+router.post("/patient-document", upload.single('file'), ipdController.uploadIPDPatientDocument.bind(ipdController));
 router.get("/patient-document/:admissionId", ipdController.getIPDPatientDocuments.bind(ipdController));
 router.delete("/patient-document/:id", ipdController.deleteIPDPatientDocument.bind(ipdController));
 

@@ -617,14 +617,18 @@ export class IPDRepository {
 	// Bed Operations
 	async getAvailableBeds(wardId: string) {
 		try {
-			return await prisma.bed.findMany({
+			const beds = await prisma.bed.findMany({
 				where: {
 					wardId,
 					isOccupied: false
-				},
-				orderBy: {
-					bedNumber: 'asc'
 				}
+			});
+
+			// Sort beds numerically by bed number
+			return beds.sort((a, b) => {
+				const numA = parseInt(a.bedNumber) || 0;
+				const numB = parseInt(b.bedNumber) || 0;
+				return numA - numB;
 			});
 		} catch (error: any) {
 			throw new AppError(error.message);
@@ -633,15 +637,34 @@ export class IPDRepository {
 
 	async assignBedToAdmission(bedId: string, admissionId: string) {
 		try {
-			return await prisma.bed.update({
+			// Update the bed status
+			const updatedBed = await prisma.bed.update({
 				where: { id: bedId },
 				data: {
 					isOccupied: true,
 					admissions: {
 						connect: { id: admissionId }
 					}
+				},
+				include: {
+					ward: true
 				}
 			});
+
+			// Update ward bed counts
+			const ward = updatedBed.ward;
+			const newOccupiedBeds = ward.occupiedBeds + 1;
+			const newAvailableBeds = ward.totalBeds - newOccupiedBeds;
+
+			await prisma.ward.update({
+				where: { id: ward.id },
+				data: {
+					occupiedBeds: newOccupiedBeds,
+					availableBeds: newAvailableBeds
+				}
+			});
+
+			return updatedBed;
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
@@ -649,15 +672,34 @@ export class IPDRepository {
 
 	async releaseBed(bedId: string) {
 		try {
-			return await prisma.bed.update({
+			// Update the bed status
+			const updatedBed = await prisma.bed.update({
 				where: { id: bedId },
 				data: {
 					isOccupied: false,
 					admissions: {
 						set: []
 					}
+				},
+				include: {
+					ward: true
 				}
 			});
+
+			// Update ward bed counts
+			const ward = updatedBed.ward;
+			const newOccupiedBeds = Math.max(0, ward.occupiedBeds - 1);
+			const newAvailableBeds = ward.totalBeds - newOccupiedBeds;
+
+			await prisma.ward.update({
+				where: { id: ward.id },
+				data: {
+					occupiedBeds: newOccupiedBeds,
+					availableBeds: newAvailableBeds
+				}
+			});
+
+			return updatedBed;
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}

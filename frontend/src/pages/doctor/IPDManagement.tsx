@@ -34,11 +34,13 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import { ipdApi } from '@/api/ipd';
 import { IPDAdmission } from '@/types/ipd';
 import IPDVisitsList from '@/components/ipd/IPDVisitsList';
 
 export default function IPDManagement() {
+  const { user } = useAuth();
   const [admissions, setAdmissions] = useState<IPDAdmission[]>([]);
   const [filteredAdmissions, setFilteredAdmissions] = useState<IPDAdmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,8 +54,14 @@ export default function IPDManagement() {
       setIsLoading(true);
       const response = await ipdApi.getAdmissions({ status: 'ADMITTED' });
       console.log(response.data.data);
-      setAdmissions(response.data.data);
-      setFilteredAdmissions(response.data.data);
+      
+      // Filter admissions to show only those assigned to the current doctor
+      const doctorAdmissions = response.data.data.filter(
+        (admission: IPDAdmission) => admission.assignedDoctorId === user?.id
+      );
+      
+      setAdmissions(doctorAdmissions);
+      setFilteredAdmissions(doctorAdmissions);
     } catch (error) {
       console.error('Error fetching admissions:', error);
       toast.error('Failed to fetch admissions');
@@ -79,8 +87,10 @@ export default function IPDManagement() {
   };
 
   useEffect(() => {
-    fetchAdmissions();
-  }, []);
+    if (user?.id) {
+      fetchAdmissions();
+    }
+  }, [user?.id]);
 
   const handleViewVisits = (admission: IPDAdmission) => {
     setSelectedAdmission(admission);
@@ -142,10 +152,13 @@ export default function IPDManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">IPD Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My IPD Patients</h1>
+          <p className="text-sm text-gray-500 mt-1">Patients assigned to Dr. {user?.name}</p>
+        </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500">
-            {filteredAdmissions.length} of {admissions.length} patients
+            {filteredAdmissions.length} of {admissions.length} assigned patients
           </div>
           <Select value={selectedWard} onValueChange={handleWardFilterChange}>
             <SelectTrigger className="w-48">
@@ -167,7 +180,7 @@ export default function IPDManagement() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Stethoscope className="h-5 w-5 text-blue-600" />
-            Admitted Patients
+            My Assigned Patients
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -175,12 +188,12 @@ export default function IPDManagement() {
             <div className="text-center py-8">
               <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {selectedWard === 'ALL' ? 'No admitted patients' : `No patients in ${selectedWard} ward`}
+                {selectedWard === 'ALL' ? 'No assigned patients' : `No assigned patients in ${selectedWard} ward`}
               </h3>
               <p className="text-gray-500">
                 {selectedWard === 'ALL' 
-                  ? 'No patients are currently admitted to IPD' 
-                  : `No patients are currently admitted to ${selectedWard} ward`
+                  ? 'No patients are currently assigned to you in IPD' 
+                  : `No patients assigned to you are currently in ${selectedWard} ward`
                 }
               </p>
             </div>
