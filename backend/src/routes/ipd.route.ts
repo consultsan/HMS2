@@ -76,4 +76,10 @@ router.post("/transfer", ipdController.createIPDTransfer.bind(ipdController));
 router.get("/transfer/:admissionId", ipdController.getIPDTransfers.bind(ipdController));
 router.patch("/transfer/:id", ipdController.updateIPDTransfer.bind(ipdController));
 
+// IPD Billing Routes
+router.get("/billing/:admissionId/calculate", ipdController.calculateIPDDischargeBill.bind(ipdController));
+router.post("/billing/:admissionId/generate", ipdController.generateIPDDischargeBill.bind(ipdController));
+router.get("/billing/:admissionId/bills", ipdController.getIPDBills.bind(ipdController));
+router.get("/billing/bill/:billId", ipdController.getIPDBillDetails.bind(ipdController));
+
 export default router;

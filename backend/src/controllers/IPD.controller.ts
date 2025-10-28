@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import { IPDStatus, InsuranceType, WardType, WardSubType, UserRole, PatientDocumentCategory } from "@prisma/client";
+import { IPDStatus, InsuranceType, WardType, WardSubType, UserRole, PatientDocumentCategory, BillType } from "@prisma/client";
 import { IPDRepository } from "../repositories/IPD.repository";
 import AppError from "../utils/AppError";
 import ApiResponse from "../utils/ApiResponse";
 import errorHandler from "../utils/errorHandler";
 import IPDWebSocketService from "../services/ipdWebSocket.service";
 import s3 from "../services/s3client";
+import prisma from "../utils/dbConfig";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -466,6 +467,22 @@ export class IPDController {
 
 				// Update queue status to DISCHARGED
 				await this.ipdRepository.updateIPDQueueStatus(admission.queueId, IPDStatus.DISCHARGED);
+
+				// Auto-generate discharge bill if not already exists
+				try {
+					const existingBills = await this.ipdRepository.getIPDBills(admissionId);
+					if (existingBills.length === 0) {
+						// Generate discharge bill automatically
+						await this.ipdRepository.generateIPDDischargeBill(admissionId, {
+							paidAmount: 0,
+							notes: "Auto-generated discharge bill",
+							discountAmount: 0
+						});
+					}
+				} catch (billError) {
+					console.error("Failed to auto-generate discharge bill:", billError);
+					// Don't fail the discharge process if billing fails
+				}
 
 				// Send WebSocket notification for discharge
 				try {
@@ -1312,6 +1329,143 @@ export class IPDController {
 
 				res.status(200).json(
 					new ApiResponse("Transfer updated successfully", transfer)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// IPD Billing Management
+	async calculateIPDDischargeBill(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const billCalculation = await this.ipdRepository.calculateIPDDischargeBill(admissionId);
+
+				res.status(200).json(
+					new ApiResponse("IPD discharge bill calculated successfully", billCalculation)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async generateIPDDischargeBill(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+				const { paidAmount, dueDate, notes, discountAmount } = req.body;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				// Validate admission exists and is ready for discharge
+				const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
+				if (!admission) {
+					throw new AppError("Admission not found", 404);
+				}
+
+				if (admission.status !== 'ADMITTED') {
+					throw new AppError("Patient must be admitted to generate discharge bill", 400);
+				}
+
+				// Check if bill already exists for this admission
+				const existingBills = await this.ipdRepository.getIPDBills(admissionId);
+				if (existingBills.length > 0) {
+					throw new AppError("Discharge bill already exists for this admission", 400);
+				}
+
+				const result = await this.ipdRepository.generateIPDDischargeBill(admissionId, {
+					paidAmount: paidAmount || 0,
+					dueDate: dueDate ? new Date(dueDate) : undefined,
+					notes,
+					discountAmount: discountAmount || 0
+				});
+
+				res.status(201).json(
+					new ApiResponse("IPD discharge bill generated successfully", result)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDBills(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				const bills = await this.ipdRepository.getIPDBills(admissionId);
+
+				res.status(200).json(
+					new ApiResponse("IPD bills retrieved successfully", bills)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	async getIPDBillDetails(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { billId } = req.params;
+
+				if (!billId) {
+					throw new AppError("Bill ID is required", 400);
+				}
+
+				const bill = await prisma.bill.findUnique({
+					where: { id: billId },
+					include: {
+						patient: true,
+						hospital: true,
+						billItems: {
+							where: {
+								itemType: {
+									in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST]
+								}
+							}
+						},
+						payments: true
+					}
+				});
+
+				if (!bill) {
+					throw new AppError("Bill not found", 404);
+				}
+
+				res.status(200).json(
+					new ApiResponse("IPD bill details retrieved successfully", bill)
 				);
 			} catch (error: any) {
 				errorHandler(error, res);

@@ -1,4 +1,4 @@
-import { PrismaClient, IPDStatus, InsuranceType, WardType, WardSubType, PatientDocumentCategory, TestPriority, TestStatus, SurgeryPriority, SurgicalStatus, TransferType, TransferStatus, LabTestAttachmentType, SurgeryAttachmentType } from "@prisma/client";
+import { PrismaClient, IPDStatus, InsuranceType, WardType, WardSubType, PatientDocumentCategory, TestPriority, TestStatus, SurgeryPriority, SurgicalStatus, TransferType, TransferStatus, LabTestAttachmentType, SurgeryAttachmentType, BillType } from "@prisma/client";
 import prisma from "../utils/dbConfig";
 import AppError from "../utils/AppError";
 
@@ -1339,6 +1339,312 @@ export class IPDRepository {
 					}
 				}
 			});
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// IPD Billing Operations
+	async calculateIPDDischargeBill(admissionId: string) {
+		try {
+			// Get admission with all related data
+			const admission = await prisma.iPDAdmission.findUnique({
+				where: { id: admissionId },
+				include: {
+					queue: {
+						include: {
+							patient: {
+								select: {
+									id: true,
+									name: true,
+									uhid: true,
+									phone: true
+								}
+							},
+							hospital: {
+								select: {
+									id: true,
+									name: true
+								}
+							}
+						}
+					},
+					assignedDoctor: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					bed: {
+						include: {
+							ward: true
+						}
+					},
+					labTests: {
+						where: {
+							status: {
+								in: ['COMPLETED', 'SCHEDULED', 'IN_PROGRESS']
+							}
+						}
+					},
+					surgeries: {
+						where: {
+							status: {
+								in: ['CONFIRMED']
+							}
+						}
+					}
+				}
+			});
+
+			if (!admission) {
+				throw new AppError("Admission not found", 404);
+			}
+
+			// Calculate stay duration
+			const dischargeDate = admission.dischargeDate || new Date();
+			const stayDuration = Math.ceil(
+				(dischargeDate.getTime() - admission.admissionDate.getTime()) / (1000 * 60 * 60 * 24)
+			);
+
+			// Calculate room charges
+			let roomCharges = 0;
+			if (admission.bed?.pricePerDay) {
+				roomCharges = admission.bed.pricePerDay * stayDuration;
+			} else if (admission.bed?.ward?.pricePerDay) {
+				roomCharges = admission.bed.ward.pricePerDay * stayDuration;
+			}
+
+			// Calculate surgery costs
+			let totalSurgeryCost = 0;
+			const surgeryItems = [];
+			for (const surgery of admission.surgeries) {
+				const surgeryCost = surgery.totalCost || surgery.surgeryCost || 0;
+				totalSurgeryCost += surgeryCost;
+				surgeryItems.push({
+					id: surgery.id,
+					name: surgery.surgeryName,
+					cost: surgeryCost,
+					status: surgery.status,
+					scheduledAt: surgery.scheduledAt
+				});
+			}
+
+			// Calculate lab test costs
+			let totalLabTestCost = 0;
+			const labTestItems = [];
+			for (const labTest of admission.labTests) {
+				const testCost = labTest.testCost || 0;
+				totalLabTestCost += testCost;
+				labTestItems.push({
+					id: labTest.id,
+					name: labTest.testName,
+					cost: testCost,
+					status: labTest.status,
+					orderedAt: labTest.orderedAt
+				});
+			}
+
+			// Calculate total bill
+			const totalBillAmount = roomCharges + totalSurgeryCost + totalLabTestCost;
+
+			return {
+				admission: {
+					id: admission.id,
+					admissionDate: admission.admissionDate,
+					dischargeDate: dischargeDate,
+					stayDuration,
+					wardType: admission.wardType,
+					wardSubType: admission.wardSubType,
+					roomNumber: admission.roomNumber,
+					bedNumber: admission.bedNumber
+				},
+				patient: admission.queue.patient,
+				hospital: admission.queue.hospital,
+				doctor: admission.assignedDoctor,
+				ward: admission.bed?.ward,
+				bed: admission.bed,
+				billBreakdown: {
+					roomCharges: {
+						amount: roomCharges,
+						days: stayDuration,
+						ratePerDay: admission.bed?.pricePerDay || admission.bed?.ward?.pricePerDay || 0,
+						description: `Room charges for ${stayDuration} days`
+					},
+					surgeryCharges: {
+						amount: totalSurgeryCost,
+						count: admission.surgeries.length,
+						items: surgeryItems,
+						description: `Surgery charges (${admission.surgeries.length} procedures)`
+					},
+					labTestCharges: {
+						amount: totalLabTestCost,
+						count: admission.labTests.length,
+						items: labTestItems,
+						description: `Lab test charges (${admission.labTests.length} tests)`
+					}
+				},
+				totalAmount: totalBillAmount,
+				currency: 'INR'
+			};
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async generateIPDDischargeBill(admissionId: string, billData: {
+		paidAmount?: number;
+		dueDate?: Date;
+		notes?: string;
+		discountAmount?: number;
+	}) {
+		try {
+			// Calculate the bill breakdown
+			const billCalculation = await this.calculateIPDDischargeBill(admissionId);
+			
+			// Generate bill number
+			const timestamp = Date.now().toString();
+			const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+			const billNumber = `IPD-${timestamp}-${random}`;
+
+			// Create bill items
+			const billItems = [];
+
+			// Add room charges item
+			if (billCalculation.billBreakdown.roomCharges.amount > 0) {
+				billItems.push({
+					itemType: BillType.ROOM_CHARGE,
+					description: billCalculation.billBreakdown.roomCharges.description,
+					quantity: billCalculation.billBreakdown.roomCharges.days,
+					unitPrice: billCalculation.billBreakdown.roomCharges.ratePerDay,
+					totalPrice: billCalculation.billBreakdown.roomCharges.amount,
+					discountAmount: 0,
+					notes: `Ward: ${billCalculation.admission.wardType}${billCalculation.admission.wardSubType ? ` - ${billCalculation.admission.wardSubType}` : ''}`
+				});
+			}
+
+			// Add surgery items
+			for (const surgery of billCalculation.billBreakdown.surgeryCharges.items) {
+				if (surgery.cost > 0) {
+					billItems.push({
+						itemType: BillType.SURGERY,
+						description: `Surgery - ${surgery.name}`,
+						quantity: 1,
+						unitPrice: surgery.cost,
+						totalPrice: surgery.cost,
+						discountAmount: 0,
+						notes: `Status: ${surgery.status}`,
+						surgeryId: surgery.id
+					});
+				}
+			}
+
+			// Add lab test items
+			for (const labTest of billCalculation.billBreakdown.labTestCharges.items) {
+				if (labTest.cost > 0) {
+					billItems.push({
+						itemType: BillType.LAB_TEST,
+						description: `Lab Test - ${labTest.name}`,
+						quantity: 1,
+						unitPrice: labTest.cost,
+						totalPrice: labTest.cost,
+						discountAmount: 0,
+						notes: `Status: ${labTest.status}`,
+						labTestId: labTest.id
+					});
+				}
+			}
+
+			// Calculate final amounts
+			const subtotal = billCalculation.totalAmount;
+			const discountAmount = billData.discountAmount || 0;
+			const totalAmount = subtotal - discountAmount;
+			const paidAmount = billData.paidAmount || 0;
+			const dueAmount = totalAmount - paidAmount;
+
+			// Create the bill
+			const bill = await prisma.bill.create({
+				data: {
+					billNumber,
+					patientId: billCalculation.patient.id,
+					hospitalId: billCalculation.hospital.id,
+					totalAmount,
+					paidAmount,
+					dueAmount,
+					status: paidAmount >= totalAmount ? 'PAID' : 'GENERATED',
+					billDate: new Date(),
+					dueDate: billData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+					notes: billData.notes,
+					billItems: {
+						create: billItems
+					}
+				},
+				include: {
+					patient: true,
+					hospital: true,
+					billItems: true,
+					payments: true
+				}
+			});
+
+			return {
+				bill,
+				calculation: billCalculation
+			};
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	async getIPDBills(admissionId: string) {
+		try {
+			// Get admission to find patient
+			const admission = await prisma.iPDAdmission.findUnique({
+				where: { id: admissionId },
+				select: {
+					queue: {
+						select: {
+							patientId: true
+						}
+					}
+				}
+			});
+
+			if (!admission) {
+				throw new AppError("Admission not found", 404);
+			}
+
+			// Get all bills for this patient that contain IPD-related items
+			const bills = await prisma.bill.findMany({
+				where: {
+					patientId: admission.queue.patientId,
+					billItems: {
+						some: {
+							itemType: {
+								in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST]
+							}
+						}
+					}
+				},
+				include: {
+					patient: true,
+					hospital: true,
+					billItems: {
+						where: {
+							itemType: {
+								in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST]
+							}
+						}
+					},
+					payments: true
+				},
+				orderBy: {
+					billDate: 'desc'
+				}
+			});
+
+			return bills;
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
