@@ -78,6 +78,32 @@ interface IPDConnection {
 // Websocket server setup
 const server = createServer(app);
 
+// Handle WebSocket upgrade requests
+server.on('upgrade', (request, socket, head) => {
+	console.log('🔄 WebSocket upgrade request for:', request.url);
+	
+	// Handle IPD WebSocket upgrade
+	if (request.url === '/api/ipd/ward-monitoring') {
+		ipdWardWss.handleUpgrade(request, socket, head, (ws) => {
+			ipdWardWss.emit('connection', ws, request);
+		});
+	} else if (request.url === '/api/ipd/doctor-dashboard') {
+		ipdDoctorWss.handleUpgrade(request, socket, head, (ws) => {
+			ipdDoctorWss.emit('connection', ws, request);
+		});
+	} else if (request.url === '/api/ipd/nurse-station') {
+		ipdNurseWss.handleUpgrade(request, socket, head, (ws) => {
+			ipdNurseWss.emit('connection', ws, request);
+		});
+	} else if (request.url === '/api/dashboard/patient') {
+		wss.handleUpgrade(request, socket, head, (ws) => {
+			wss.emit('connection', ws, request);
+		});
+	} else {
+		socket.destroy();
+	}
+});
+
 const wss = new WebSocketServer({
 	server,
 	path: "/api/dashboard/patient"
@@ -86,17 +112,29 @@ const wss = new WebSocketServer({
 // IPD WebSocket servers
 const ipdWardWss = new WebSocketServer({
 	server,
-	path: "/api/ipd/ward-monitoring"
+	path: "/api/ipd/ward-monitoring",
+	verifyClient: (info: any) => {
+		console.log("🔍 IPD Ward WebSocket connection attempt from:", info.origin);
+		return true; // Allow all connections for now
+	}
 });
 
 const ipdDoctorWss = new WebSocketServer({
 	server,
-	path: "/api/ipd/doctor-dashboard"
+	path: "/api/ipd/doctor-dashboard",
+	verifyClient: (info: any) => {
+		console.log("🔍 IPD Doctor WebSocket connection attempt from:", info.origin);
+		return true; // Allow all connections for now
+	}
 });
 
 const ipdNurseWss = new WebSocketServer({
 	server,
-	path: "/api/ipd/nurse-station"
+	path: "/api/ipd/nurse-station",
+	verifyClient: (info: any) => {
+		console.log("🔍 IPD Nurse WebSocket connection attempt from:", info.origin);
+		return true; // Allow all connections for now
+	}
 });
 
 const doctorRooms = new Set<string>();
@@ -156,6 +194,11 @@ ipdWardWss.on("connection", (socket: Socket) => {
 			}
 		}
 	});
+});
+
+// Add error handling for IPD WebSocket server
+ipdWardWss.on("error", (error) => {
+	console.error("🏥 IPD Ward WebSocket server error:", error);
 });
 
 // IPD Doctor Dashboard WebSocket
