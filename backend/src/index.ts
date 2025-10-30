@@ -9,8 +9,7 @@ import opdRouter from "./routes/appointment.route";
 import appointmentRouter from "./routes/appointment.route";
 import doctorRouter from "./routes/doctor.route";
 import { createServer } from "http";
-import WebSocket, { WebSocketServer } from "ws";
-import { v4 as uuid } from "uuid";
+// WebSocket removed. We'll use Redis-backed REST polling instead.
 import redisService from "./utils/redisClient";
 import { authMiddleware } from "./middleware/auth.middleware";
 import login from "./services/login.service";
@@ -36,7 +35,7 @@ import IPDWebSocketService from "./services/ipdWebSocket.service";
 import { ReminderService } from "./services/reminder.service";
 const frontendOrigin: string = process.env.FRONTEND_ORIGIN || "";
 const app = express();
-const http_port = Number(process.env.HTTP_PORT);
+const http_port = Number(process.env.HTTP_PORT) || 3001;
 
 // CORS configuration - Allow all origins with credentials
 app.use(
@@ -60,242 +59,12 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-interface Socket extends WebSocket {
-	id: string;
-	room: string;
-}
-interface Doctor {
-	hospital_id: string;
-	doctor_id: string;
-}
-interface IPDConnection {
-	hospital_id: string;
-	ward_id?: string;
-	doctor_id?: string;
-	user_type: 'doctor' | 'nurse' | 'ward_staff';
-}
+// No WebSocket socket types needed
 
-// Websocket server setup
+// HTTP server setup
 const server = createServer(app);
 
-// Handle WebSocket upgrade requests
-server.on('upgrade', (request, socket, head) => {
-	console.log('🔄 WebSocket upgrade request for:', request.url);
-	
-	// Handle IPD WebSocket upgrade
-	if (request.url === '/api/ipd/ward-monitoring') {
-		ipdWardWss.handleUpgrade(request, socket, head, (ws) => {
-			ipdWardWss.emit('connection', ws, request);
-		});
-	} else if (request.url === '/api/ipd/doctor-dashboard') {
-		ipdDoctorWss.handleUpgrade(request, socket, head, (ws) => {
-			ipdDoctorWss.emit('connection', ws, request);
-		});
-	} else if (request.url === '/api/ipd/nurse-station') {
-		ipdNurseWss.handleUpgrade(request, socket, head, (ws) => {
-			ipdNurseWss.emit('connection', ws, request);
-		});
-	} else if (request.url === '/api/dashboard/patient') {
-		wss.handleUpgrade(request, socket, head, (ws) => {
-			wss.emit('connection', ws, request);
-		});
-	} else {
-		socket.destroy();
-	}
-});
-
-const wss = new WebSocketServer({
-	server,
-	path: "/api/dashboard/patient"
-});
-
-// IPD WebSocket servers
-const ipdWardWss = new WebSocketServer({
-	server,
-	path: "/api/ipd/ward-monitoring",
-	verifyClient: (info: any) => {
-		console.log("🔍 IPD Ward WebSocket connection attempt from:", info.origin);
-		return true; // Allow all connections for now
-	}
-});
-
-const ipdDoctorWss = new WebSocketServer({
-	server,
-	path: "/api/ipd/doctor-dashboard",
-	verifyClient: (info: any) => {
-		console.log("🔍 IPD Doctor WebSocket connection attempt from:", info.origin);
-		return true; // Allow all connections for now
-	}
-});
-
-const ipdNurseWss = new WebSocketServer({
-	server,
-	path: "/api/ipd/nurse-station",
-	verifyClient: (info: any) => {
-		console.log("🔍 IPD Nurse WebSocket connection attempt from:", info.origin);
-		return true; // Allow all connections for now
-	}
-});
-
-const doctorRooms = new Set<string>();
-const ipdRooms = new Set<string>();
-
-wss.on("connection", (socket: Socket) => {
-	socket.id = uuid();
-	console.log(`${Array.from(wss.clients).length} clients connected`);
-	socket.on("message", (msg) => {
-		const data = JSON.parse(msg.toString()) as Doctor;
-		const room = `${data.hospital_id}_${data.doctor_id}`;
-		doctorRooms.add(room);
-		socket.room = room;
-		console.log(`${socket.id} Joined room ${room}`);
-	});
-	socket.on("close", () => {
-		console.log(
-			`Client with connection ID ${socket.id} has closed its connection`
-		);
-		// Clean up room if no clients are in it
-		if (socket.room) {
-			const clientsInRoom = Array.from(wss.clients).filter(
-				(client: any) => client.room === socket.room
-			);
-			if (clientsInRoom.length === 0) {
-				doctorRooms.delete(socket.room);
-			}
-		}
-	});
-});
-
-// IPD Ward Monitoring WebSocket
-ipdWardWss.on("connection", (socket: Socket) => {
-	socket.id = uuid();
-	console.log(`🏥 IPD Ward client connected: ${socket.id}`);
-	
-	socket.on("message", (msg) => {
-		try {
-			const data = JSON.parse(msg.toString()) as IPDConnection;
-			const room = `ipd_ward_${data.hospital_id}_${data.ward_id}`;
-			ipdRooms.add(room);
-			socket.room = room;
-			console.log(`🏥 IPD Ward client ${socket.id} joined room: ${room}`);
-		} catch (error) {
-			console.error("Error parsing IPD ward message:", error);
-		}
-	});
-	
-	socket.on("close", () => {
-		console.log(`🏥 IPD Ward client ${socket.id} disconnected`);
-		if (socket.room) {
-			const clientsInRoom = Array.from(ipdWardWss.clients).filter(
-				(client: any) => client.room === socket.room
-			);
-			if (clientsInRoom.length === 0) {
-				ipdRooms.delete(socket.room);
-			}
-		}
-	});
-});
-
-// Add error handling for IPD WebSocket server
-ipdWardWss.on("error", (error) => {
-	console.error("🏥 IPD Ward WebSocket server error:", error);
-});
-
-// IPD Doctor Dashboard WebSocket
-ipdDoctorWss.on("connection", (socket: Socket) => {
-	socket.id = uuid();
-	console.log(`👨‍⚕️ IPD Doctor client connected: ${socket.id}`);
-	
-	socket.on("message", (msg) => {
-		try {
-			const data = JSON.parse(msg.toString()) as IPDConnection;
-			const room = `ipd_doctor_${data.hospital_id}_${data.doctor_id}`;
-			ipdRooms.add(room);
-			socket.room = room;
-			console.log(`👨‍⚕️ IPD Doctor client ${socket.id} joined room: ${room}`);
-		} catch (error) {
-			console.error("Error parsing IPD doctor message:", error);
-		}
-	});
-	
-	socket.on("close", () => {
-		console.log(`👨‍⚕️ IPD Doctor client ${socket.id} disconnected`);
-		if (socket.room) {
-			const clientsInRoom = Array.from(ipdDoctorWss.clients).filter(
-				(client: any) => client.room === socket.room
-			);
-			if (clientsInRoom.length === 0) {
-				ipdRooms.delete(socket.room);
-			}
-		}
-	});
-});
-
-// IPD Nurse Station WebSocket
-ipdNurseWss.on("connection", (socket: Socket) => {
-	socket.id = uuid();
-	console.log(`👩‍⚕️ IPD Nurse client connected: ${socket.id}`);
-	
-	socket.on("message", (msg) => {
-		try {
-			const data = JSON.parse(msg.toString()) as IPDConnection;
-			const room = `ipd_nurse_${data.hospital_id}_${data.ward_id}`;
-			ipdRooms.add(room);
-			socket.room = room;
-			console.log(`👩‍⚕️ IPD Nurse client ${socket.id} joined room: ${room}`);
-		} catch (error) {
-			console.error("Error parsing IPD nurse message:", error);
-		}
-	});
-	
-	socket.on("close", () => {
-		console.log(`👩‍⚕️ IPD Nurse client ${socket.id} disconnected`);
-		if (socket.room) {
-			const clientsInRoom = Array.from(ipdNurseWss.clients).filter(
-				(client: any) => client.room === socket.room
-			);
-			if (clientsInRoom.length === 0) {
-				ipdRooms.delete(socket.room);
-			}
-		}
-	});
-});
-
-setInterval(() => {
-	doctorRooms.forEach(async (q) => {
-		const product = await redisService.rPop(q);
-		wss.clients.forEach((client: any) => {
-			if (client.room == q && client.readyState == WebSocket.OPEN && product)
-				client.send(product);
-		});
-	});
-}, 1000);
-
-// IPD WebSocket polling
-setInterval(() => {
-	ipdRooms.forEach(async (q) => {
-		const product = await redisService.rPop(q);
-		if (product) {
-			// Send to appropriate WebSocket server based on room type
-			if (q.startsWith('ipd_ward_')) {
-				ipdWardWss.clients.forEach((client: any) => {
-					if (client.room == q && client.readyState == WebSocket.OPEN)
-						client.send(product);
-				});
-			} else if (q.startsWith('ipd_doctor_')) {
-				ipdDoctorWss.clients.forEach((client: any) => {
-					if (client.room == q && client.readyState == WebSocket.OPEN)
-						client.send(product);
-				});
-			} else if (q.startsWith('ipd_nurse_')) {
-				ipdNurseWss.clients.forEach((client: any) => {
-					if (client.room == q && client.readyState == WebSocket.OPEN)
-						client.send(product);
-				});
-			}
-		}
-	});
-}, 1000);
+// All WebSocket code removed; Redis remains for REST polling consumers
 
 // routes
 app.post("/api/login", login);

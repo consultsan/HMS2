@@ -29,7 +29,8 @@ export class IPDWebSocketService {
 				...message
 			};
 			
-			await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lTrim(room, 0, 199); // keep last 200 messages
 			console.log(`📡 IPD Ward update sent to room: ${room}`);
 		} catch (error) {
 			console.error('Error sending ward update:', error);
@@ -53,7 +54,8 @@ export class IPDWebSocketService {
 				...message
 			};
 			
-			await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lTrim(room, 0, 199);
 			console.log(`📡 IPD Doctor notification sent to room: ${room}`);
 		} catch (error) {
 			console.error('Error sending doctor notification:', error);
@@ -77,7 +79,8 @@ export class IPDWebSocketService {
 				...message
 			};
 			
-			await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lPush(room, JSON.stringify(fullMessage));
+            await redisClient.lTrim(room, 0, 199);
 			console.log(`📡 IPD Nurse update sent to room: ${room}`);
 		} catch (error) {
 			console.error('Error sending nurse update:', error);

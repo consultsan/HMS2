@@ -7,6 +7,7 @@ import errorHandler from "../utils/errorHandler";
 import IPDWebSocketService from "../services/ipdWebSocket.service";
 import s3 from "../services/s3client";
 import prisma from "../utils/dbConfig";
+import redisClient from "../utils/redisClient";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -1474,6 +1475,63 @@ export class IPDController {
 			res.status(403).json(
 				new ApiResponse("Access denied", null)
 			);
+		}
+	}
+
+	// Realtime polling endpoints (WebSocket alternative)
+	async getWardUpdates(req: Request, res: Response) {
+		try {
+			const { hospitalId, wardId, since } = req.query as any;
+			if (!hospitalId || !wardId) throw new AppError("hospitalId and wardId are required", 400);
+			const key = `ipd_ward_${hospitalId}_${wardId}`;
+			const raw = await redisClient.lRange(key, 0, 199);
+			const sinceTs = since ? Number(since) || Date.parse(String(since)) : 0;
+			const messages = raw
+				.map((s) => {
+					try { return JSON.parse(s); } catch { return null; }
+				})
+				.filter(Boolean)
+				.filter((m: any) => !sinceTs || new Date(m.timestamp).getTime() > sinceTs)
+				.reverse();
+			res.status(200).json(new ApiResponse("OK", { messages, nextSince: Date.now() }));
+		} catch (error: any) {
+			errorHandler(error, res);
+		}
+	}
+
+	async getDoctorUpdates(req: Request, res: Response) {
+		try {
+			const { hospitalId, doctorId, since } = req.query as any;
+			if (!hospitalId || !doctorId) throw new AppError("hospitalId and doctorId are required", 400);
+			const key = `ipd_doctor_${hospitalId}_${doctorId}`;
+			const raw = await redisClient.lRange(key, 0, 199);
+			const sinceTs = since ? Number(since) || Date.parse(String(since)) : 0;
+			const messages = raw
+				.map((s) => { try { return JSON.parse(s); } catch { return null; } })
+				.filter(Boolean)
+				.filter((m: any) => !sinceTs || new Date(m.timestamp).getTime() > sinceTs)
+				.reverse();
+			res.status(200).json(new ApiResponse("OK", { messages, nextSince: Date.now() }));
+		} catch (error: any) {
+			errorHandler(error, res);
+		}
+	}
+
+	async getNurseUpdates(req: Request, res: Response) {
+		try {
+			const { hospitalId, wardId, since } = req.query as any;
+			if (!hospitalId || !wardId) throw new AppError("hospitalId and wardId are required", 400);
+			const key = `ipd_nurse_${hospitalId}_${wardId}`;
+			const raw = await redisClient.lRange(key, 0, 199);
+			const sinceTs = since ? Number(since) || Date.parse(String(since)) : 0;
+			const messages = raw
+				.map((s) => { try { return JSON.parse(s); } catch { return null; } })
+				.filter(Boolean)
+				.filter((m: any) => !sinceTs || new Date(m.timestamp).getTime() > sinceTs)
+				.reverse();
+			res.status(200).json(new ApiResponse("OK", { messages, nextSince: Date.now() }));
+		} catch (error: any) {
+			errorHandler(error, res);
 		}
 	}
 }

@@ -76,6 +76,11 @@ router.post("/transfer", ipdController.createIPDTransfer.bind(ipdController));
 router.get("/transfer/:admissionId", ipdController.getIPDTransfers.bind(ipdController));
 router.patch("/transfer/:id", ipdController.updateIPDTransfer.bind(ipdController));
 
+// Real-time polling routes (WebSocket alternative)
+router.get("/realtime/ward", ipdController.getWardUpdates.bind(ipdController));
+router.get("/realtime/doctor", ipdController.getDoctorUpdates.bind(ipdController));
+router.get("/realtime/nurse", ipdController.getNurseUpdates.bind(ipdController));
+
 // IPD Billing Routes
 router.get("/billing/:admissionId/calculate", ipdController.calculateIPDDischargeBill.bind(ipdController));
 router.post("/billing/:admissionId/generate", ipdController.generateIPDDischargeBill.bind(ipdController));
