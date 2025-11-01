@@ -134,7 +134,10 @@ router.post("/test/:appointmentId", async (req, res) => {
 		
 		const appointment = await prisma.appointment.findUnique({
 			where: { id: appointmentId },
-			include: {
+			select: {
+				id: true,
+				scheduledAt: true,
+				hospitalId: true,
 				patient: {
 					select: {
 						name: true,
@@ -166,7 +169,8 @@ router.post("/test/:appointmentId", async (req, res) => {
 			patientName: appointment.patient.name,
 			doctorName: appointment.doctor.name,
 			appointmentDate: appointment.scheduledAt,
-			appointmentTime: appointmentTime
+			appointmentTime: appointmentTime,
+			hospitalId: appointment.hospitalId
 		});
 		
 		res.json({

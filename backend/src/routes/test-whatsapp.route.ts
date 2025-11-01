@@ -77,7 +77,7 @@ router.post("/test-appointment", async (req, res) => {
 			doctorName,
 			appointmentDate,
 			appointmentTime,
-			hospitalName
+			hospitalId
 		} = req.body;
 
 		if (
@@ -86,11 +86,11 @@ router.post("/test-appointment", async (req, res) => {
 			!doctorName ||
 			!appointmentDate ||
 			!appointmentTime ||
-			!hospitalName
+			!hospitalId
 		) {
 			return res.status(400).json({
 				success: false,
-				message: "All fields are required"
+				message: "All fields are required, including hospitalId"
 			});
 		}
 		console.log("Sending appointment notification to:", phoneNumber);
@@ -99,14 +99,15 @@ router.post("/test-appointment", async (req, res) => {
 			doctorName,
 			appointmentDate,
 			appointmentTime,
-			hospitalName
+			hospitalId
 		});
 
 		const result = await sendAppointmentNotification(phoneNumber, {
 			patientName,
 			doctorName,
 			appointmentDate: new Date(appointmentDate),
-			appointmentTime
+			appointmentTime,
+			hospitalId
 		});
 
 		if (result.success) {

@@ -28,7 +28,6 @@ import { billingApi } from "@/api/billing";
 import { paymentApi } from "@/api/payment";
 import { Bill, PaymentMethod, PaymentCreateData, BillStatus, PaymentStatus } from "@/types/types";
 import { formatDate } from "@/utils/dateUtils";
-import { api } from "@/lib/api";
 
 interface ViewBillProps {
     billId: string | null;
@@ -95,16 +94,20 @@ export default function ViewBill({
             const blob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
 
-            // Create temporary link and trigger download
+            // Create temporary link and trigger download (not open in viewer)
             const link = document.createElement('a');
             link.href = url;
             link.download = `Bill-${bill?.billNumber || 'unknown'}.pdf`;
+            link.style.display = 'none'; // Hide the link
+            link.target = '_self'; // Prevent opening in new tab
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-
-            // Clean up
-            window.URL.revokeObjectURL(url);
+            
+            // Clean up after a short delay
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
 
             toast.success('Bill PDF downloaded successfully');
             setDownloadingBill(false);
@@ -218,35 +221,138 @@ export default function ViewBill({
     const handlePrint = async () => {
         if (!billId) return;
 
+        // Open window immediately (synchronously) to avoid popup blocker
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        
+        if (!printWindow) {
+            toast.error('Please allow popups to print the bill');
+            return;
+        }
+
         try {
-            console.log('Fetching print template for bill ID:', billId);
-            const response = await api.get(`/api/billing/get-html/${billId}`, {
-                responseType: 'text'
-            });
-
-            // Create a new window for printing
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                toast.error('Please allow popups to print');
-                return;
-            }
-
-            // Write the HTML content to the new window
-            printWindow.document.write(response.data);
+            // Show loading message in the print window
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Loading Bill...</title>
+                    <style>
+                        body {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            font-family: Arial, sans-serif;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div>Loading bill for printing...</div>
+                </body>
+                </html>
+            `);
             printWindow.document.close();
 
-            // Wait for all images to load before printing
-            printWindow.onload = function () {
-                printWindow.focus();
-                printWindow.print();
-                // Close the window after printing (optional)
-                printWindow.onafterprint = function () {
-                    printWindow.close();
-                };
+            // Use the same PDF endpoint as download for consistent formatting
+            const response = await billingApi.exportBillPDF(billId);
+            
+            // Create blob from PDF response
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+
+            // Create HTML page that embeds PDF and auto-prints
+            const printHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Print Bill</title>
+                    <style>
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                        }
+                        embed {
+                            width: 100%;
+                            height: 100%;
+                            border: none;
+                        }
+                    </style>
+                    <script>
+                        (function() {
+                            function triggerPrint() {
+                                try {
+                                    window.focus();
+                                    window.print();
+                                } catch (e) {
+                                    console.error('Print error:', e);
+                                }
+                            }
+                            
+                            // Try multiple methods to ensure print is triggered
+                            if (document.readyState === 'complete') {
+                                setTimeout(triggerPrint, 300);
+                            } else {
+                                window.addEventListener('load', function() {
+                                    setTimeout(triggerPrint, 300);
+                                });
+                            }
+                            
+                            // Fallback: trigger print after a delay
+                            setTimeout(triggerPrint, 1000);
+                            
+                            // Close window after printing (when dialog is closed)
+                            window.addEventListener('afterprint', function() {
+                                setTimeout(function() {
+                                    window.close();
+                                }, 100);
+                            });
+                        })();
+                    </script>
+                </head>
+                <body>
+                    <embed src="${url}" type="application/pdf" />
+                </body>
+                </html>
+            `;
+
+            // Write the PDF content to the already-opened window
+            printWindow.document.open();
+            printWindow.document.write(printHtml);
+            printWindow.document.close();
+
+            // Clean up blob URL after window closes
+            const cleanup = () => {
+                window.URL.revokeObjectURL(url);
             };
-        } catch (error) {
-            console.error('Error getting print template:', error);
-            toast.error('Failed to prepare document for printing');
+            
+            printWindow.addEventListener('beforeunload', cleanup);
+            
+            // Fallback cleanup after 60 seconds
+            setTimeout(cleanup, 60000);
+        } catch (error: any) {
+            console.error('Error getting print PDF:', error);
+            
+            // Show error in the print window
+            if (printWindow && !printWindow.closed) {
+                printWindow.document.open();
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Error</title></head>
+                    <body>
+                        <h3>Error loading bill for printing</h3>
+                        <p>${error.response?.data?.message || 'Failed to load PDF'}</p>
+                        <button onclick="window.close()">Close</button>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+            
+            toast.error(error.response?.data?.message || 'Failed to prepare document for printing');
         }
     };
 

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { text } from "pdfkit";
 import { TimezoneUtil } from "../utils/timezone.util";
+import prisma from "../utils/dbConfig";
 
 const WHATSAPP_CLOUD_API_VERSION = "v17.0"; // safer default
 const PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
@@ -33,6 +34,78 @@ function formatPhoneNumber(phoneNumber: string): string {
 	}
 
 	return cleaned;
+}
+
+// Helper function to generate Google Maps link from hospital data
+function generateGoogleMapsLink(hospital: {
+	address?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
+	googlePlaceId?: string | null;
+	name?: string | null;
+}): string {
+	// Priority 1: Use Google Place ID if available
+	if (hospital.googlePlaceId) {
+		return `https://www.google.com/maps/place/?q=place_id:${hospital.googlePlaceId}`;
+	}
+	
+	// Priority 2: Use coordinates if available
+	if (hospital.latitude && hospital.longitude) {
+		return `https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`;
+	}
+	
+	// Priority 3: Use address (fallback)
+	if (hospital.address) {
+		const encodedAddress = encodeURIComponent(hospital.address);
+		return `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+	}
+	
+	// Final fallback: search by hospital name
+	if (hospital.name) {
+		const encodedName = encodeURIComponent(hospital.name);
+		return `https://www.google.com/maps/search/?api=1&query=${encodedName}`;
+	}
+	
+	// Ultimate fallback
+	return "https://www.google.com/maps";
+}
+
+// Helper function to fetch hospital data
+async function getHospitalData(hospitalId: string) {
+	try {
+		const hospital = await prisma.hospital.findUnique({
+			where: { id: hospitalId },
+			select: {
+				id: true,
+				name: true,
+				address: true,
+				contactNumber: true,
+				latitude: true,
+				longitude: true,
+				googlePlaceId: true
+			}
+		});
+		
+		if (!hospital) {
+			throw new Error(`Hospital not found with ID: ${hospitalId}`);
+		}
+		
+		return {
+			name: hospital.name || "Hospital",
+			address: hospital.address || "",
+			contact: hospital.contactNumber || "",
+			mapsLink: generateGoogleMapsLink(hospital)
+		};
+	} catch (error) {
+		console.error("Error fetching hospital data:", error);
+		// Return fallback values if hospital fetch fails
+		return {
+			name: "Hospital",
+			address: "",
+			contact: "",
+			mapsLink: "https://www.google.com/maps"
+		};
+	}
 }
 
 type MessageType = "text" | "document" | "image";
@@ -118,6 +191,7 @@ async function sendAppointmentNotification(
 		doctorName: string;
 		appointmentDate: Date;
 		appointmentTime: string;
+		hospitalId: string;
 	}
 ) {
 	// Use TimezoneUtil to format the already IST-converted date properly
@@ -128,16 +202,8 @@ async function sendAppointmentNotification(
 		day: "numeric"
 	});
 
-
-	// Hospital information (hardcoded values only)
-	const hospitalName = "T.R.U.E. Hospitals";
-	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
-	const hospitalContact = "+91 9211940321";
-
-	
-	
-	// Google Maps link (you can customize this to your actual hospital location)
-	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+	// Fetch hospital data dynamically
+	const hospital = await getHospitalData(data.hospitalId);
 
 	const message = `🏥 *Appointment Confirmation*
 
@@ -150,19 +216,19 @@ Your appointment has been confirmed with Dr. *${data.doctorName}*.
 🕐 *Time:* ${data.appointmentTime}
 
 📍 *Hospital Location:*
-${hospitalName}
-${hospitalAddress}
-📞 ${hospitalContact}
+${hospital.name}
+${hospital.address}
+📞 ${hospital.contact}
 
 🗺️ *Get Directions:*
-${mapsLink}
+${hospital.mapsLink}
 
 Please arrive 15 minutes before your scheduled time.
 
 We look forward to seeing you!
 
 Best regards,
-${hospitalName} Team`;
+${hospital.name} Team`;
 
 	return await sendWhatsAppMessage(phoneNumber, {
 		type: "text",
@@ -177,6 +243,7 @@ async function sendAppointmentReminder(
 		doctorName: string;
 		appointmentDate: Date;
 		appointmentTime: string;
+		hospitalId: string;
 	}
 ) {
 	// Use TimezoneUtil to format the already IST-converted date properly
@@ -187,13 +254,8 @@ async function sendAppointmentReminder(
 		day: "numeric"
 	});
 
-	// Hospital information (hardcoded values only)
-	const hospitalName = "T.R.U.E. Hospitals";
-	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
-	const hospitalContact = "+91 9212395788";
-	
-	// Google Maps link (you can customize this to your actual hospital location)
-	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+	// Fetch hospital data dynamically
+	const hospital = await getHospitalData(data.hospitalId);
 
 	const message = `⏰ *Appointment Reminder*
 
@@ -205,12 +267,12 @@ This is a friendly reminder about your upcoming appointment with Dr. *${data.doc
 🕐 *Time:* ${data.appointmentTime}
 
 📍 *Hospital Location:*
-${hospitalName}
-${hospitalAddress}
-📞 ${hospitalContact}
+${hospital.name}
+${hospital.address}
+📞 ${hospital.contact}
 
 🗺️ *Get Directions:*
-${mapsLink}
+${hospital.mapsLink}
 
 ⏰ *Your appointment is in 3 hours!*
 
@@ -219,7 +281,7 @@ Please arrive 15 minutes before your scheduled time.
 We look forward to seeing you!
 
 Best regards,
-${hospitalName} Team`;
+${hospital.name} Team`;
 
 	return await sendWhatsAppMessage(phoneNumber, {
 		type: "text",
@@ -462,6 +524,7 @@ async function sendAppointmentUpdateNotification(
 		doctorName: string;
 		appointmentDate: Date;
 		appointmentTime: string;
+		hospitalId: string;
 	}
 ) {
 	// Use TimezoneUtil to format the already IST-converted date properly
@@ -472,13 +535,8 @@ async function sendAppointmentUpdateNotification(
 		day: "numeric"
 	});
 
-	// Hospital information (hardcoded values only)
-	const hospitalName = "T.R.U.E. Hospitals";
-	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
-	const hospitalContact = "+91 9211940321";
-	
-	// Google Maps link (you can customize this to your actual hospital location)
-	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+	// Fetch hospital data dynamically
+	const hospital = await getHospitalData(data.hospitalId);
 
 	const message = `🔄 *Appointment Updated*
 
@@ -489,16 +547,16 @@ Your appointment with Dr. *${data.doctorName}* has been updated.
 📅 *New Date:* ${formattedDate}
 🕐 *New Time:* ${data.appointmentTime}
 
-🏥 *Hospital:* ${hospitalName}
-📍 *Address:* ${hospitalAddress}
-📞 *Contact:* ${hospitalContact}
+🏥 *Hospital:* ${hospital.name}
+📍 *Address:* ${hospital.address}
+📞 *Contact:* ${hospital.contact}
 
-🗺️ *Get Directions:* ${mapsLink}
+🗺️ *Get Directions:* ${hospital.mapsLink}
 
 Please note the updated appointment details. If you have any questions, please contact us.
 
 Best regards,
-T.R.U.E. Hospitals Team`;
+${hospital.name} Team`;
 
 	return await sendWhatsAppMessage(phoneNumber, {
 		type: "text",
@@ -513,6 +571,7 @@ async function sendFollowUpAppointmentNotification(
 		doctorName: string;
 		appointmentDate: Date;
 		appointmentTime: string;
+		hospitalId: string;
 		originalDiagnosisDate?: Date;
 	}
 ) {
@@ -524,13 +583,8 @@ async function sendFollowUpAppointmentNotification(
 		day: "numeric"
 	});
 
-	// Hospital information (hardcoded values only)
-	const hospitalName = "T.R.U.E. Hospitals";
-	const hospitalAddress = "Centre For Piles And Fistula, A-8 Shubham Enclave, Reserve Bank Enclave, Paschim Vihar, New Delhi - 110063";
-	const hospitalContact = "+91 9211940321";
-	
-	// Google Maps link (you can customize this to your actual hospital location)
-	const mapsLink = "https://www.google.com/maps/dir//Centre+For+Piles+And+Fistula+A+-+8+Shubham+Enclave,+Reserve+Bank+Enclave,+Paschim+Vihar+New+Delhi,+Delhi,+110063/@28.6681338,77.093208,16z/data=!4m5!4m4!1m0!1m2!1m1!1s0x390d0550ef8884cd:0x8bb918d91fa80f8";
+	// Fetch hospital data dynamically
+	const hospital = await getHospitalData(data.hospitalId);
 
 	const message = `🔄 *Follow-up Appointment Confirmation*
 
@@ -542,12 +596,12 @@ Your follow-up appointment has been confirmed with Dr. *${data.doctorName}*.
 🕐 *Time:* ${data.appointmentTime}
 
 📍 *Hospital Location:*
-${hospitalName}
-${hospitalAddress}
-📞 ${hospitalContact}
+${hospital.name}
+${hospital.address}
+📞 ${hospital.contact}
 
 🗺️ *Get Directions:*
-${mapsLink}
+${hospital.mapsLink}
 
 📋 *Follow-up Details:*
 This is a follow-up appointment to monitor your progress and ensure optimal recovery.
@@ -559,7 +613,7 @@ Please arrive 15 minutes before your scheduled time.
 We look forward to seeing you!
 
 Best regards,
-${hospitalName} Team`;
+${hospital.name} Team`;
 
 	return await sendWhatsAppMessage(phoneNumber, {
 		type: "text",

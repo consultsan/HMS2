@@ -441,7 +441,8 @@ export class AppointmentController {
 								patientName: visit.patient.name,
 								doctorName: visit.doctor.name,
 								appointmentDate: appointmentIST,
-								appointmentTime: appointmentTime
+								appointmentTime: appointmentTime,
+								hospitalId: visit.hospitalId
 							});
 						} else {
 							// Send regular appointment notification
@@ -449,7 +450,8 @@ export class AppointmentController {
 								patientName: visit.patient.name,
 								doctorName: visit.doctor.name,
 								appointmentDate: appointmentIST,
-								appointmentTime: appointmentTime
+								appointmentTime: appointmentTime,
+								hospitalId: visit.hospitalId
 							});
 						}
 					}
@@ -949,7 +951,8 @@ export class AppointmentController {
 							patientName: appointmentBeforeUpdate.patient.name,
 							doctorName: appointmentBeforeUpdate.doctor.name,
 							appointmentDate: appointmentIST,
-							appointmentTime: appointmentTime
+							appointmentTime: appointmentTime,
+							hospitalId: appointmentBeforeUpdate.hospitalId
 						});
 					} else {
 						// Send regular appointment update notification
@@ -957,7 +960,8 @@ export class AppointmentController {
 							patientName: appointmentBeforeUpdate.patient.name,
 							doctorName: appointmentBeforeUpdate.doctor.name,
 							appointmentDate: appointmentIST,
-							appointmentTime: appointmentTime
+							appointmentTime: appointmentTime,
+							hospitalId: appointmentBeforeUpdate.hospitalId
 						});
 					}
 					} catch (whatsappError) {

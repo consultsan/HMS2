@@ -399,14 +399,16 @@ export class PublicAppointmentController {
               patientName: name,
               doctorName: doctor.name,
               appointmentDate: appointmentIST,
-              appointmentTime: appointmentTime
+              appointmentTime: appointmentTime,
+              hospitalId: appointment.hospitalId
             });
           } else {
             await sendAppointmentNotification(phone, {
               patientName: name,
               doctorName: doctor.name,
               appointmentDate: appointmentIST,
-              appointmentTime: appointmentTime
+              appointmentTime: appointmentTime,
+              hospitalId: appointment.hospitalId
             });
           }
         }

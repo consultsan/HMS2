@@ -78,7 +78,10 @@ export class ReminderService {
 					},
 					reminderSent: false
 				},
-				include: {
+				select: {
+					id: true,
+					scheduledAt: true,
+					hospitalId: true,
 					patient: {
 						select: {
 							name: true,
@@ -112,7 +115,8 @@ export class ReminderService {
 						patientName: appointment.patient.name,
 						doctorName: appointment.doctor.name,
 						appointmentDate: appointmentIST,
-						appointmentTime: appointmentTime
+						appointmentTime: appointmentTime,
+						hospitalId: appointment.hospitalId
 					});
 
 					if (result.success) {

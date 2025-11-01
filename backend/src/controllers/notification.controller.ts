@@ -23,7 +23,7 @@ export class NotificationController {
 				doctorName,
 				appointmentDate,
 				appointmentTime,
-				hospitalName
+				hospitalId
 			} = req.body;
 
 			if (
@@ -32,11 +32,11 @@ export class NotificationController {
 				!doctorName ||
 				!appointmentDate ||
 				!appointmentTime ||
-				!hospitalName
+				!hospitalId
 			) {
 				return res.status(400).json({
 					success: false,
-					message: "All fields are required"
+					message: "All fields are required, including hospitalId"
 				});
 			}
 			
@@ -44,7 +44,8 @@ export class NotificationController {
 				patientName,
 				doctorName,
 				appointmentDate: new Date(appointmentDate),
-				appointmentTime
+				appointmentTime,
+				hospitalId
 			});
 
 			if (result.success) {
