@@ -221,131 +221,152 @@ export default function ViewBill({
     const handlePrint = async () => {
         if (!billId) return;
 
-        // Open window immediately (synchronously) to avoid popup blocker
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        // Open popup window immediately with loading message
+        const printWindow = window.open('', '_blank', 'width=800,height=600,left=100,top=100');
         
         if (!printWindow) {
             toast.error('Please allow popups to print the bill');
             return;
         }
 
-        try {
-            // Show loading message in the print window
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Loading Bill...</title>
-                    <style>
-                        body {
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100vh;
-                            font-family: Arial, sans-serif;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div>Loading bill for printing...</div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+        // Show loading message in popup
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Loading Bill...</title>
+                <style>
+                    body {
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        font-family: Arial, sans-serif;
+                        background: #f5f5f5;
+                    }
+                    .spinner {
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #3498db;
+                        border-radius: 50%;
+                        width: 40px;
+                        height: 40px;
+                        animation: spin 1s linear infinite;
+                        margin-bottom: 20px;
+                    }
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    .text {
+                        color: #666;
+                        font-size: 16px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="spinner"></div>
+                <div class="text">Loading bill for printing...</div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
 
-            // Use the same PDF endpoint as download for consistent formatting
+        try {
+            // Fetch PDF from endpoint
             const response = await billingApi.exportBillPDF(billId);
             
             // Create blob from PDF response
             const blob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
 
-            // Create HTML page that embeds PDF and auto-prints
-            const printHtml = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Print Bill</title>
-                    <style>
-                        html, body {
-                            margin: 0;
-                            padding: 0;
-                            width: 100%;
-                            height: 100%;
-                            overflow: hidden;
-                        }
-                        embed {
-                            width: 100%;
-                            height: 100%;
-                            border: none;
-                        }
-                    </style>
-                    <script>
-                        (function() {
-                            function triggerPrint() {
-                                try {
-                                    window.focus();
-                                    window.print();
-                                } catch (e) {
-                                    console.error('Print error:', e);
-                                }
-                            }
-                            
-                            // Try multiple methods to ensure print is triggered
-                            if (document.readyState === 'complete') {
-                                setTimeout(triggerPrint, 300);
-                            } else {
-                                window.addEventListener('load', function() {
-                                    setTimeout(triggerPrint, 300);
-                                });
-                            }
-                            
-                            // Fallback: trigger print after a delay
-                            setTimeout(triggerPrint, 1000);
-                            
-                            // Close window after printing (when dialog is closed)
-                            window.addEventListener('afterprint', function() {
-                                setTimeout(function() {
-                                    window.close();
-                                }, 100);
-                            });
-                        })();
-                    </script>
-                </head>
-                <body>
-                    <embed src="${url}" type="application/pdf" />
-                </body>
-                </html>
-            `;
+            // Load PDF in the popup
+            printWindow.location.href = url;
 
-            // Write the PDF content to the already-opened window
-            printWindow.document.open();
-            printWindow.document.write(printHtml);
-            printWindow.document.close();
-
-            // Clean up blob URL after window closes
-            const cleanup = () => {
-                window.URL.revokeObjectURL(url);
+            // Wait for PDF to load, then trigger print immediately
+            const triggerPrint = () => {
+                try {
+                    if (printWindow && !printWindow.closed) {
+                        printWindow.focus();
+                        printWindow.print();
+                    }
+                } catch (e) {
+                    console.error('Print error:', e);
+                }
             };
-            
-            printWindow.addEventListener('beforeunload', cleanup);
-            
+
+            // Multiple attempts to ensure PDF loads before printing
+            setTimeout(triggerPrint, 1000);
+            setTimeout(triggerPrint, 2500);
+            setTimeout(triggerPrint, 4000);
+
+            // Close window after printing
+            printWindow.addEventListener('afterprint', () => {
+                setTimeout(() => {
+                    if (printWindow && !printWindow.closed) {
+                        printWindow.close();
+                    }
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            });
+
+            // Cleanup on window close
+            printWindow.addEventListener('beforeunload', () => {
+                window.URL.revokeObjectURL(url);
+            });
+
             // Fallback cleanup after 60 seconds
-            setTimeout(cleanup, 60000);
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+            }, 60000);
         } catch (error: any) {
             console.error('Error getting print PDF:', error);
             
-            // Show error in the print window
+            // Show error in popup
             if (printWindow && !printWindow.closed) {
                 printWindow.document.open();
                 printWindow.document.write(`
                     <!DOCTYPE html>
                     <html>
-                    <head><title>Error</title></head>
+                    <head>
+                        <title>Error</title>
+                        <style>
+                            body {
+                                display: flex;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                font-family: Arial, sans-serif;
+                                background: #f5f5f5;
+                            }
+                            .error {
+                                color: #e74c3c;
+                                text-align: center;
+                                padding: 20px;
+                            }
+                            button {
+                                margin-top: 20px;
+                                padding: 10px 20px;
+                                background: #3498db;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                cursor: pointer;
+                            }
+                            button:hover {
+                                background: #2980b9;
+                            }
+                        </style>
+                    </head>
                     <body>
-                        <h3>Error loading bill for printing</h3>
-                        <p>${error.response?.data?.message || 'Failed to load PDF'}</p>
-                        <button onclick="window.close()">Close</button>
+                        <div class="error">
+                            <h3>Error loading bill</h3>
+                            <p>${error.response?.data?.message || 'Failed to load PDF'}</p>
+                            <button onclick="window.close()">Close</button>
+                        </div>
                     </body>
                     </html>
                 `);
