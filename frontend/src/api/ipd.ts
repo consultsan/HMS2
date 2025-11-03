@@ -127,4 +127,64 @@ export const ipdApi = {
 
   getPatients: (params?: { search?: string }) =>
     api.get<{ data: any[] }>('/api/patient', { params }),
+
+  // Comprehensive Patient Details
+  getPatientDetails: (admissionId: string) =>
+    api.get<{
+      data: {
+        admission: IPDAdmission;
+        ipdDocuments: any[];
+        ipdVisits: IPDVisit[];
+        ipdLabTests: any[];
+        ipdSurgeries: any[];
+        opdLabTests: any[];
+        opdSurgeries: any[];
+        patientDocuments: any[];
+      };
+    }>(`/api/ipd/patient-details/${admissionId}`),
+
+  // IPD Lab Test Management
+  createIPDLabTest: (data: {
+    admissionId: string;
+    testName: string;
+    testCode?: string;
+    category?: string;
+    priority: 'ROUTINE' | 'URGENT' | 'STAT';
+    instructions?: string;
+    fastingRequired?: boolean;
+    fastingHours?: number;
+    specialInstructions?: string;
+    testCost?: number;
+    labTestId?: string;
+  }) =>
+    api.post<{ message: string; data: any }>('/api/ipd/lab-test', data),
+
+  getIPDLabTestsByHospital: (params?: { status?: string }) =>
+    api.get<{ message: string; data: any[] }>('/api/ipd/lab-test/hospital/all', { params }),
+
+  updateIPDLabTest: (id: string, data: {
+    status?: string;
+    scheduledAt?: string;
+    completedAt?: string;
+    resultDate?: string;
+    resultValue?: string;
+    resultUnit?: string;
+    normalRange?: string;
+    abnormalFlag?: boolean;
+    resultNotes?: string;
+    performedById?: string;
+  }) =>
+    api.patch<{ message: string; data: any }>(`/api/ipd/lab-test/${id}`, data),
+
+  uploadIPDLabTestAttachment: (labTestId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('labTestId', labTestId);
+    formData.append('attachmentType', 'RESULT_REPORT');
+    return api.post<{ message: string; data: any }>('/api/ipd/lab-test/attachment', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };

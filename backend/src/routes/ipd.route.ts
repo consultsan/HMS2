@@ -61,9 +61,10 @@ router.get("/dashboard/stats", ipdController.getIPDDashboardStats.bind(ipdContro
 
 // IPD Lab Test Routes
 router.post("/lab-test", ipdController.createIPDLabTest.bind(ipdController));
+router.get("/lab-test/hospital/all", ipdController.getIPDLabTestsByHospital.bind(ipdController)); // Must come before /:admissionId route
 router.get("/lab-test/:admissionId", ipdController.getIPDLabTests.bind(ipdController));
 router.patch("/lab-test/:id", ipdController.updateIPDLabTest.bind(ipdController));
-router.post("/lab-test/attachment", ipdController.uploadIPDLabTestAttachment.bind(ipdController));
+router.post("/lab-test/attachment", upload.single('file'), ipdController.uploadIPDLabTestAttachment.bind(ipdController));
 
 // IPD Surgery Routes
 router.post("/surgery", ipdController.createIPDSurgery.bind(ipdController));
@@ -86,5 +87,8 @@ router.get("/billing/:admissionId/calculate", ipdController.calculateIPDDischarg
 router.post("/billing/:admissionId/generate", ipdController.generateIPDDischargeBill.bind(ipdController));
 router.get("/billing/:admissionId/bills", ipdController.getIPDBills.bind(ipdController));
 router.get("/billing/bill/:billId", ipdController.getIPDBillDetails.bind(ipdController));
+
+// Comprehensive Patient Details Route
+router.get("/patient-details/:admissionId", ipdController.getIPDPatientDetails.bind(ipdController));
 
 export default router;

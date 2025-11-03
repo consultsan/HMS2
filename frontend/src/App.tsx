@@ -22,6 +22,7 @@ import { SearchProvider } from "@/contexts/SearchContext";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import Appointments from "./pages/doctor/Appointments";
 import IPDManagement from "./pages/doctor/IPDManagement";
+import IPDPatientDetail from "./pages/doctor/IPDPatientDetail";
 import ConsultationPage from "./pages/consultation/ConsultationPage";
 import DiseaseTemplate from "./pages/doctor/DiseaseTemplate";
 import DiagnosisRecord from "./pages/consultation/DiagnosisRecord";
@@ -34,6 +35,7 @@ import CompletedTests from "./pages/lab/CompletedTests";
 import TestsFromReceptionist from "./pages/lab/TestsFromReceptionist";
 import IPDQueuePage from "./pages/ipd/IPDQueuePage";
 import TestFromDoctors from "./pages/lab/TestFromDoctors";
+import IPDLabTestManager from "./pages/lab/IPDLabTestManager";
 import CreateLabTest from "./pages/lab/CreateLabTest";
 import CreateLabTestAppointment from "./pages/receptionist/CreateLabTestAppointment";
 import PendingLabBills from "./pages/receptionist/PendingLabBills";
@@ -306,6 +308,10 @@ export default function App() {
 							element={<IPDManagement />}
 						/>
 						<Route
+							path="ipd/:admissionId"
+							element={<IPDPatientDetail />}
+						/>
+						<Route
 							path="template"
 							element={<DiseaseTemplate />}
 						/>
@@ -389,6 +395,10 @@ export default function App() {
 						<Route
 							path="from-receptionist"
 							element={<TestsFromReceptionist />}
+						/>
+						<Route
+							path="ipd-tests"
+							element={<IPDLabTestManager />}
 						/>
 						<Route
 							path="completed-tests"

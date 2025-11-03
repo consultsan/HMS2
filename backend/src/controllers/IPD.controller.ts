@@ -14,7 +14,8 @@ const roles: string[] = [
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.DOCTOR,
 	UserRole.RECEPTIONIST,
-	UserRole.NURSE
+	UserRole.NURSE,
+	UserRole.LAB_TECHNICIAN
 ];
 
 export class IPDController {
@@ -987,6 +988,37 @@ export class IPDController {
 		}
 	}
 
+	// Get IPD lab tests by hospital (for lab technicians)
+	async getIPDLabTestsByHospital(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const hospitalId = req.user.hospitalId;
+				const { status } = req.query;
+
+				if (!hospitalId) {
+					throw new AppError("Hospital ID is required", 400);
+				}
+
+				console.log('Fetching IPD lab tests for hospital:', hospitalId, 'status:', status);
+
+				const labTests = await this.ipdRepository.getIPDLabTestsByHospital(hospitalId, status as string);
+
+				console.log('Found IPD lab tests:', labTests.length);
+
+				res.status(200).json(
+					new ApiResponse("IPD lab tests retrieved successfully", labTests)
+				);
+			} catch (error: any) {
+				console.error('Error fetching IPD lab tests:', error);
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
 	async updateIPDLabTest(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
@@ -1015,11 +1047,31 @@ export class IPDController {
 	async uploadIPDLabTestAttachment(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
-				const { labTestId } = req.body;
-				const { attachmentType, description } = req.body;
+				const { labTestId, attachmentType, description } = req.body;
 
-				if (!req.file || !labTestId || !attachmentType) {
-					throw new AppError("File, lab test ID, and attachment type are required", 400);
+				console.log('Upload IPD Lab Test Attachment - Request body:', req.body);
+				console.log('Upload IPD Lab Test Attachment - File:', req.file ? {
+					originalname: req.file.originalname,
+					mimetype: req.file.mimetype,
+					size: req.file.size
+				} : 'No file');
+
+				if (!req.file) {
+					throw new AppError("File is required", 400);
+				}
+
+				if (!labTestId) {
+					throw new AppError("Lab test ID is required", 400);
+				}
+
+				if (!attachmentType) {
+					throw new AppError("Attachment type is required", 400);
+				}
+
+				// Validate attachment type enum
+				const validTypes = ['RESULT_REPORT', 'IMAGE', 'DOCUMENT', 'PRESCRIPTION', 'OTHER'];
+				if (!validTypes.includes(attachmentType)) {
+					throw new AppError(`Invalid attachment type. Must be one of: ${validTypes.join(', ')}`, 400);
 				}
 
 				// Upload file to S3
@@ -1032,7 +1084,7 @@ export class IPDController {
 					fileUrl,
 					fileSize: req.file.size,
 					mimeType: req.file.mimetype,
-					attachmentType,
+					attachmentType: attachmentType as any,
 					description
 				});
 
@@ -1040,6 +1092,7 @@ export class IPDController {
 					new ApiResponse("Lab test attachment uploaded successfully", attachment)
 				);
 			} catch (error: any) {
+				console.error('Error uploading IPD lab test attachment:', error);
 				errorHandler(error, res);
 			}
 		} else {
@@ -1532,6 +1585,176 @@ export class IPDController {
 			res.status(200).json(new ApiResponse("OK", { messages, nextSince: Date.now() }));
 		} catch (error: any) {
 			errorHandler(error, res);
+		}
+	}
+
+	// Get comprehensive patient data for IPD admission
+	async getIPDPatientDetails(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				// Get admission with related data
+				const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
+				if (!admission) {
+					throw new AppError("IPD admission not found", 404);
+				}
+
+				const patientId = admission.queue.patientId;
+
+				// Get IPD documents
+				const ipdDocuments = await this.ipdRepository.getIPDPatientDocuments(admissionId);
+
+				// Get IPD visits
+				const ipdVisits = await this.ipdRepository.getIPDVisits(admissionId);
+
+				// Get IPD lab tests
+				const ipdLabTests = await this.ipdRepository.getIPDLabTests(admissionId);
+
+				// Get IPD surgeries
+				const ipdSurgeries = await this.ipdRepository.getIPDSurgeries(admissionId);
+
+				// Get OPD lab tests (from appointments)
+				const opdLabTests = await prisma.appointmentLabTest.findMany({
+					where: { patientId },
+					include: {
+						labTest: true,
+						appointment: {
+							select: {
+								id: true,
+								scheduledAt: true,
+								doctor: {
+									select: {
+										id: true,
+										name: true,
+										specialisation: true
+									}
+								}
+							}
+						},
+						results: {
+							include: {
+								parameter: true
+							}
+						}
+					},
+					orderBy: {
+						createdAt: "desc"
+					}
+				});
+
+				// Get OPD surgeries (from appointments)
+				const appointments = await prisma.appointment.findMany({
+					where: { patientId },
+					include: {
+						surgery: {
+							include: {
+								appointment: {
+									select: {
+										id: true,
+										scheduledAt: true,
+										doctor: {
+											select: {
+												id: true,
+												name: true,
+												specialisation: true
+											}
+										}
+									}
+								}
+							}
+						},
+						doctor: {
+							select: {
+								id: true,
+								name: true,
+								specialisation: true
+							}
+						}
+					},
+					orderBy: {
+						scheduledAt: "desc"
+					}
+				});
+
+				const opdSurgeries = appointments
+					.filter(apt => apt.surgery !== null)
+					.map(apt => apt.surgery);
+
+				// Get patient documents from both systems:
+				// 1. New PatientDocumentFile system (from patient document management)
+				const patientDocumentFiles = await prisma.patientDocumentFile.findMany({
+					where: { patientId },
+					include: {
+						uploadedBy: {
+							select: {
+								id: true,
+								name: true,
+								role: true
+							}
+						},
+						folder: {
+							select: {
+								id: true,
+								folderName: true
+							}
+						}
+					},
+					orderBy: {
+						uploadedAt: 'desc'
+					}
+				});
+
+				// 2. Old PatientDocument system (from patient form uploads)
+				const oldPatientDocuments = await prisma.patientDocument.findMany({
+					where: { patientId },
+					orderBy: {
+						uploadedAt: 'desc'
+					}
+				});
+
+				// Combine both document types
+				const patientDocuments = [
+					...patientDocumentFiles.map(doc => ({
+						...doc,
+						source: 'PatientDocumentFile'
+					})),
+					...oldPatientDocuments.map(doc => ({
+						id: doc.id,
+						fileName: doc.url.split('/').pop() || 'document',
+						fileUrl: doc.url,
+						category: doc.type,
+						patientId: doc.patientId,
+						uploadedAt: doc.uploadedAt,
+						source: 'PatientDocument',
+						uploadedBy: null,
+						folder: null
+					}))
+				];
+
+				res.status(200).json(
+					new ApiResponse("Patient details retrieved successfully", {
+						admission,
+						ipdDocuments,
+						ipdVisits,
+						ipdLabTests,
+						ipdSurgeries,
+						opdLabTests,
+						opdSurgeries,
+						patientDocuments
+					})
+				);
+			} catch (error) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
 		}
 	}
 }

@@ -66,14 +66,22 @@ export default function IPDVisitsList({
     onVisitAdded?.();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return 'Invalid Date';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error, dateString);
+      return 'Invalid Date';
+    }
   };
 
   const getVitalIcon = (type: string) => {
@@ -155,7 +163,9 @@ export default function IPDVisitsList({
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">{formatDate(visit.createdAt)}</span>
+                      <span className="font-medium">
+                        {formatDate(visit.visitDate || visit.createdAt)}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-gray-500" />

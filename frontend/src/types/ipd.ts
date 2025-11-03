@@ -200,7 +200,8 @@ export interface IPDVisit {
   medicationChanges?: string;
   patientResponse?: string;
   nextVisitPlan?: string;
-  createdAt: string;
+  visitDate?: string; // Primary date field from database
+  createdAt?: string; // Fallback field
   vitals?: IPDVisitVital[];
   doctor: {
     id: string;

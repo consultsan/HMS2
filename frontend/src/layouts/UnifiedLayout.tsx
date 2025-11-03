@@ -81,6 +81,7 @@ const roleConfigs = {
       { name: 'Dashboard', path: '/lab/dashboard' },
       { name: 'From Doctors', path: '/lab/from-doctors' },
       { name: 'From Receptionist', path: '/lab/from-receptionist' },
+      { name: 'IPD Tests', path: '/lab/ipd-tests' },
       { name: 'Completed Tests', path: '/lab/completed-tests' },
       { name: 'Create Test', path: '/lab/create' },
     ],

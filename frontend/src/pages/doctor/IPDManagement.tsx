@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ import IPDVisitsList from '@/components/ipd/IPDVisitsList';
 
 export default function IPDManagement() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [admissions, setAdmissions] = useState<IPDAdmission[]>([]);
   const [filteredAdmissions, setFilteredAdmissions] = useState<IPDAdmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -257,19 +259,11 @@ export default function IPDManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleViewVisits(admission)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Visits
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewVisits(admission)}
+                            onClick={() => navigate(`/doctor/ipd/${admission.id}`)}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add Visit
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Details
                           </Button>
                         </div>
                       </TableCell>

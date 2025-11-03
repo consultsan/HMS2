@@ -874,6 +874,83 @@ export class IPDRepository {
 		}
 	}
 
+	// Get IPD lab tests by hospital (for lab technicians)
+	async getIPDLabTestsByHospital(hospitalId: string, status?: string) {
+		try {
+			const whereClause: any = {
+				admission: {
+					queue: {
+						hospitalId: hospitalId
+					}
+				}
+			};
+			if (status && status !== 'all') {
+				whereClause.status = status;
+			}
+
+			console.log('Querying IPD lab tests with whereClause:', JSON.stringify(whereClause, null, 2));
+
+			const results = await prisma.iPDLabTest.findMany({
+				where: whereClause,
+				include: {
+					admission: {
+						include: {
+							queue: {
+								include: {
+									patient: {
+										select: {
+											id: true,
+											name: true,
+											uhid: true,
+											phone: true,
+											gender: true
+										}
+									},
+									hospital: {
+										select: {
+											id: true,
+											name: true
+										}
+									}
+								}
+							},
+							assignedDoctor: {
+								select: {
+									id: true,
+									name: true,
+									specialisation: true
+								}
+							}
+						}
+					},
+					orderedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					performedBy: {
+						select: {
+							id: true,
+							name: true,
+							specialisation: true
+						}
+					},
+					labTest: true,
+					attachments: true
+				},
+				orderBy: { orderedAt: 'desc' }
+			});
+
+			console.log(`Found ${results.length} IPD lab tests for hospital ${hospitalId}`);
+			return results;
+		} catch (error: any) {
+			console.error('Error in getIPDLabTestsByHospital:', error);
+			throw new AppError(error.message);
+		}
+	}
+
 	async updateIPDLabTest(id: string, data: {
 		status?: TestStatus;
 		scheduledAt?: Date;
