@@ -89,6 +89,7 @@ export class SlotController {
                     };
                 }
 
+                // Get slots from Slot table
                 const slots = await prisma.slot.findMany({
                     where: whereClause,
                     include: {
@@ -100,7 +101,80 @@ export class SlotController {
                     }
                 });
 
-                res.status(200).json(new ApiResponse("Slots fetched successfully", slots));
+                // Also get all appointments directly to catch appointments without Slot records
+                const appointmentWhereClause: Prisma.AppointmentWhereInput = {
+                    doctorId: id
+                };
+
+                if (startDate && endDate) {
+                    appointmentWhereClause.scheduledAt = {
+                        gte: new Date(startDate as string),
+                        lte: new Date(endDate as string)
+                    };
+                }
+
+                const appointments = await prisma.appointment.findMany({
+                    where: appointmentWhereClause,
+                    select: {
+                        id: true,
+                        scheduledAt: true
+                    },
+                    orderBy: {
+                        scheduledAt: 'desc'
+                    }
+                });
+
+                // Create a map of appointment times to track which slots are booked
+                const appointmentTimesMap = new Map<string, string[]>();
+                appointments.forEach(appt => {
+                    const timeSlot = new Date(appt.scheduledAt).toISOString();
+                    if (!appointmentTimesMap.has(timeSlot)) {
+                        appointmentTimesMap.set(timeSlot, []);
+                    }
+                    appointmentTimesMap.get(timeSlot)!.push(appt.id);
+                });
+
+                // Create a map of slots by timeSlot for quick lookup
+                const slotsByTime = new Map<string, any>();
+                slots.forEach(slot => {
+                    const timeSlot = new Date(slot.timeSlot).toISOString();
+                    slotsByTime.set(timeSlot, slot);
+                });
+
+                // Combine slots and appointments: if an appointment exists but no slot, create a virtual slot entry
+                const allBookedSlots: any[] = [];
+                
+                // Add existing slots
+                slots.forEach(slot => {
+                    allBookedSlots.push(slot);
+                });
+
+                // Add appointments that don't have corresponding slots
+                appointmentTimesMap.forEach((appointmentIds, timeSlot) => {
+                    if (!slotsByTime.has(timeSlot)) {
+                        // Create a virtual slot entry for appointments without Slot records
+                        allBookedSlots.push({
+                            id: `virtual-${appointmentIds[0]}`,
+                            timeSlot: new Date(timeSlot),
+                            doctorId: id,
+                            appointment1Id: appointmentIds[0],
+                            appointment2Id: appointmentIds[1] || null,
+                            appointment1: appointmentIds[0] ? { id: appointmentIds[0] } : null,
+                            appointment2: appointmentIds[1] ? { id: appointmentIds[1] } : null,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        });
+                    }
+                });
+
+                // Sort by timeSlot descending
+                allBookedSlots.sort((a, b) => {
+                    const timeA = new Date(a.timeSlot).getTime();
+                    const timeB = new Date(b.timeSlot).getTime();
+                    return timeB - timeA;
+                });
+
+                res.status(200).json(new ApiResponse("Slots fetched successfully", allBookedSlots));
             } catch (error: any) {
                 console.error("Get slots error:", error);
                 res.status(error.code || 500)
