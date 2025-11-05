@@ -127,7 +127,7 @@ export default function ViewAppointmentLabtests({
                                                     </div>
                                                 )}
                                                 {test.status !== 'COMPLETED' && (
-                                                    <div>{formatDate(test?.tentativeReportDate)}</div>
+                                                    <div><span className="text-sm font-medium text-gray-900">Tentative Date</span>: {test?.tentativeReportDate ? formatDate(test.tentativeReportDate) : 'Not set'}</div>
                                                 )}
                                             </div>
                                         </td>

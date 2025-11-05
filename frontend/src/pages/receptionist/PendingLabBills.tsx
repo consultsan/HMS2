@@ -209,20 +209,22 @@ export default function PendingLabBills() {
                     <TableCell>
                       <div className="space-y-1">
                         {order.appointmentLabTests?.map((labTest) => (
-                          <span 
-                            key={labTest.id}
-                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                              labTest.status === 'COMPLETED'
-                                ? 'bg-green-100 text-green-800'
-                                : labTest.status === 'PROCESSING'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : labTest.status === 'SENT_EXTERNAL'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                          {labTest.status}
-                          </span>
+                          <div key={labTest.id} className="flex items-center gap-2">
+                            <span className="text-xs font-medium">{labTest.labTest?.name}:</span>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-semibold ${
+                                labTest.status === 'COMPLETED'
+                                  ? 'bg-green-100 text-green-800'
+                                  : labTest.status === 'PROCESSING'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : labTest.status === 'SENT_EXTERNAL'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {labTest.status}
+                            </span>
+                          </div>
                         ))}
                       </div>
                     </TableCell>
