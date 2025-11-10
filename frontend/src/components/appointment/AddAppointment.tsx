@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import DoctorSlots from "@/components/DoctorSlots";
 import { HospitalStaff, VisitType } from "@/types/types";
 import { appointmentApi } from "@/api/appointment";
+import { doctorApi } from "@/api/doctor";
 
 interface Patient {
     id: string;
@@ -86,13 +87,31 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
             selectedSlotId: string;
             partiallyBooked: boolean;
         }) => {
-            // EXACT SAME PATTERN AS ADD PATIENT - SIMPLE AND DIRECT
+            // Create the appointment
             const appointmentResponse = await appointmentApi.bookAppointment({
                 patientId: data.patientId,
                 doctorId: data.doctorId,
                 visitType: data.visitType as VisitType,
                 scheduledAt: new Date(data.scheduledAt)
             });
+
+            // Get appointment ID from response (same structure as SurgicalAppointments)
+            const appointmentId = appointmentResponse.data?.data?.id || appointmentResponse.data?.id;
+            
+            if (!appointmentId) {
+                throw new Error('Failed to get appointment ID from response');
+            }
+
+            console.log('Appointment ID:', appointmentId);
+            console.log('Doctor ID:', data.doctorId);
+            console.log('Time Slot:', data.scheduledAt);
+
+            // Create a new slot for the appointment
+            const slotResponse = await doctorApi.addSlot(data.doctorId, {
+                appointment1Id: appointmentId,
+                timeSlot: new Date(data.scheduledAt)
+            });
+            console.log('Slot response:', slotResponse);
 
             return appointmentResponse.data;
         },

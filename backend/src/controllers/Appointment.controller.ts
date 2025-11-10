@@ -919,7 +919,7 @@ export class AppointmentController {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
 				const { id } = req.params;
-				const { scheduledAt } = req.body as Pick<Appointment, "scheduledAt">;
+				const { scheduledAt, doctorId } = req.body as Pick<Appointment, "scheduledAt" | "doctorId">;
 
 				// Get appointment details before updating
 				const appointmentBeforeUpdate = await prisma.appointment.findUnique({
@@ -931,9 +931,14 @@ export class AppointmentController {
 					}
 				});
 
+				// Build update data object
+				const updateData: any = {};
+				if (scheduledAt) updateData.scheduledAt = scheduledAt;
+				if (doctorId) updateData.doctorId = doctorId;
+
 				const appointment = await prisma.appointment.update({
 					where: { id },
-					data: { scheduledAt }
+					data: updateData
 				});
 
 				// Send WhatsApp notification when appointment schedule is updated

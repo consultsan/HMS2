@@ -55,13 +55,29 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
 
     const updateAppointmentMutation = useMutation({
         mutationFn: async (data: { scheduledAt: string }) => {
-            // First update the appointment schedule
-            await api.patch(`/api/appointment/update-appointment-schedule/${appointment.id}`, data);
+            const appointmentId = appointment.id || (appointment as any)._id || (appointment as any).appointmentId;
+            
+            if (!appointmentId) {
+                throw new Error('Appointment ID not found in appointment object');
+            }
+
+            // Prepare update data - include doctorId if it changed
+            const updateData: { scheduledAt: string; doctorId?: string } = {
+                scheduledAt: data.scheduledAt
+            };
+            
+            // If doctor changed, include doctorId in update
+            if (selectedDoctorId && selectedDoctorId !== appointment.doctorId) {
+                updateData.doctorId = selectedDoctorId;
+            }
+
+            // First update the appointment schedule and doctor
+            await api.patch(`/api/appointment/update-appointment-schedule/${appointmentId}`, updateData);
 
             // Then update the doctor's time slot
             await doctorApi.updateTimeSlotByAppointmentId({
                 timeSlot: new Date(data.scheduledAt),
-                appointmentId: appointment.id
+                appointmentId: appointmentId
             });
         },
         onSuccess: () => {
