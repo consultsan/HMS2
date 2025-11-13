@@ -1210,13 +1210,13 @@ enum PatientDocumentCategory {
 
 enum DocumentStatus {
   UPLOADED
+
   PROCESSING
   VERIFIED
   REJECTED
   ARCHIVED
 }
 
-<<<<<<< HEAD
 model SuperAdmin {
   id        String   @id @default(uuid())
   name      String
@@ -1692,8 +1692,8 @@ model LabCharge {
 
 /// — Billing Module Models —
 
-=======
->>>>>>> 501be67d491d858b4d433ba58551f895ddce91e4
+
+
 enum BillStatus {
   DRAFT
   GENERATED
@@ -1732,7 +1732,7 @@ enum BillType {
   FOLLOW_UP
 }
 
-<<<<<<< HEAD
+
 /// — Main billing entity that combines all charges for a patient —
 model Bill {
   id          String     @id @default(uuid())
@@ -2493,12 +2493,12 @@ model DocumentAccessLog {
   @@index([accessedAt])
 }
 
-// ========================================
+// =====
 // PRESCRIPTION SYSTEM MODELS
-// ========================================
+// =====
 
-=======
->>>>>>> 501be67d491d858b4d433ba58551f895ddce91e4
+
+
 enum DrugCategory {
   ANTIBIOTIC
   ANALGESIC
@@ -2552,7 +2552,7 @@ enum PrescriptionItemStatus {
   OUT_OF_STOCK
 }
 
-<<<<<<< HEAD
+
 // IPD-specific enums
 enum TestPriority {
   ROUTINE
@@ -2774,7 +2774,7 @@ model PrescriptionHistory {
   
   @@index([prescriptionId])
   @@index([performedAt])
-=======
+
 enum WardSubType {
   AC
   NON_AC
@@ -2782,5 +2782,5 @@ enum WardSubType {
   DOUBLE
   TRIPLE
   QUADRUPLE
->>>>>>> 501be67d491d858b4d433ba58551f895ddce91e4
+
 }
