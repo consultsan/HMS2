@@ -18,12 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { 
   Stethoscope, 
   User, 
@@ -31,14 +25,12 @@ import {
   Building, 
   Bed, 
   FileText,
-  Eye,
-  Plus
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ipdApi } from '@/api/ipd';
 import { IPDAdmission } from '@/types/ipd';
-import IPDVisitsList from '@/components/ipd/IPDVisitsList';
 
 export default function IPDManagement() {
   const { user } = useAuth();
@@ -46,8 +38,6 @@ export default function IPDManagement() {
   const [admissions, setAdmissions] = useState<IPDAdmission[]>([]);
   const [filteredAdmissions, setFilteredAdmissions] = useState<IPDAdmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAdmission, setSelectedAdmission] = useState<IPDAdmission | null>(null);
-  const [isVisitsModalOpen, setIsVisitsModalOpen] = useState(false);
   const [selectedWard, setSelectedWard] = useState<string>('ALL');
 
   // Fetch admissions
@@ -94,15 +84,6 @@ export default function IPDManagement() {
     }
   }, [user?.id]);
 
-  const handleViewVisits = (admission: IPDAdmission) => {
-    setSelectedAdmission(admission);
-    setIsVisitsModalOpen(true);
-  };
-
-  const handleVisitAdded = () => {
-    // Refresh admissions if needed
-    fetchAdmissions();
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -276,59 +257,6 @@ export default function IPDManagement() {
         </CardContent>
       </Card>
 
-      {/* Visits Modal */}
-      <Dialog open={isVisitsModalOpen} onOpenChange={setIsVisitsModalOpen}>
-        <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-blue-600" />
-              Patient Visits - {selectedAdmission?.queue.patient.name}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedAdmission && (
-            <div className="space-y-4">
-              {/* Patient Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Patient Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-sm text-gray-500">Name</div>
-                      <div className="font-medium">{selectedAdmission.queue.patient.name}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">UHID</div>
-                      <div className="font-medium">{selectedAdmission.queue.patient.uhid}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Ward</div>
-                      <Badge className={getWardTypeColor(selectedAdmission.wardType)}>
-                        {selectedAdmission.wardType}
-                      </Badge>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Room/Bed</div>
-                      <div className="font-medium">
-                        {selectedAdmission.roomNumber || 'N/A'} / {selectedAdmission.bedNumber || 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Visits List */}
-              <IPDVisitsList
-                admissionId={selectedAdmission.id}
-                patientName={selectedAdmission.queue.patient.name}
-                onVisitAdded={handleVisitAdded}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

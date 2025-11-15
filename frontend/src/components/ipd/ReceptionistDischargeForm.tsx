@@ -16,8 +16,7 @@ import {
   FileText, 
   User, 
   Stethoscope,
-  CheckCircle,
-  Clock
+  CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';

@@ -1164,7 +1164,7 @@ export default function IPDPatientDetail() {
 // IPD Lab Test Form Component
 function IPDLabTestForm({
   admissionId,
-  patientName,
+  patientName: _patientName,
   onSuccess,
   onCancel
 }: {

@@ -27,7 +27,6 @@ import {
   Stethoscope, 
   User, 
   Calendar, 
-  Building, 
   Bed, 
   FileText,
   Eye,
@@ -35,13 +34,11 @@ import {
   Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 import { ipdApi } from '@/api/ipd';
 import { IPDAdmission, Ward } from '@/types/ipd';
 import IPDVisitsList from '@/components/ipd/IPDVisitsList';
 
 export default function NurseIPDManagement() {
-  const { user } = useAuth();
   const [allAdmissions, setAllAdmissions] = useState<IPDAdmission[]>([]); // Store all admissions
   const [admissions, setAdmissions] = useState<IPDAdmission[]>([]);
   const [filteredAdmissions, setFilteredAdmissions] = useState<IPDAdmission[]>([]);
@@ -78,7 +75,7 @@ export default function NurseIPDManagement() {
       
       // Filter admissions to show only those in assigned wards
       const wardAdmissions = response.data.data.filter(
-        (admission: IPDAdmission) => {
+        () => {
           // If no ward assignment system, show all admissions
           // TODO: Implement proper nurse ward assignment filtering
           return true;
@@ -430,7 +427,7 @@ export default function NurseIPDManagement() {
           {selectedAdmission && (
             <IPDVisitsList 
               admissionId={selectedAdmission.id}
-              onClose={() => setIsVisitsModalOpen(false)}
+              patientName={selectedAdmission.queue.patient.name}
             />
           )}
         </DialogContent>

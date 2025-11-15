@@ -24,10 +24,7 @@ import {
   Shield, 
   Building, 
   Phone, 
-  Mail, 
   RefreshCw,
-  CheckCircle,
-  AlertCircle,
   Star
 } from 'lucide-react';
 import { toast } from 'sonner';
