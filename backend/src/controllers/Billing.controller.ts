@@ -618,12 +618,19 @@ export class BillingController {
 			// Generate PDF
 			const pdfBuffer = await PDFService.generateBillPDF(bill as any);
 
+			// Validate PDF buffer
+			if (!pdfBuffer || pdfBuffer.length === 0) {
+				throw new AppError("Generated PDF is empty", 500);
+			}
+
 			// Set response headers for PDF download
 			res.setHeader("Content-Type", "application/pdf");
+			res.setHeader("Content-Length", pdfBuffer.length.toString());
 			res.setHeader(
 				"Content-Disposition",
 				`attachment; filename=bill-${bill.billNumber}.pdf`
 			);
+			res.setHeader("Cache-Control", "no-cache");
 			res.send(pdfBuffer);
 		} catch (error: any) {
 			console.error("Error in exportBillPDF:", error);
