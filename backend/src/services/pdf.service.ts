@@ -62,16 +62,7 @@ export interface BillWithRelations extends Bill {
 }
 
 export class PDFService {
-	// Fix template path for both development and production
-	private static templatesPath = (() => {
-		// In production (compiled), templates are in dist/templates
-		// In development, templates are in src/templates
-		const isProduction = __dirname.includes("dist");
-		if (isProduction) {
-			return path.join(__dirname, "templates");
-		}
-		return path.join(__dirname, "../templates");
-	})();
+	private static templatesPath = path.join(__dirname, "../templates");
 
 	// Register Handlebars helpers
 	private static registerHelpers() {
@@ -171,11 +162,7 @@ export class PDFService {
 	// Initialize browser instance with better error handling
 	private static async getBrowser() {
 		try {
-			// Get the executable path (Puppeteer bundles Chrome)
-			const executablePath = puppeteer.executablePath();
-			console.log("Puppeteer executable path:", executablePath);
-
-			const launchOptions: any = {
+			return await puppeteer.launch({
 				headless: true,
 				args: [
 					"--no-sandbox",
@@ -195,28 +182,17 @@ export class PDFService {
 					"--js-flags=--max-old-space-size=4096", // Increase memory limit
 					"--deterministic-fetch", // Ensure consistent page loads
 					"--enable-precise-memory-info",
-					"--enable-low-end-device-mode", // Optimize for low memory
-					"--disable-software-rasterizer",
-					"--disable-web-security",
-					"--font-render-hinting=none"
+					"--enable-low-end-device-mode" // Optimize for low memory
 				],
 				timeout: 60000,
 				handleSIGINT: true,
 				handleSIGTERM: true,
 				handleSIGHUP: true,
 				pipe: true // Use pipe instead of WebSocket
-			};
-
-			// Explicitly set executable path if available
-			if (executablePath && fs.existsSync(executablePath)) {
-				launchOptions.executablePath = executablePath;
-			}
-
-			return await puppeteer.launch(launchOptions);
+			});
 		} catch (error) {
 			console.error("Failed to launch browser:", error);
-			console.error("Error details:", error instanceof Error ? error.stack : error);
-			throw new Error(`Failed to initialize PDF browser: ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error("Failed to initialize PDF browser");
 		}
 	}
 
@@ -224,19 +200,11 @@ export class PDFService {
 	private static loadTemplate(templateName: string): any {
 		const templatePath = path.join(this.templatesPath, `${templateName}.html`);
 
-		console.log(`Loading template: ${templateName}`);
-		console.log(`Template path: ${templatePath}`);
-		console.log(`Templates directory exists: ${fs.existsSync(this.templatesPath)}`);
-
 		if (!fs.existsSync(templatePath)) {
-			console.error(`Template not found. Searched at: ${templatePath}`);
-			console.error(`Current working directory: ${process.cwd()}`);
-			console.error(`__dirname: ${__dirname}`);
 			throw new Error(`Template ${templateName} not found at ${templatePath}`);
 		}
 
 		const templateSource = fs.readFileSync(templatePath, "utf8");
-		console.log(`Template loaded successfully: ${templateName}`);
 		return handlebars.compile(templateSource);
 	}
 
@@ -271,7 +239,6 @@ export class PDFService {
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 
 				// Generate PDF with error handling and increased timeout
-				console.log("Generating PDF from HTML...");
 				const pdfBuffer = await page.pdf({
 					format: "A4",
 					printBackground: true,
@@ -280,7 +247,6 @@ export class PDFService {
 					margin: { top: "0cm", right: "0cm", bottom: "0cm", left: "0cm" }
 				});
 
-				console.log(`PDF generated successfully. Size: ${pdfBuffer.length} bytes`);
 				return Buffer.from(pdfBuffer);
 			} catch (error: unknown) {
 				retries--;
@@ -331,32 +297,6 @@ export class PDFService {
 		throw new Error("PDF generation failed: Maximum retries reached");
 	}
 
-	// Helper function to load logo from multiple possible paths
-	private static loadLogo(): string {
-		const possibleLogoPaths = [
-			path.join(process.cwd(), "public", "Logo11.jpeg"),
-			path.join(process.cwd(), "backend", "public", "Logo11.jpeg"),
-			path.join(__dirname, "..", "..", "public", "Logo11.jpeg"),
-			path.join(__dirname, "..", "public", "Logo11.jpeg")
-		];
-
-		for (const logoPath of possibleLogoPaths) {
-			try {
-				if (fs.existsSync(logoPath)) {
-					const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
-					console.log("Logo loaded from:", logoPath);
-					return `data:image/jpeg;base64,${logoBase64}`;
-				}
-			} catch (logoError) {
-				// Try next path
-				continue;
-			}
-		}
-		
-		console.warn("Logo file not found in any of the expected paths. PDF will be generated without logo.");
-		return "";
-	}
-
 	// Calculate age helper
 	private static calculateAge(dob: Date | string): number {
 		const birthDate = new Date(dob);
@@ -381,8 +321,21 @@ export class PDFService {
 		try {
 			const template = this.loadTemplate("bill-template");
 
-			// Load logo using helper function
-			const logoUrl = this.loadLogo();
+			// Get the absolute path to the logo from backend's public directory
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"Logo11.jpeg"
+			);
+
+			let logoUrl = "";
+			try {
+				const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+				logoUrl = `data:image/png;base64,${logoBase64}`;
+			} catch (logoError) {
+				console.error("Error reading logo file:", logoError);
+				// Continue without the logo if file cannot be read
+			}
 
 			// Prepare template data
 			const templateData = {
@@ -412,11 +365,7 @@ export class PDFService {
 			return await this.generatePDFFromHTML(html);
 		} catch (error) {
 			console.error("Error generating bill PDF:", error);
-			if (error instanceof Error) {
-				console.error("Error stack:", error.stack);
-				throw new Error(`Failed to generate bill PDF: ${error.message}`);
-			}
-			throw new Error(`Failed to generate bill PDF: ${String(error)}`);
+			throw new Error(`Failed to generate bill PDF: ${error}`);
 		}
 	}
 
@@ -430,7 +379,13 @@ export class PDFService {
 
 		try {
 			const template = this.loadTemplate("diagnosis-template");
-			const logoUrl = this.loadLogo();
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"Logo11.jpeg"
+			);
+			const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+			const logoUrl = `data:image/png;base64,${logoBase64}`;
 			// Prepare template data
 			const templateData = {
 				...diagnosisRecord,
@@ -512,8 +467,20 @@ export class PDFService {
 		try {
 			const template = this.loadTemplate("lab-report-template");
 
-			// Load logo using helper function
-			const logoUrl = this.loadLogo();
+			// Get the absolute path to the logo from backend's public directory
+			const logoPath = path.join(
+				process.cwd(),
+				"public",
+				"Logo11.jpeg"
+			);
+			let logoUrl = "";
+
+			try {
+				const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
+				logoUrl = `data:image/png;base64,${logoBase64}`;
+			} catch (logoError) {
+				console.error("Error reading logo file:", logoError);
+			}
 
 			// Prepare template data
 			const templateData = {

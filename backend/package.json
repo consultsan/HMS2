@@ -6,8 +6,7 @@
 	"type": "commonjs",
 	"scripts": {
 		"dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-		"build": "tsc && npm run copy-templates",
-		"copy-templates": "node -e \"const fs=require('fs'),path=require('path');function copyDir(src,dst){if(!fs.existsSync(dst))fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).forEach(f=>{const srcPath=path.join(src,f),dstPath=path.join(dst,f);if(fs.statSync(srcPath).isDirectory())copyDir(srcPath,dstPath);else fs.copyFileSync(srcPath,dstPath);});}const src='src/templates',dst='dist/templates';if(fs.existsSync(src)){copyDir(src,dst);console.log('✓ Templates copied to dist/templates');}else{console.warn('⚠ Templates directory not found:',src);}\"",
+		"build": "npx tsc && npx ncp src/templates dist/templates",
 		"start": "node dist/index.js",
 		"migrate:dev": "npx prisma migrate dev",
 		"migrate:deploy": "npx prisma migrate deploy",
