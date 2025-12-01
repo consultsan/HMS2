@@ -100,15 +100,15 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                 </div>
             )}
 
-            {/* Test Parameters and Results */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <span>Test Parameters & Results</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {combinedResults && combinedResults.length > 0 ? (
+            {/* Test Parameters and Results - Only show if parameters exist */}
+            {combinedResults && combinedResults.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <span>Test Parameters & Results</span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
@@ -155,17 +155,9 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                                 </TableBody>
                             </Table>
                         </div>
-                    ) : (
-                        <div className="text-center py-8">
-                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-500">No test parameters found</p>
-                            <p className="text-sm text-gray-400">
-                                {!testOrder?.labTestId ? 'Could not determine lab test type' : 'This test type has no parameters defined'}
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Attached Documents */}
             <Card>
@@ -203,6 +195,26 @@ export default function ViewTestResult({ appointmentLabTestId, testName }: ViewT
                     )}
                 </CardContent>
             </Card>
+
+            {/* No test parameters message - Show below documents if no parameters exist */}
+            {(!combinedResults || combinedResults.length === 0) && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <span>Test Parameters & Results</span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-center py-8">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500">No test parameters found</p>
+                            <p className="text-sm text-gray-400">
+                                {!testOrder?.labTestId ? 'Could not determine lab test type' : 'This test type has no parameters defined'}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 } 

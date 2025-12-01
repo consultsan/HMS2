@@ -191,6 +191,7 @@ export default function PendingLabBills() {
                       <ViewAppointmentLabtests 
                         appointmentId={order.appointmentId} 
                         labTestsData={order.appointmentLabTests}
+                        labOrderId={order.id}
                       />
                     </TableCell>
                     <TableCell>

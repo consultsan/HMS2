@@ -1,7 +1,7 @@
 import { labApi } from "@/api/lab";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
@@ -18,6 +18,7 @@ export default function CreateLabTestAppointment() {
     const [viewBillDialogOpen, setViewBillDialogOpen] = useState(false);
     const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
     const hospitalId = localStorage.getItem('hospitalId');
+    const queryClient = useQueryClient();
 
     // Handler for opening billing dialog
     const handleGenerateBill = (order: any) => {
@@ -26,8 +27,10 @@ export default function CreateLabTestAppointment() {
     };
 
     // Handler for successful billing
-    const handleBillingSuccess = () => {
-        // awat labApi.update
+    const handleBillingSuccess = async () => {
+        // Invalidate and refetch external lab orders to update status and actions
+        await queryClient.invalidateQueries({ queryKey: ['external-lab-orders'] });
+        await queryClient.refetchQueries({ queryKey: ['external-lab-orders'] });
         setBillingDialogOpen(false);
         setSelectedLabOrder(null);
     };

@@ -561,7 +561,14 @@ export default function ViewBill({
                                     <h3 className="font-semibold text-gray-900">Appointment Details</h3>
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                    <div><span className="font-medium">Date & Time:</span> {new Date(bill.appointment.scheduledAt).toLocaleString()}</div>
+                                    <div><span className="font-medium">Date & Time:</span> {new Date(bill.appointment.scheduledAt).toLocaleString('en-GB', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        timeZone: 'UTC'
+                                    })}</div>
                                     <div><span className="font-medium">Visit Type:</span> {bill.appointment.visitType}</div>
                                     {bill.appointment.doctor && (
                                         <>

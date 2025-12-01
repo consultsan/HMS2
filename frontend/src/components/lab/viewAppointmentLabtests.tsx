@@ -16,18 +16,26 @@ import { toast } from "sonner";
 
 export default function ViewAppointmentLabtests({ 
     appointmentId, 
-    labTestsData 
+    labTestsData,
+    labOrderId 
 }: { 
     appointmentId?: string;
     labTestsData?: any[];
+    labOrderId?: string;
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedLabTestId, setSelectedLabTestId] = useState<string>("");
     const [isResultOpen, setIsResultOpen] = useState(false);
     const [sendingReport, setSendingReport] = useState(false);
 
+    // Use a unique identifier for the query key to avoid cache collisions
+    // For external orders, appointmentId is null, so we use labOrderId as fallback
+    // This ensures each patient's tests are cached separately
+    // Priority: appointmentId (for internal orders) > labOrderId (for external orders) > fallback
+    const uniqueKey = appointmentId || labOrderId || (labTestsData?.length ? `external-${labTestsData[0]?.id || 'unknown'}` : 'unknown');
+
     const { data: labTests, isLoading, isError } = useQuery({
-        queryKey: ["appointment-lab-tests", appointmentId],
+        queryKey: ["appointment-lab-tests", uniqueKey],
         queryFn: async () => {
             if (labTestsData) {
                 return labTestsData;
