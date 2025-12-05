@@ -34,7 +34,6 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { ipdApi } from '@/api/ipd';
 import { IPDQueueEntry, IPDDashboardStats } from '@/types/ipd';
-import { useWebSocket } from '@/hooks/useWebSocket';
 import AddQueueModal from '@/components/ipd/AddQueueModal';
 import IPDAdmissionForm from '@/components/ipd/IPDAdmissionForm';
 import ReceptionistDischargeForm from '@/components/ipd/ReceptionistDischargeForm';
@@ -55,38 +54,6 @@ export default function IPDQueuePage() {
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [selectedAdmissionForDocuments, setSelectedAdmissionForDocuments] = useState<IPDQueueEntry | null>(null);
   const [selectedQueueEntryForDischarge, setSelectedQueueEntryForDischarge] = useState<IPDQueueEntry | null>(null);
-
-  // WebSocket connection for real-time updates (disabled for now)
-  // To enable: Set VITE_ENABLE_WEBSOCKET=true in .env file
-  const { isConnected } = useWebSocket({
-    url: (() => {
-      if (import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-        const wsUrlObj = new URL('/api/ipd/ward-monitoring', apiBase);
-        wsUrlObj.protocol = wsUrlObj.protocol === 'https:' ? 'wss:' : 'ws:';
-        console.log('WebSocket enabled, connecting to:', wsUrlObj.toString());
-        return wsUrlObj.toString();
-      } else {
-        // console.log('WebSocket disabled - set VITE_ENABLE_WEBSOCKET=true to enable');
-        return 'ws://disabled'; // Dummy URL when disabled
-      }
-    })(),
-    onMessage: (message) => {
-      if (message.type === 'IPD_UPDATE' || message.type === 'WARD_UPDATE' || 
-          message.type === 'ADMISSION_UPDATE' || message.type === 'DISCHARGE_UPDATE') {
-        // Update the queue list and stats with new data
-        fetchQueueEntries();
-        fetchDashboardStats();
-        toast.success('IPD status updated in real-time');
-      }
-    },
-    onError: (error) => {
-      console.error('WebSocket error:', error);
-      // Don't show error to user, just log it
-    },
-    maxReconnectAttempts: import.meta.env.VITE_ENABLE_WEBSOCKET === 'true' ? 3 : 0,
-    reconnectInterval: 5000
-  });
 
   // Fetch queue entries
   const fetchQueueEntries = async () => {
@@ -698,25 +665,6 @@ export default function IPDQueuePage() {
             </Tabs>
           </CardContent>
         </Card>
-
-        {/* WebSocket Status */}
-        <div className="flex items-center justify-center">
-          <div className={`flex items-center gap-2 text-sm ${
-            import.meta.env.VITE_ENABLE_WEBSOCKET === 'true' 
-              ? (isConnected ? 'text-green-600' : 'text-red-600')
-              : 'text-gray-500'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              import.meta.env.VITE_ENABLE_WEBSOCKET === 'true'
-                ? (isConnected ? 'bg-green-500' : 'bg-red-500')
-                : 'bg-gray-400'
-            }`}></div>
-            {import.meta.env.VITE_ENABLE_WEBSOCKET === 'true' 
-              ? (isConnected ? 'Connected to real-time updates' : 'Disconnected from real-time updates')
-              : 'Real-time updates disabled (set VITE_ENABLE_WEBSOCKET=true to enable)'
-            }
-          </div>
-        </div>
       </div>
 
       {/* Add Queue Modal */}

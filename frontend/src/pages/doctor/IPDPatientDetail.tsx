@@ -71,6 +71,7 @@ export default function IPDPatientDetail() {
   const [selectedIPDTest, setSelectedIPDTest] = useState<any | null>(null);
   const [isViewIPDTestOpen, setIsViewIPDTestOpen] = useState(false);
   const [isAddTestFormOpen, setIsAddTestFormOpen] = useState(false);
+  const [isAddSurgeryFormOpen, setIsAddSurgeryFormOpen] = useState(false);
 
   const [patientData, setPatientData] = useState<{
     admission: IPDAdmission;
@@ -776,7 +777,7 @@ export default function IPDPatientDetail() {
                   <Scissors className="h-5 w-5" />
                   IPD Surgeries
                 </span>
-                <Button size="sm" onClick={() => navigate(`/doctor/ipd/${admissionId}/surgeries/create`)}>
+                <Button size="sm" onClick={() => setIsAddSurgeryFormOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Surgery
                 </Button>
@@ -1157,6 +1158,27 @@ export default function IPDPatientDetail() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Add IPD Surgery Dialog */}
+      <Dialog open={isAddSurgeryFormOpen} onOpenChange={setIsAddSurgeryFormOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scissors className="h-5 w-5 text-blue-600" />
+              Add IPD Surgery
+            </DialogTitle>
+          </DialogHeader>
+          <IPDSurgeryForm
+            admissionId={admissionId!}
+            patientName={patient?.name || ''}
+            onSuccess={() => {
+              setIsAddSurgeryFormOpen(false);
+              fetchPatientDetails();
+            }}
+            onCancel={() => setIsAddSurgeryFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1391,6 +1413,423 @@ function IPDLabTestForm({
         </Button>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Ordering...' : 'Order Test'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// IPD Surgery Form Component
+function IPDSurgeryForm({
+  admissionId,
+  patientName: _patientName,
+  onSuccess,
+  onCancel
+}: {
+  admissionId: string;
+  patientName: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    surgeryName: '',
+    surgeryCode: '',
+    category: '',
+    priority: 'ROUTINE' as 'ROUTINE' | 'URGENT' | 'STAT',
+    scheduledAt: '',
+    estimatedDuration: '',
+    procedureDescription: '',
+    preoperativeDiagnosis: '',
+    postoperativeDiagnosis: '',
+    anesthesiaType: '',
+    anesthesiaNotes: '',
+    surgicalNotes: '',
+    complications: '',
+    bloodLoss: '',
+    bloodTransfusion: false,
+    bloodUnits: '',
+    primarySurgeon: '',
+    assistantSurgeon: '',
+    anesthesiologist: '',
+    scrubNurse: '',
+    circulatingNurse: '',
+    surgeryCost: '',
+    anesthesiaCost: '',
+    totalCost: '',
+    primarySurgeonId: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch doctors for surgeon selection
+  const { data: doctors } = useQuery<any[]>({
+    queryKey: ['doctors'],
+    queryFn: async () => {
+      const response = await ipdApi.getDoctors();
+      return response.data?.data || [];
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.surgeryName.trim()) {
+      toast.error('Surgery name is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await ipdApi.createIPDSurgery({
+        admissionId,
+        surgeryName: formData.surgeryName,
+        surgeryCode: formData.surgeryCode || undefined,
+        category: formData.category || undefined,
+        priority: formData.priority,
+        scheduledAt: formData.scheduledAt || undefined,
+        estimatedDuration: formData.estimatedDuration ? parseInt(formData.estimatedDuration) : undefined,
+        procedureDescription: formData.procedureDescription || undefined,
+        preoperativeDiagnosis: formData.preoperativeDiagnosis || undefined,
+        postoperativeDiagnosis: formData.postoperativeDiagnosis || undefined,
+        anesthesiaType: formData.anesthesiaType || undefined,
+        anesthesiaNotes: formData.anesthesiaNotes || undefined,
+        surgicalNotes: formData.surgicalNotes || undefined,
+        complications: formData.complications || undefined,
+        bloodLoss: formData.bloodLoss || undefined,
+        bloodTransfusion: formData.bloodTransfusion,
+        bloodUnits: formData.bloodUnits ? parseInt(formData.bloodUnits) : undefined,
+        primarySurgeon: formData.primarySurgeon || undefined,
+        assistantSurgeon: formData.assistantSurgeon || undefined,
+        anesthesiologist: formData.anesthesiologist || undefined,
+        scrubNurse: formData.scrubNurse || undefined,
+        circulatingNurse: formData.circulatingNurse || undefined,
+        surgeryCost: formData.surgeryCost ? parseFloat(formData.surgeryCost) : undefined,
+        anesthesiaCost: formData.anesthesiaCost ? parseFloat(formData.anesthesiaCost) : undefined,
+        totalCost: formData.totalCost ? parseFloat(formData.totalCost) : undefined,
+        primarySurgeonId: formData.primarySurgeonId || undefined,
+      });
+      toast.success('Surgery scheduled successfully');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Error creating IPD surgery:', error);
+      toast.error(error.response?.data?.message || 'Failed to schedule surgery');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="surgeryName">Surgery Name *</Label>
+            <Input
+              id="surgeryName"
+              value={formData.surgeryName}
+              onChange={(e) => setFormData(prev => ({ ...prev, surgeryName: e.target.value }))}
+              placeholder="Enter surgery name"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="surgeryCode">Surgery Code</Label>
+            <Input
+              id="surgeryCode"
+              value={formData.surgeryCode}
+              onChange={(e) => setFormData(prev => ({ ...prev, surgeryCode: e.target.value }))}
+              placeholder="Enter surgery code"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              value={formData.category}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+              placeholder="e.g., General, Orthopedic, Cardiac"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="priority">Priority *</Label>
+            <Select
+              value={formData.priority}
+              onValueChange={(value: 'ROUTINE' | 'URGENT' | 'STAT') =>
+                setFormData(prev => ({ ...prev, priority: value }))
+              }
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ROUTINE">Routine</SelectItem>
+                <SelectItem value="URGENT">Urgent</SelectItem>
+                <SelectItem value="STAT">STAT</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="scheduledAt">Scheduled Date & Time</Label>
+            <Input
+              id="scheduledAt"
+              type="datetime-local"
+              value={formData.scheduledAt}
+              onChange={(e) => setFormData(prev => ({ ...prev, scheduledAt: e.target.value }))}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="estimatedDuration">Estimated Duration (minutes)</Label>
+            <Input
+              id="estimatedDuration"
+              type="number"
+              value={formData.estimatedDuration}
+              onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: e.target.value }))}
+              placeholder="e.g., 120"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="primarySurgeonId">Primary Surgeon</Label>
+            <Select
+              value={formData.primarySurgeonId}
+              onValueChange={(value) => {
+                setFormData(prev => ({ ...prev, primarySurgeonId: value }));
+                const doctor = doctors?.find(d => d.id === value);
+                if (doctor) {
+                  setFormData(prev => ({ ...prev, primarySurgeon: doctor.name }));
+                }
+              }}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select surgeon" />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors?.map((doctor) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.name} - {doctor.specialization || 'General'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="anesthesiologist">Anesthesiologist</Label>
+            <Input
+              id="anesthesiologist"
+              value={formData.anesthesiologist}
+              onChange={(e) => setFormData(prev => ({ ...prev, anesthesiologist: e.target.value }))}
+              placeholder="Enter anesthesiologist name"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="procedureDescription">Procedure Description</Label>
+          <Textarea
+            id="procedureDescription"
+            value={formData.procedureDescription}
+            onChange={(e) => setFormData(prev => ({ ...prev, procedureDescription: e.target.value }))}
+            placeholder="Describe the surgical procedure"
+            rows={3}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="preoperativeDiagnosis">Preoperative Diagnosis</Label>
+            <Textarea
+              id="preoperativeDiagnosis"
+              value={formData.preoperativeDiagnosis}
+              onChange={(e) => setFormData(prev => ({ ...prev, preoperativeDiagnosis: e.target.value }))}
+              placeholder="Preoperative diagnosis"
+              rows={2}
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="postoperativeDiagnosis">Postoperative Diagnosis</Label>
+            <Textarea
+              id="postoperativeDiagnosis"
+              value={formData.postoperativeDiagnosis}
+              onChange={(e) => setFormData(prev => ({ ...prev, postoperativeDiagnosis: e.target.value }))}
+              placeholder="Postoperative diagnosis (if available)"
+              rows={2}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="anesthesiaType">Anesthesia Type</Label>
+            <Input
+              id="anesthesiaType"
+              value={formData.anesthesiaType}
+              onChange={(e) => setFormData(prev => ({ ...prev, anesthesiaType: e.target.value }))}
+              placeholder="e.g., General, Local, Regional"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="flex items-center gap-4 pt-6">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="bloodTransfusion"
+                checked={formData.bloodTransfusion}
+                onChange={(e) => setFormData(prev => ({ ...prev, bloodTransfusion: e.target.checked }))}
+                disabled={isSubmitting}
+                className="rounded"
+              />
+              <Label htmlFor="bloodTransfusion" className="font-normal cursor-pointer">
+                Blood Transfusion Required
+              </Label>
+            </div>
+            {formData.bloodTransfusion && (
+              <div className="flex-1">
+                <Input
+                  type="number"
+                  value={formData.bloodUnits}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bloodUnits: e.target.value }))}
+                  placeholder="Units"
+                  disabled={isSubmitting}
+                  className="w-24"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="assistantSurgeon">Assistant Surgeon</Label>
+            <Input
+              id="assistantSurgeon"
+              value={formData.assistantSurgeon}
+              onChange={(e) => setFormData(prev => ({ ...prev, assistantSurgeon: e.target.value }))}
+              placeholder="Enter assistant surgeon name"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="scrubNurse">Scrub Nurse</Label>
+            <Input
+              id="scrubNurse"
+              value={formData.scrubNurse}
+              onChange={(e) => setFormData(prev => ({ ...prev, scrubNurse: e.target.value }))}
+              placeholder="Enter scrub nurse name"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="circulatingNurse">Circulating Nurse</Label>
+            <Input
+              id="circulatingNurse"
+              value={formData.circulatingNurse}
+              onChange={(e) => setFormData(prev => ({ ...prev, circulatingNurse: e.target.value }))}
+              placeholder="Enter circulating nurse name"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="bloodLoss">Blood Loss</Label>
+            <Input
+              id="bloodLoss"
+              value={formData.bloodLoss}
+              onChange={(e) => setFormData(prev => ({ ...prev, bloodLoss: e.target.value }))}
+              placeholder="e.g., 200ml"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <Label htmlFor="surgeryCost">Surgery Cost</Label>
+            <Input
+              id="surgeryCost"
+              type="number"
+              step="0.01"
+              value={formData.surgeryCost}
+              onChange={(e) => setFormData(prev => ({ ...prev, surgeryCost: e.target.value }))}
+              placeholder="0.00"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="anesthesiaCost">Anesthesia Cost</Label>
+            <Input
+              id="anesthesiaCost"
+              type="number"
+              step="0.01"
+              value={formData.anesthesiaCost}
+              onChange={(e) => setFormData(prev => ({ ...prev, anesthesiaCost: e.target.value }))}
+              placeholder="0.00"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <Label htmlFor="totalCost">Total Cost</Label>
+            <Input
+              id="totalCost"
+              type="number"
+              step="0.01"
+              value={formData.totalCost}
+              onChange={(e) => setFormData(prev => ({ ...prev, totalCost: e.target.value }))}
+              placeholder="0.00"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="anesthesiaNotes">Anesthesia Notes</Label>
+          <Textarea
+            id="anesthesiaNotes"
+            value={formData.anesthesiaNotes}
+            onChange={(e) => setFormData(prev => ({ ...prev, anesthesiaNotes: e.target.value }))}
+            placeholder="Any notes about anesthesia"
+            rows={2}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="surgicalNotes">Surgical Notes</Label>
+          <Textarea
+            id="surgicalNotes"
+            value={formData.surgicalNotes}
+            onChange={(e) => setFormData(prev => ({ ...prev, surgicalNotes: e.target.value }))}
+            placeholder="Any additional surgical notes"
+            rows={2}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="complications">Complications</Label>
+          <Textarea
+            id="complications"
+            value={formData.complications}
+            onChange={(e) => setFormData(prev => ({ ...prev, complications: e.target.value }))}
+            placeholder="Any complications (if any)"
+            rows={2}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Scheduling...' : 'Schedule Surgery'}
         </Button>
       </div>
     </form>

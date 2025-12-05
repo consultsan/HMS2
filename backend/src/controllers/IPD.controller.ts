@@ -220,21 +220,21 @@ export class IPDController {
 				await this.ipdRepository.updateIPDQueueStatus(queueId, IPDStatus.ADMITTED);
 
 				// Send WebSocket notification for admission
-				try {
-					const hospitalId = req.user.hospitalId;
-					if (hospitalId) {
-						await IPDWebSocketService.sendAdmissionNotification(
-							hospitalId,
-							admission.queue.patientId,
-							admission.id,
-							admission.wardType,
-							admission
-						);
-					}
-				} catch (wsError) {
-					console.error("WebSocket notification error:", wsError);
-					// Don't fail the request if WebSocket fails
-				}
+				// try {
+				// 	const hospitalId = req.user.hospitalId;
+				// 	if (hospitalId) {
+				// 		await IPDWebSocketService.sendAdmissionNotification(
+				// 			hospitalId,
+				// 			admission.queue.patientId,
+				// 			admission.id,
+				// 			admission.wardType,
+				// 			admission
+				// 		);
+				// 	}
+				// } catch (wsError) {
+				// 	console.error("WebSocket notification error:", wsError);
+				// 	// Don't fail the request if WebSocket fails
+				// }
 
 				res.status(201).json(
 					new ApiResponse("IPD admission created successfully", admission)
@@ -363,24 +363,24 @@ export class IPDController {
 				const updatedVisit = await this.ipdRepository.getIPDVisits(admissionId);
 
 				// Send WebSocket notification for visit completion
-				try {
-					const hospitalId = req.user.hospitalId;
-					const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
+				// try {
+				// 	const hospitalId = req.user.hospitalId;
+				// 	const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
 					
-					if (admission && hospitalId) {
-						await IPDWebSocketService.sendVisitCompletionNotification(
-							hospitalId,
-							doctorId,
-							admission.queue.patientId,
-							admissionId,
-							admission.wardType,
-							updatedVisit[0]
-						);
-					}
-				} catch (wsError) {
-					console.error("WebSocket notification error:", wsError);
-					// Don't fail the request if WebSocket fails
-				}
+				// 	if (admission && hospitalId) {
+				// 		await IPDWebSocketService.sendVisitCompletionNotification(
+				// 			hospitalId,
+				// 			doctorId,
+				// 			admission.queue.patientId,
+				// 			admissionId,
+				// 			admission.wardType,
+				// 			updatedVisit[0]
+				// 		);
+				// 	}
+				// } catch (wsError) {
+				// 	console.error("WebSocket notification error:", wsError);
+				// 	// Don't fail the request if WebSocket fails
+				// }
 
 				res.status(201).json(
 					new ApiResponse("IPD visit created successfully", updatedVisit[0])
@@ -487,26 +487,26 @@ export class IPDController {
 				}
 
 				// Send WebSocket notification for discharge
-				try {
-					const hospitalId = req.user.hospitalId;
-					if (hospitalId) {
-						await IPDWebSocketService.sendDischargeNotification(
-							hospitalId,
-							admission.queue.patientId,
-							admissionId,
-							admission.wardType,
-							{
-								...dischargeSummary,
-								patient: admission.queue.patient,
-								ipdNumber: admission.queue.ipdNumber,
-								bedNumber: admission.bedNumber
-							}
-						);
-					}
-				} catch (wsError) {
-					console.error("WebSocket notification error:", wsError);
-					// Don't fail the request if WebSocket fails
-				}
+				// try {
+				// 	const hospitalId = req.user.hospitalId;
+				// 	if (hospitalId) {
+				// 		await IPDWebSocketService.sendDischargeNotification(
+				// 			hospitalId,
+				// 			admission.queue.patientId,
+				// 			admissionId,
+				// 			admission.wardType,
+				// 			{
+				// 				...dischargeSummary,
+				// 				patient: admission.queue.patient,
+				// 				ipdNumber: admission.queue.ipdNumber,
+				// 				bedNumber: admission.bedNumber
+				// 			}
+				// 		);
+				// 	}
+				// } catch (wsError) {
+				// 	console.error("WebSocket notification error:", wsError);
+				// 	// Don't fail the request if WebSocket fails
+				// }
 
 				res.status(201).json(
 					new ApiResponse("Discharge summary created successfully", dischargeSummary)

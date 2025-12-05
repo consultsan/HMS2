@@ -187,4 +187,62 @@ export const ipdApi = {
       },
     });
   },
+
+  // IPD Surgery Management
+  createIPDSurgery: (data: {
+    admissionId: string;
+    surgeryName: string;
+    surgeryCode?: string;
+    category?: string;
+    priority: 'ROUTINE' | 'URGENT' | 'STAT';
+    scheduledAt?: string;
+    estimatedDuration?: number;
+    procedureDescription?: string;
+    preoperativeDiagnosis?: string;
+    postoperativeDiagnosis?: string;
+    anesthesiaType?: string;
+    anesthesiaNotes?: string;
+    surgicalNotes?: string;
+    complications?: string;
+    bloodLoss?: string;
+    bloodTransfusion?: boolean;
+    bloodUnits?: number;
+    primarySurgeon?: string;
+    assistantSurgeon?: string;
+    anesthesiologist?: string;
+    scrubNurse?: string;
+    circulatingNurse?: string;
+    surgeryCost?: number;
+    anesthesiaCost?: number;
+    totalCost?: number;
+    primarySurgeonId?: string;
+  }) =>
+    api.post<{ message: string; data: any }>('/api/ipd/surgery', data),
+
+  getIPDSurgeries: (admissionId: string) =>
+    api.get<{ message: string; data: any[] }>(`/api/ipd/surgery/${admissionId}`),
+
+  updateIPDSurgery: (id: string, data: {
+    status?: string;
+    scheduledAt?: string;
+    procedureDescription?: string;
+    preoperativeDiagnosis?: string;
+    postoperativeDiagnosis?: string;
+    anesthesiaType?: string;
+    anesthesiaNotes?: string;
+    surgicalNotes?: string;
+    complications?: string;
+    bloodLoss?: string;
+    bloodTransfusion?: boolean;
+    bloodUnits?: number;
+    primarySurgeon?: string;
+    assistantSurgeon?: string;
+    anesthesiologist?: string;
+    scrubNurse?: string;
+    circulatingNurse?: string;
+    surgeryCost?: number;
+    anesthesiaCost?: number;
+    totalCost?: number;
+  }) =>
+    api.patch<{ message: string; data: any }>(`/api/ipd/surgery/${id}`, data),
 };
