@@ -579,11 +579,12 @@ async function sendFollowUpAppointmentNotification(
 	}
 ) {
 	// Use TimezoneUtil to format the already IST-converted date properly
-	const formattedDate = TimezoneUtil.formatDateIST(data.appointmentDate, {
+	const formattedDate = new Date(data.appointmentDate).toLocaleDateString("en-IN", {
 		weekday: "long",
 		year: "numeric",
 		month: "long",
-		day: "numeric"
+		day: "numeric",
+		timeZone: "UTC"
 	});
 
 	// Fetch hospital data dynamically
