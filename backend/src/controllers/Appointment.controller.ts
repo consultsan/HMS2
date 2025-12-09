@@ -430,9 +430,12 @@ export class AppointmentController {
 				// Send WhatsApp notification immediately when appointment is created
 				try {
 					if (visit.patient.phone) {
+						console.log("schedule at", visit.scheduledAt);
 						// Convert UTC appointment time to IST for both time and date
 						const appointmentIST = TimezoneUtil.toIST(visit.scheduledAt);
 						const appointmentTime = TimezoneUtil.formatTimeUTC(visit.scheduledAt);
+						console.log("appointmentIST", appointmentIST);
+						console.log("appointmentTime", appointmentTime);
 
 						// Check if this is a follow-up appointment
 						if (visit.visitType === "FOLLOW_UP") {

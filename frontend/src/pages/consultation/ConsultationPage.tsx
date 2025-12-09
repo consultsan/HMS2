@@ -280,7 +280,7 @@ function ConsultationPage() {
         };
 
         diagnosisMutation.mutate(diagnosisData);
-        await notificationApi.sendDiagnosisRecord(appointmentId);
+        // await notificationApi.sendDiagnosisRecord(appointmentId);
     }, [validateForm, diagnosisText, notesText, prescriptionData, appointmentId, diagnosisMutation]);
 
     const handleGoBack = useCallback(() => {
