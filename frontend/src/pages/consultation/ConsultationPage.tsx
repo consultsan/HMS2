@@ -13,7 +13,7 @@ import { AppointmentStatus, Slot, VisitType, SurgicalStatus } from '@/types/type
 import { CheckCircle, ArrowLeft, Clock, FileText, Stethoscope, Calendar, Save } from 'lucide-react';
 import { doctorApi } from '@/api/doctor';
 import { appointmentApi } from '@/api/appointment';
-import { notificationApi } from '@/api/notification';
+// import { notificationApi } from '@/api/notification';
 
 
 interface DiagnosisFormData {
