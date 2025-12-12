@@ -104,6 +104,7 @@ function DiagnosisRecord() {
             toast.error('Failed to prepare document for printing');
         }
     };
+    
     const handleDownloadPDF = async () => {
         if (!appointmentId) return;
 
@@ -233,15 +234,13 @@ function DiagnosisRecord() {
                     nav, footer, .no-print {
                         display: none !important;
                     }
-                    .bg-gradient-to-r {
-                        background: white !important;
+                    .bg-gradient-to-tr {
+                        background: linear-gradient(to top right, #1e3a8a, #60a5fa) !important;
                         -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     .shadow-lg {
                         box-shadow: none !important;
-                    }
-                    .bg-gray-50, .bg-gray-100 {
-                        background-color: white !important;
                     }
                     table {
                         break-inside: auto !important;
@@ -260,170 +259,172 @@ function DiagnosisRecord() {
 
                 {/* Medical Record Document */}
                 <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                    {/* Hospital Header */}
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-3">
-                                    <img src="/True-Hospital-Logo(White).png" className='h-16' />
-                                </div>
+                    {/* Hospital Header - Matching Bill Template */}
+                    <div className="bg-gradient-to-tr from-blue-900 to-blue-400 text-white rounded-t-lg p-2">
+                        <div className="flex justify-between items-center">
+                            {/* Logo */}
+                            <div>
+                                <img 
+                                    src="/Logo11.jpeg" 
+                                    alt="Hospital Logo" 
+                                    className="h-16 object-contain" 
+                                />
                             </div>
-                            <div className="text-right text-sm">
-                                <p className="text-blue-100">{hospital?.address}</p>
-                                <p className="text-white font-medium">{hospital?.contactNumber}</p>
+
+                            {/* Hospital Info */}
+                            <div className="text-right text-sm leading-tight">
+                                {hospital?.name && (
+                                    <div className="text-2xl font-bold mb-1">{hospital.name}</div>
+                                )}
+                                {hospital?.address && (
+                                    <div className="text-gray-200 text-xs">{hospital.address}</div>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Patient Information Section */}
-                    <div className="p-6 border-b border-gray-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-3">
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-32">Patient Name:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.name}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-32">Phone:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.phone}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-32">Patient ID:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.patientUniqueId}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-32">Gender:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.gender}</span>
-                                </div>
+                    {/* Patient Information Section - Matching Bill Template */}
+                    <div className="break-inside-avoid mb-3 p-3">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">
+                            Patient Information
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-2 rounded-md border">
+                            <div>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Patient Name:</span> {diagnosisRecord.appointment?.patient?.name}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Patient ID:</span> {diagnosisRecord.appointment?.patient?.uhid}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Phone:</span> {diagnosisRecord.appointment?.patient?.phone}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Gender:</span> {diagnosisRecord.appointment?.patient?.gender}
+                                </p>
                             </div>
-                            <div className="space-y-3">
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-40">Registration Mode:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.registrationMode || 'OPD'}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-40">Registration Source:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.registrationSource || 'WALK_IN'}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-40">Status:</span>
-                                    <span className="text-gray-900">{diagnosisRecord.appointment?.patient?.status || 'ACTIVE'}</span>
-                                </div>
-                                <div className="flex">
-                                    <span className="font-medium text-gray-700 w-40">Age:</span>
-                                    <span className="text-gray-900">
-                                        {diagnosisRecord.appointment?.patient?.dob ? `${calculateAge(diagnosisRecord.appointment.patient.dob)} years` : 'N/A'}
-                                    </span>
-                                </div>
+                            <div>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Age:</span> {diagnosisRecord.appointment?.patient?.dob ? `${calculateAge(diagnosisRecord.appointment.patient.dob)} years` : 'N/A'}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Registration Mode:</span> {diagnosisRecord.appointment?.patient?.registrationMode || 'OPD'}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Registration Source:</span> {diagnosisRecord.appointment?.patient?.registrationSource || 'WALK_IN'}
+                                </p>
+                                <p className="mb-0.5">
+                                    <span className="text-gray-600">Status:</span> {diagnosisRecord.appointment?.patient?.status || 'ACTIVE'}
+                                </p>
                             </div>
                         </div>
                     </div>
 
                     {/* Primary Diagnosis Section */}
-                    <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Primary Diagnosis</h2>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <p className="text-gray-800 whitespace-pre-wrap">{diagnosisRecord.diagnosis}</p>
+                    <div className="break-inside-avoid mb-3 px-3">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Primary Diagnosis</h2>
+                        <div className="bg-gray-50 p-2 rounded-md border">
+                            <p className="text-gray-800 text-sm whitespace-pre-wrap">{diagnosisRecord.diagnosis}</p>
                         </div>
                     </div>
 
                     {/* Medical History Section */}
-                    {(diagnosisRecord.appointment?.patient?.allergies ||
-                        diagnosisRecord.appointment?.patient?.chronicDiseases ||
-                        diagnosisRecord.appointment?.patient?.preExistingConditions) && (
-                            <div className="p-6 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900 mb-4">Medical History</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {diagnosisRecord.appointment?.patient?.allergies && (
-                                        <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                                            <h4 className="font-medium text-red-900 mb-2">Allergies</h4>
-                                            <p className="text-sm text-red-700">{diagnosisRecord.appointment.patient.allergies}</p>
+                    {(diagnosisRecord.appointment?.patient?.allergy ||
+                        diagnosisRecord.appointment?.patient?.chronicDisease ||
+                        diagnosisRecord.appointment?.patient?.preExistingCondition) && (
+                            <div className="break-inside-avoid mb-3 px-3">
+                                <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Medical History</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    {diagnosisRecord.appointment?.patient?.allergy && (
+                                        <div className="bg-red-50 p-2 rounded-md border border-red-100">
+                                            <h4 className="font-medium text-red-900 text-sm mb-1">Allergies</h4>
+                                            <p className="text-xs text-red-700">{diagnosisRecord.appointment.patient.allergy}</p>
                                         </div>
                                     )}
-                                    {diagnosisRecord.appointment?.patient?.chronicDiseases && (
-                                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-                                            <h4 className="font-medium text-orange-900 mb-2">Chronic Diseases</h4>
-                                            <p className="text-sm text-orange-700">{diagnosisRecord.appointment.patient.chronicDiseases}</p>
+                                    {diagnosisRecord.appointment?.patient?.chronicDisease && (
+                                        <div className="bg-orange-50 p-2 rounded-md border border-orange-100">
+                                            <h4 className="font-medium text-orange-900 text-sm mb-1">Chronic Diseases</h4>
+                                            <p className="text-xs text-orange-700">{diagnosisRecord.appointment.patient.chronicDisease}</p>
                                         </div>
                                     )}
-                                    {diagnosisRecord.appointment?.patient?.preExistingConditions && (
-                                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                                            <h4 className="font-medium text-yellow-900 mb-2">Pre-existing Conditions</h4>
-                                            <p className="text-sm text-yellow-700">{diagnosisRecord.appointment.patient.preExistingConditions}</p>
+                                    {diagnosisRecord.appointment?.patient?.preExistingCondition && (
+                                        <div className="bg-yellow-50 p-2 rounded-md border border-yellow-100">
+                                            <h4 className="font-medium text-yellow-900 text-sm mb-1">Pre-existing Conditions</h4>
+                                            <p className="text-xs text-yellow-700">{diagnosisRecord.appointment.patient.preExistingCondition}</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         )}
 
-                    {/* Prescribed Medicines Section */}
-                    <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Prescribed Medicines</h2>
+                    {/* Prescribed Medicines Section - Matching Bill Template Table Style */}
+                    <div className="break-inside-avoid mb-3 px-3">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Prescribed Medicines</h2>
                         {diagnosisRecord.medicines.length > 0 ? (
-                            <div className="bg-gray-50 rounded-lg overflow-hidden">
-                                <table className="min-w-full">
-                                    <thead className="bg-gray-100">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">S.No</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Medicine Name</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Frequency</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Duration in Days</th>
+                            <div className="overflow-x-auto">
+                                <table className="w-full border border-gray-200">
+                                    <thead>
+                                        <tr className="bg-gray-100 text-sm text-gray-700">
+                                            <th className="py-0.5 px-2 text-left">S.No</th>
+                                            <th className="py-0.5 px-2 text-left">Medicine Name</th>
+                                            <th className="py-0.5 px-2 text-left">Frequency</th>
+                                            <th className="py-0.5 px-2 text-left">Duration (Days)</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody>
                                         {diagnosisRecord.medicines.map((medicine: any, index: number) => (
-                                            <tr key={index} className="bg-white">
-                                                <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 font-medium">{medicine.name}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">{medicine.frequency}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">{medicine.duration}</td>
+                                            <tr key={index} className="even:bg-white odd:bg-gray-50 border-t border-gray-200">
+                                                <td className="py-0.5 px-2 text-sm">{index + 1}</td>
+                                                <td className="py-0.5 px-2 text-sm font-medium">{medicine.name}</td>
+                                                <td className="py-0.5 px-2 text-sm">{medicine.frequency}</td>
+                                                <td className="py-0.5 px-2 text-sm">{medicine.duration}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         ) : (
-                            <p className="text-gray-500 bg-gray-50 p-4 rounded-lg">No medicines prescribed</p>
+                            <p className="text-gray-500 text-center p-2 italic text-sm bg-gray-50 rounded-md">No medicines prescribed</p>
                         )}
                     </div>
 
-                    {/* Lab Tests Section */}
+                    {/* Lab Tests Section - Matching Bill Template Table Style */}
                     {labTests && labTests.length > 0 && (
-                        <div className="p-6 border-b border-gray-200">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lab Tests</h2>
-                            <div className="bg-gray-50 rounded-lg overflow-hidden">
-                                <table className="min-w-full">
-                                    <thead className="bg-gray-100">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Test Name</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Report Date</th>
-                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                        <div className="break-inside-avoid mb-3 px-3">
+                            <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Lab Tests</h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full border border-gray-200">
+                                    <thead>
+                                        <tr className="bg-gray-100 text-sm text-gray-700">
+                                            <th className="py-0.5 px-2 text-left">Test Name</th>
+                                            <th className="py-0.5 px-2 text-left">Status</th>
+                                            <th className="py-0.5 px-2 text-left">Report Date</th>
+                                            <th className="py-0.5 px-2 text-left print:hidden">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody>
                                         {labTests.map((test: any, index: number) => (
-                                            <tr key={index} className="bg-white hover:bg-gray-50">
-                                                <td className="px-4 py-3 text-sm text-gray-900">{test.labTest.name}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(test.status)}`}>
+                                            <tr key={index} className="even:bg-white odd:bg-gray-50 border-t border-gray-200">
+                                                <td className="py-0.5 px-2 text-sm">{test.labTest.name}</td>
+                                                <td className="py-0.5 px-2">
+                                                    <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full ${getStatusColor(test.status)}`}>
                                                         {test.status === 'COMPLETED' && <CheckCircle className="w-3 h-3 mr-1" />}
                                                         {test.status === 'PROCESSING' && <Clock className="w-3 h-3 mr-1 animate-spin" />}
                                                         {test.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                <td className="py-0.5 px-2 text-sm">
                                                     {test.tentativeReportDate ? format(new Date(test.tentativeReportDate), 'dd MMM yyyy') : 'Not Updated'}
                                                 </td>
-                                                <td className="px-4 py-3">
+                                                <td className="py-0.5 px-2 print:hidden">
                                                     {test.status === 'COMPLETED' && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="flex items-center"
+                                                            className="flex items-center text-xs h-6"
                                                             onClick={() => handleViewTestResult(test.id, test.labTest.name)}
                                                         >
-                                                            <Eye className="h-4 w-4 mr-1" />
+                                                            <Eye className="h-3 w-3 mr-1" />
                                                             View
                                                         </Button>
                                                     )}
@@ -436,63 +437,62 @@ function DiagnosisRecord() {
                         </div>
                     )}
 
-                    {/* Follow-up Appointments Section */}
-                    <div className="p-6 border-b border-gray-200">
-                        <div className="flex">
-                            <span className="font-medium text-gray-700 w-32">FollowUps:</span>
-                            <span className="text-gray-900">
-                                {diagnosisRecord.followUpAppointment
-                                    ? new Date(diagnosisRecord.followUpAppointment.scheduledAt)
-                                        .toLocaleString('en-IN', {
-                                            day: '2-digit',
-                                            month: 'long',
-                                            year: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            hour12: true,
-                                            timeZone: 'UTC',
-                                        })
-                                    : 'No Follow-Up Required'
-                                }
-                            </span>
+                    {/* Follow-up and Surgical Information - Compact Style */}
+                    <div className="break-inside-avoid mb-3 px-3">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Follow-up & Surgical Information</h2>
+                        <div className="bg-gray-50 rounded-md p-2 border">
+                            <div className="flex mb-0.5">
+                                <span className="font-medium text-gray-600 text-sm w-32">Follow-ups:</span>
+                                <span className="text-gray-900 text-sm">
+                                    {diagnosisRecord.followUpAppointment
+                                        ? new Date(diagnosisRecord.followUpAppointment.scheduledAt)
+                                            .toLocaleString('en-IN', {
+                                                day: '2-digit',
+                                                month: 'long',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                hour12: true,
+                                                timeZone: 'UTC',
+                                            })
+                                        : 'No Follow-Up Required'
+                                    }
+                                </span>
+                            </div>
+                            <div className="flex">
+                                <span className="font-medium text-gray-600 text-sm w-32">Surgical Status:</span>
+                                <span className="text-gray-900 text-sm">
+                                    {surgicalInfo && surgicalInfo.length > 0 && surgicalInfo[0].status !== 'NOT_REQUIRED'
+                                        ? surgicalInfo.map((surgery: any) => (
+                                            `${surgery.category} - ${surgery.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'}${surgery.scheduledAt ? ` (${format(new Date(surgery.scheduledAt), 'dd MMM yyyy')})` : ''}`
+                                        )).join(', ')
+                                        : 'Non-Surgical Treatment'
+                                    }
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Surgical Information Section */}
-                    <div className="p-6 border-b border-gray-200">
-                        <div className="flex">
-                            <span className="font-medium text-gray-700 w-32">Surgical Status:</span>
-                            <span className="text-gray-900">
-                                {surgicalInfo && surgicalInfo.length > 0 && surgicalInfo[0].status !== 'NOT_REQUIRED'
-                                    ? surgicalInfo.map((surgery: any) => (
-                                        `${surgery.category} - ${surgery.status === 'CONFIRMED' ? 'Confirmed' : 'Pending'}${surgery.scheduledAt ? ` (${format(new Date(surgery.scheduledAt), 'dd MMM yyyy')})` : ''}`
-                                    )).join(', ')
-                                    : 'Non-Surgical Treatment'
-                                }
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Notes Section */}
+                    {/* Notes Section - Matching Bill Template */}
                     {diagnosisRecord.notes && (
-                        <div className="p-6 border-b border-gray-200">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Clinical Notes</h2>
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-gray-800 whitespace-pre-wrap">{diagnosisRecord.notes}</p>
+                        <div className="break-inside-avoid mb-3 px-3">
+                            <h2 className="text-lg font-semibold text-gray-800 mb-1 border-b pb-0.5">Clinical Notes</h2>
+                            <div className="bg-yellow-50 p-2 border-l-4 border-yellow-400 rounded-md text-gray-700 text-sm">
+                                {diagnosisRecord.notes}
                             </div>
                         </div>
                     )}
 
-                    {/* Footer Section */}
-                    <div className="p-6 bg-gray-50">
-                        <div className="flex justify-between items-end">
-                            <div className="text-sm text-gray-600">
-                                <p>Created on: {format(new Date(diagnosisRecord.createdAt), 'dd MMMM yyyy, hh:mm a')}</p>
-                                <p className="mt-1">Doctor: {diagnosisRecord.appointment?.doctor?.name || 'Dr. Smith'}</p>
+                    {/* Footer Section - Matching Bill Template */}
+                    <div className="footer pt-2 border-t mt-2 text-xs text-gray-500 px-3 pb-3">
+                        <div className="flex flex-col md:flex-row justify-between items-start gap-2">
+                            <div>
+                                <div>Created on: {format(new Date(diagnosisRecord.createdAt), 'dd MMMM yyyy, hh:mm a')}</div>
+                                <div>Hospital: {hospital?.name}</div>
                             </div>
                             <div className="text-right">
-                                <div className="text-sm text-gray-600 mb-2">Authorized Sign</div>
-                                <div className="w-32 h-16 border-b-2 border-gray-300"></div>
+                                <div className="text-sm text-gray-700">Authorized Signature</div>
+                                <div className="border-b border-gray-400 w-36 mt-1 ml-auto"></div>
                             </div>
                         </div>
                     </div>
