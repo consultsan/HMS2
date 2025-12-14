@@ -152,7 +152,7 @@ export default function SurgicalAppointments() {
     setPartiallyBooked(isPartiallyBooked);
   };
 
-    const filteredSurgeries = surgeries?.filter((surgery:any) => {
+  const filteredSurgeries = surgeries?.filter((surgery: any) => {
     if (!searchQuery) return true;
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -180,11 +180,15 @@ export default function SurgicalAppointments() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredSurgeries?.map((surgery:Surgery) => (
+          {filteredSurgeries?.map((surgery: Surgery) => (
             <TableRow key={surgery.id}>
               <TableCell>{surgery.appointment.patient.name}</TableCell>
               <TableCell>{surgery.appointment.patient.phone}</TableCell>
-              <TableCell>{surgery.appointment.doctor.name}</TableCell>
+              <TableCell>
+                {!surgery.appointment.doctor?.name?.startsWith('Dr')
+                  ? `Dr ${surgery.appointment.doctor?.name}`
+                  : surgery.appointment.doctor?.name}
+              </TableCell>
               <TableCell>{surgery.category}</TableCell>
               <TableCell className="flex gap-2 items-center">
                 <Button

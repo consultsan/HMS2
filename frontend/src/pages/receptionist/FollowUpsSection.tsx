@@ -132,7 +132,11 @@ export default function FollowUpsSection() {
                         <TableRow key={appointment.id}>
                             <TableCell className="font-medium">{appointment?.patient?.name}</TableCell>
                             <TableCell className="font-medium">{appointment?.patient?.phone}</TableCell>
-                            <TableCell>{appointment?.doctor?.name}</TableCell>
+                            <TableCell>
+                                {appointment?.doctor?.name && !appointment?.doctor?.name.startsWith('Dr')
+                                    ? `Dr ${appointment?.doctor?.name}`
+                                    : appointment?.doctor?.name}
+                            </TableCell>
                             <TableCell>{appointment.visitType}</TableCell>
                             <TableCell>
                                 {new Date(appointment.scheduledAt).toLocaleString('en-GB', {
@@ -162,14 +166,14 @@ export default function FollowUpsSection() {
                             </TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    {appointment.status!== AppointmentStatus.CANCELLED &&(
+                                    {appointment.status !== AppointmentStatus.CANCELLED && (
                                         <button
-                                        onClick={() => handleEditAppointment(appointment)}
-                                        className="p-1 hover:bg-gray-100 rounded-full"
-                                        title="Edit Appointment"
+                                            onClick={() => handleEditAppointment(appointment)}
+                                            className="p-1 hover:bg-gray-100 rounded-full"
+                                            title="Edit Appointment"
                                         >
-                                        <Pencil className="w-4 h-4 text-gray-500" />
-                                    </button>
+                                            <Pencil className="w-4 h-4 text-gray-500" />
+                                        </button>
                                     )}
                                     {showConfirmButton && (
                                         <Button
@@ -267,7 +271,7 @@ export default function FollowUpsSection() {
                                 Cancelled Follow-ups Appointments ({cancelledFollowUps.length})
                             </h2>
                             <p className="text-sm text-green-600 mt-1">
-                                 Cancelled Follow-ups
+                                Cancelled Follow-ups
                             </p>
                         </div>
                         {renderAppointmentTable(cancelledFollowUps, false)}

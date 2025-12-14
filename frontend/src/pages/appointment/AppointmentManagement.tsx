@@ -141,7 +141,11 @@ export default function AppointmentManagement() {
                 {filteredAppointments.map((appointment) => (
                   <TableRow key={appointment.id}>
                     <TableCell className="font-medium">{appointment?.patient?.name}</TableCell>
-                    <TableCell>{appointment?.doctor?.name}</TableCell>
+                    <TableCell>
+                      {appointment?.doctor?.name && !appointment?.doctor?.name.startsWith('Dr')
+                        ? `Dr ${appointment.doctor.name}`
+                        : appointment?.doctor?.name}
+                    </TableCell>
                     <TableCell>{appointment?.patient?.phone}</TableCell>
                     <TableCell>{appointment?.visitId}</TableCell>
                     <TableCell>

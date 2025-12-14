@@ -187,7 +187,7 @@ export default function CreateAppointmentBill({
                 items: [
                     {
                         itemType: BillType.OPD_CONSULTATION,
-                        description: `OPD Consultation - ${doctor?.name} (${doctor?.specialisation})`,
+                        description: `OPD Consultation - ${doctor?.name && !doctor?.name.startsWith('Dr') ? `Dr ${doctor?.name}` : doctor?.name} (${doctor?.specialisation})`,
                         quantity: 1,
                         unitPrice: Number(opdCharge),
                         totalPrice: Number(opdCharge),
@@ -286,7 +286,11 @@ export default function CreateAppointmentBill({
                             <div className="flex items-center gap-3">
                                 <Stethoscope className="h-4 w-4 text-gray-400" />
                                 <div className="text-right">
-                                    <div className="font-medium text-sm">{doctor?.name}</div>
+                                    <div className="font-medium text-sm">
+                                        {doctor?.name && !doctor?.name.startsWith('Dr')
+                                            ? `Dr ${doctor?.name}`
+                                            : doctor?.name}
+                                    </div>
                                     <div className="text-xs text-gray-500">{doctor?.specialisation}</div>
                                 </div>
                             </div>

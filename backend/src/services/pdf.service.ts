@@ -148,6 +148,11 @@ export class PDFService {
 		handlebars.registerHelper("lt", (a: any, b: any) => {
 			return parseFloat(a) < parseFloat(b);
 		});
+		// Doctor name helper - ADD THIS
+		handlebars.registerHelper("doctorName", (name: string) => {
+			if (!name) return "N/A";
+			return name.startsWith("Dr") ? name : `Dr ${name}`;
+		});
 
 		// Replace helper
 		handlebars.registerHelper(
@@ -258,10 +263,10 @@ export class PDFService {
 				// Clean up resources before retry
 				try {
 					if (page && !page.isClosed()) {
-						await page.close().catch(() => {});
+						await page.close().catch(() => { });
 					}
 					if (browser && browser.connected) {
-						await browser.close().catch(() => {});
+						await browser.close().catch(() => { });
 					}
 				} catch (cleanupError) {
 					console.warn("Error during cleanup:", cleanupError);
@@ -283,10 +288,10 @@ export class PDFService {
 			} finally {
 				try {
 					if (page && !page.isClosed()) {
-						await page.close().catch(() => {});
+						await page.close().catch(() => { });
 					}
 					if (browser && browser.connected) {
-						await browser.close().catch(() => {});
+						await browser.close().catch(() => { });
 					}
 				} catch (closeError) {
 					console.warn("Error during cleanup:", closeError);
@@ -494,8 +499,8 @@ export class PDFService {
 				patientAge:
 					labTest.appointment?.patient?.dob || labTest.patient?.dob
 						? this.calculateAge(
-								labTest.appointment?.patient?.dob || labTest.patient?.dob
-						  )
+							labTest.appointment?.patient?.dob || labTest.patient?.dob
+						)
 						: "N/A"
 			};
 
