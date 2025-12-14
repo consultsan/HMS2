@@ -19,8 +19,10 @@ import { appointmentApi } from '@/api/appointment';
 import { calculateAge } from '@/utils/dateUtils';
 import { hospitalApi } from '@/api/hospital';
 import { Hospital } from '@/types/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 function DiagnosisRecord() {
+    const { user } = useAuth();
     const { appointmentId } = useParams();
     const navigate = useNavigate();
     const [selectedTestForView, setSelectedTestForView] = useState<{ id: string, name: string } | null>(null);
@@ -488,6 +490,7 @@ function DiagnosisRecord() {
                         <div className="flex flex-col md:flex-row justify-between items-start gap-2">
                             <div>
                                 <div>Created on: {format(new Date(diagnosisRecord.createdAt), 'dd MMMM yyyy, hh:mm a')}</div>
+                                <div>Doctor: {user?.role === 'DOCTOR' && user?.name && !user?.name.startsWith('Dr') ? `Dr ${user?.name}` : user?.name}</div>
                                 <div>Hospital: {hospital?.name}</div>
                             </div>
                             <div className="text-right">

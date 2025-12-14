@@ -274,7 +274,9 @@ export default function AddAppointment({ patientId }: { patientId: string }) {
                                     <SelectContent>
                                         {doctors?.map((doctor) => (
                                             <SelectItem key={doctor.id} value={doctor.id}>
-                                                {doctor.name} ({doctor.specialisation})
+                                                {doctor?.name && !doctor?.name.startsWith('Dr')
+                                                    ? `Dr ${doctor?.name}`
+                                                    : doctor?.name} ({doctor?.specialisation})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

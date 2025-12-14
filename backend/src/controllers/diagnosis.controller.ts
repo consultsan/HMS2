@@ -143,6 +143,12 @@ export const getHtmlTemplate = async (req: Request, res: Response) => {
 			return str.toLowerCase();
 		});
 
+		// Doctor name helper
+		Handlebars.registerHelper('doctorName', function (name: string) {
+			if (!name) return 'N/A';
+			return name.startsWith('Dr') ? name : `Dr ${name}`;
+		});
+
 		// Compile template
 		const template = Handlebars.compile(templateContent);
 

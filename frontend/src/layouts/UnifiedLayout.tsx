@@ -68,7 +68,7 @@ const roleConfigs = {
       { name: 'Appointments', path: '/sales-person/appointments' },
       { name: 'Follow Ups', path: '/sales-person/follow-ups' },
       { name: 'Surgical Appointments', path: '/sales-person/surgical-appointments' },
-      ],
+    ],
     searchPlaceholders: {
       appointments: 'Search appointments',
       patients: 'Search patients',
@@ -175,7 +175,11 @@ export default function UnifiedLayout() {
               className="w-8 h-8 rounded-full"
             />
             <div className="text-right">
-              <p className="text-white font-medium">{user?.name}</p>
+              <p className="text-white font-medium">
+                {user?.role === 'DOCTOR' && user?.name && !user?.name.startsWith('Dr')
+                  ? `Dr ${user?.name}`
+                  : user?.name}
+              </p>
               <p className="text-sm text-gray-200 capitalize">
                 {user?.role?.replace(/_/g, ' ')}
               </p>

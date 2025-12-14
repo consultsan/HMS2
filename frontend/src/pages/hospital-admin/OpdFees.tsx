@@ -110,7 +110,7 @@ export default function OpdFees() {
     }
   };
 
-  
+
   if (isLoading || isStaffLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -118,7 +118,7 @@ export default function OpdFees() {
       </div>
     );
   }
-  
+
   if (isError || isStaffError || !opdFees || !staff) return <div>Error loading data</div>;
   const filteredOpdFees = opdFees?.filter((opdfee) => {
     if (!searchQuery) return true;
@@ -156,7 +156,9 @@ export default function OpdFees() {
             <TableBody>
               {filteredOpdFees.map((fee) => (
                 <TableRow key={fee.id}>
-                  <TableCell className="font-medium">{fee.doctor.name}</TableCell>
+                  <TableCell className="font-medium">{fee.doctor.role === 'DOCTOR' && !fee.doctor.name.startsWith('Dr')
+                    ? `Dr ${fee.doctor.name}`
+                    : fee.doctor.name}</TableCell>
                   <TableCell>{fee.doctor.specialisation}</TableCell>
                   <TableCell>₹{fee.amount.toString()}</TableCell>
                   <TableCell>
