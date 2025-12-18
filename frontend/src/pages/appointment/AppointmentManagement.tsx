@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Pencil, Trash2, Receipt } from "lucide-react";
+import { Pencil, Trash2, Receipt, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -29,6 +30,7 @@ export default function AppointmentManagement() {
   const queryClient = useQueryClient();
   const { searchQuery } = useSearch();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Check if user can view bills (receptionist or hospital admin)
   const canViewBills = user?.role === 'RECEPTIONIST' || user?.role === 'HOSPITAL_ADMIN';
@@ -54,6 +56,7 @@ export default function AppointmentManagement() {
       const response = await appointmentApi.getAppointmentsByDate({ date: formattedDate });
       console.log("Appointments from API:", response.data);
       return response.data;
+      console.log("Appointments from API:", response.data);
     },
     refetchOnWindowFocus: false,
   });
@@ -105,6 +108,13 @@ export default function AppointmentManagement() {
       setViewBillAppointmentId(appointment.bills[0].id);
     }
     else toast.message("No bill Created for this appointment");
+  };
+
+  // ADD THIS: Handler for viewing diagnosis record
+  const handleViewDiagnosis = (appointmentId: string) => {
+    // Open diagnosis record in new tab
+    console.log("Opening diagnosis record for appointment:", appointmentId);
+    navigate(`/doctor/diagnosis-record/${appointmentId}`);
   };
 
   return (
@@ -191,6 +201,17 @@ export default function AppointmentManagement() {
                           </button>
                         )}
                         <ViewAppointmentLabtests appointmentId={appointment?.id} />
+
+                        {/* ADD THIS: View Diagnosis/Prescription Button */}
+                        {appointment?.status === 'DIAGNOSED' && (
+                          <button
+                            onClick={() => handleViewDiagnosis(appointment.id)}
+                            className="p-1 hover:bg-gray-100 rounded-full"
+                            title="View Diagnosis Record"
+                          >
+                            <FileText className="w-4 h-4 text-purple-500" />
+                          </button>
+                        )}
                         {appointment?.status !== 'DIAGNOSED' && appointment?.status !== 'CANCELLED' && (
                           <button
                             onClick={() => handleCancelAppointment(appointment.id)}
