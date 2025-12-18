@@ -492,7 +492,7 @@ export const createDiagnosisRecord = async (req: Request, res: Response) => {
 };
 
 export const getDiagnosisRecord = async (req: Request, res: Response) => {
-	if (req.user && req.user.role == "DOCTOR") {
+	if (req.user && (req.user.role == "DOCTOR" || req.user.role == "RECEPTIONIST")) {
 		try {
 			const { appointmentId } = req.params as { appointmentId: string };
 			const record = await prisma.diagnosisRecord.findUnique({
@@ -502,6 +502,13 @@ export const getDiagnosisRecord = async (req: Request, res: Response) => {
 						include: {
 							patient: true,
 							surgery: true,
+							doctor: {
+								select: {
+									id: true,
+									name: true,
+									specialisation: true,
+								}
+							}
 						}
 					},
 					followUpAppointment: {

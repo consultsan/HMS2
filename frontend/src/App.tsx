@@ -360,7 +360,7 @@ export default function App() {
 					<Route
 						path="doctor/diagnosis-record/:appointmentId"
 						element={
-							<ProtectedRoute allowedRoles={["DOCTOR"]}>
+							<ProtectedRoute allowedRoles={["DOCTOR", "RECEPTIONIST"]}>
 								<DiagnosisRecord />
 							</ProtectedRoute>
 						}

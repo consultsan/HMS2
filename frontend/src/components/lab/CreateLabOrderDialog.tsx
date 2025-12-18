@@ -34,6 +34,7 @@ export default function CreateLabOrderDialog({
     const [orderNotes, setOrderNotes] = useState<string>('');
     const [urgentOrder, setUrgentOrder] = useState<boolean>(false);
     const [batchPatientSearchQuery, setBatchPatientSearchQuery] = useState('');
+    const [labTestSearchQuery, setLabTestSearchQuery] = useState('');
 
     const { data: patients } = useQuery<Patient[]>({
         queryKey: ['hospital-patients'],
@@ -79,6 +80,16 @@ export default function CreateLabOrderDialog({
         patient.patientUniqueId?.toLowerCase().includes(batchPatientSearchQuery.toLowerCase()) ||
         patient.phone?.includes(batchPatientSearchQuery)
     ) ?? [];
+    const filteredLabTests = labTests?.filter(test => {
+        if (!labTestSearchQuery) return true;
+        const searchLower = labTestSearchQuery.toLowerCase();
+        return (
+            test.name?.toLowerCase().includes(searchLower) ||
+            test.code?.toLowerCase().includes(searchLower) ||
+            test.sampleType?.toLowerCase().includes(searchLower) ||
+            test.description?.toLowerCase().includes(searchLower)
+        );
+    }) ?? [];
 
     // Handler for lab test selection
     const handleLabTestSelection = (testId: string, checked: boolean) => {
@@ -111,6 +122,7 @@ export default function CreateLabOrderDialog({
         setOrderNotes('');
         setUrgentOrder(false);
         setBatchPatientSearchQuery('');
+        setLabTestSearchQuery('');
 
 
     };
@@ -123,6 +135,7 @@ export default function CreateLabOrderDialog({
         setOrderNotes('');
         setUrgentOrder(false);
         setBatchPatientSearchQuery('');
+        setLabTestSearchQuery('');
     };
 
     return (
@@ -175,29 +188,47 @@ export default function CreateLabOrderDialog({
                     {/* Lab Tests Selection */}
                     <div>
                         <Label className="text-base font-semibold">Select Lab Tests</Label>
+
+                        {/* ADD THIS: Search bar for lab tests */}
+                        <div className="relative mt-2">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                            <Input
+                                placeholder="Search tests by name, code, or sample type..."
+                                value={labTestSearchQuery}
+                                onChange={(e) => setLabTestSearchQuery(e.target.value)}
+                                className="pl-8"
+                            />
+                        </div>
+
                         <div className="border rounded-md max-h-64 overflow-y-auto mt-2">
-                            {labTests?.map((test: any) => (
-                                <div key={test.id} className="p-3 border-b last:border-b-0 hover:bg-gray-50">
-                                    <div className="flex items-center space-x-3">
-                                        <input
-                                            type="checkbox"
-                                            id={`test-${test.id}`}
-                                            checked={selectedLabTests.includes(test.id)}
-                                            onChange={(e) => handleLabTestSelection(test.id, e.target.checked)}
-                                            className="h-4 w-4 rounded border border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
-                                        />
-                                        <label htmlFor={`test-${test.id}`} className="flex-1 cursor-pointer">
-                                            <div className="font-medium">{test.name}</div>
-                                            <div className="text-sm text-gray-500">
-                                                Code: {test.code} | Sample: {test.sampleType} | ₹{test.charge}
-                                            </div>
-                                            {test.description && (
-                                                <div className="text-sm text-gray-600 mt-1">{test.description}</div>
-                                            )}
-                                        </label>
+                            {filteredLabTests.length > 0 ? (
+                                filteredLabTests.map((test: any) => (
+                                    <div key={test.id} className="p-3 border-b last:border-b-0 hover:bg-gray-50">
+                                        <div className="flex items-center space-x-3">
+                                            <input
+                                                type="checkbox"
+                                                id={`test-${test.id}`}
+                                                checked={selectedLabTests.includes(test.id)}
+                                                onChange={(e) => handleLabTestSelection(test.id, e.target.checked)}
+                                                className="h-4 w-4 rounded border border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                                            />
+                                            <label htmlFor={`test-${test.id}`} className="flex-1 cursor-pointer">
+                                                <div className="font-medium">{test.name}</div>
+                                                <div className="text-sm text-gray-500">
+                                                    Code: {test.code} | Sample: {test.sampleType} | ₹{test.charge}
+                                                </div>
+                                                {test.description && (
+                                                    <div className="text-sm text-gray-600 mt-1">{test.description}</div>
+                                                )}
+                                            </label>
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="p-4 text-center text-gray-500">
+                                    No tests found matching "{labTestSearchQuery}"
                                 </div>
-                            ))}
+                            )}
                         </div>
                         {selectedLabTests.length > 0 && (
                             <div className="mt-2 text-sm text-blue-600">
@@ -205,6 +236,7 @@ export default function CreateLabOrderDialog({
                             </div>
                         )}
                     </div>
+
 
                     {/* Additional Options */}
                     <div className="space-y-4">
