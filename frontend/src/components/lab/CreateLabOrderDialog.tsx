@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { labApi } from "@/api/lab";
 import { patientApi } from "@/api/patient";
-import { Patient } from "@/types/types";
+import { Patient,LabTest } from "@/types/types";
 
 
 
@@ -44,7 +44,7 @@ export default function CreateLabOrderDialog({
         },
     });
 
-    const { data: labTests } = useQuery<any>({
+    const { data: labTests } = useQuery<LabTest[]>({
         queryKey: ['lab-tests'],
         queryFn: async () => {
             const response = await labApi.getLabTests();
