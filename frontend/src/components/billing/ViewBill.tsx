@@ -574,7 +574,9 @@ export default function ViewBill({
                                         <>
                                             <div className="flex items-center gap-2">
                                                 <Stethoscope className="h-4 w-4 text-gray-500" />
-                                                <span><span className="font-medium">Doctor:</span> {bill.appointment.doctor.name}</span>
+                                                <span><span className="font-medium">Doctor:</span>  {bill.appointment.doctor?.name && !bill.appointment.doctor.name.startsWith('Dr')
+                                                    ? `Dr ${bill.appointment.doctor.name}`
+                                                    : bill.appointment?.doctor?.name}</span>
                                             </div>
                                             <div><span className="font-medium">Specialization:</span> {bill.appointment.doctor.specialisation}</div>
                                         </>

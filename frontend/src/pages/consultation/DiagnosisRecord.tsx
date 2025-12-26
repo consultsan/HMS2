@@ -488,6 +488,7 @@ function DiagnosisRecord() {
                         <div className="flex flex-col md:flex-row justify-between items-start gap-2">
                             <div>
                                 <div>Created on: {format(new Date(diagnosisRecord.createdAt), 'dd MMMM yyyy, hh:mm a')}</div>
+                                <div>Doctor: {diagnosisRecord?.appointment?.doctor?.name ? (!diagnosisRecord.appointment.doctor.name.startsWith('Dr') ? `Dr ${diagnosisRecord.appointment.doctor.name}` : diagnosisRecord.appointment.doctor.name) : 'N/A'} ({diagnosisRecord?.appointment?.doctor?.specialisation})</div>
                                 <div>Hospital: {hospital?.name}</div>
                             </div>
                             <div className="text-right">

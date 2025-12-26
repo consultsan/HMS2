@@ -148,7 +148,9 @@ export default function UpdateAppointment({ appointment, isOpen, onClose }: Upda
                             <SelectContent>
                                 {doctors?.map((doctor) => (
                                     <SelectItem key={doctor.id} value={doctor.id}>
-                                        {doctor.name} ({doctor.specialisation || 'No specialisation'})
+                                            {doctor?.name && !doctor?.name.startsWith('Dr')
+                                            ? `Dr ${doctor?.name}`
+                                            : doctor?.name} ({doctor?.specialisation || 'No specialisation'})
                                     </SelectItem>
                                 ))}
                             </SelectContent>

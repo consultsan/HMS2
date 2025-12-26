@@ -29,7 +29,7 @@ import ShiftsCalendar from '../../components/shifts/ShiftsCalender';
 export default function ShiftManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [, ] = useState(false);
+  const [,] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [, setSelectedStaffId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -59,7 +59,7 @@ export default function ShiftManagement() {
   });
 
   const updateShiftMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data:any}) =>
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
       hospitalAdminApi.updateShift(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hospital-shifts'] });
@@ -157,7 +157,9 @@ export default function ShiftManagement() {
           <TableBody>
             {filteredStaffs?.map((staff) => (
               <TableRow key={staff.id} className="">
-                <TableCell className="font-medium">{staff.name || '-'}</TableCell>
+                <TableCell className="font-medium">{staff.role === 'DOCTOR' && !staff.name.startsWith('Dr')
+                  ? `Dr ${staff.name}`
+                  : staff.name}</TableCell>
                 <TableCell>{staff?.phoneNumber || '-'}</TableCell>
                 <TableCell>{staff.email || '-'}</TableCell>
                 <TableCell>{staff.role || '-'}</TableCell>

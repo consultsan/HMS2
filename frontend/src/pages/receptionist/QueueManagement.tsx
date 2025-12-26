@@ -76,7 +76,7 @@ export default function QueueManagement() {
             appointment.status.toLowerCase().includes(searchLower)
         );
     }) || [];
-    
+
 
     // Fetch doctors using React Query
     const { data: doctors = [] } = useQuery<any[]>({
@@ -144,7 +144,7 @@ export default function QueueManagement() {
         appointment.status !== 'CONFIRMED'
     );
 
-    
+
 
     // Function to assign queue numbers
     const assignQueueNumbers = (appointments: Appointment[] | undefined) => {
@@ -270,7 +270,13 @@ export default function QueueManagement() {
                                             </TableCell>
                                         )}
                                         <TableCell className="font-medium text-gray-900">{appointment.patient?.name || 'N/A'}</TableCell>
-                                        <TableCell className="text-gray-700">{appointment.doctor?.name || 'N/A'}</TableCell>
+                                        <TableCell className="text-gray-700">
+                                            {appointment.doctor?.name
+                                                ? (!appointment.doctor.name.startsWith('Dr')
+                                                    ? `Dr ${appointment.doctor.name}`
+                                                    : appointment.doctor.name)
+                                                : 'N/A'}
+                                        </TableCell>
                                         <TableCell className="text-gray-700">{appointment.visitType}</TableCell>
                                         <TableCell className="text-gray-600">
                                             <div className="flex items-center gap-1">
@@ -287,8 +293,8 @@ export default function QueueManagement() {
                                         </TableCell>
                                         <TableCell className="text-gray-700">
                                             <div className="flex items-center gap-1">
-                                                <Badge 
-                                                    variant="outline" 
+                                                <Badge
+                                                    variant="outline"
                                                     className="text-xs"
                                                 >
                                                     {(appointment as any).source || 'INTERNAL'}
@@ -432,7 +438,9 @@ export default function QueueManagement() {
                             <SelectContent>
                                 {doctors?.map((doctor) => (
                                     <SelectItem key={doctor.id} value={doctor.id}>
-                                        {doctor.name}
+                                        {doctor.role === 'DOCTOR' && !doctor.name.startsWith('Dr')
+                                            ? `Dr ${doctor.name}`
+                                            : doctor.name}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

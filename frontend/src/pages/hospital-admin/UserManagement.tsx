@@ -192,7 +192,9 @@ export default function UserManagement() {
           <TableBody>
             {filteredStaffs?.map((user) => (
               <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.name}</TableCell>
+                <TableCell className="font-medium">{user.role === 'DOCTOR' && !user.name.startsWith('Dr')
+                  ? `Dr ${user.name}`
+                  : user.name}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{fomratString(user.role)}</TableCell>
                 <TableCell>
