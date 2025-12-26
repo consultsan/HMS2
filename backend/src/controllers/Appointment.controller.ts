@@ -22,6 +22,7 @@ import errorHandler from "../utils/errorHandler";
 import { sendAppointmentNotification, sendAppointmentUpdateNotification, sendFollowUpAppointmentNotification } from "../services/whatsapp.service";
 import { UhidGenerator } from "../utils/uhidGenerator";
 import { TimezoneUtil } from "../utils/timezone.util";
+import { IPDRepository } from "../repositories/IPD.repository";
 
 const roles: string[] = [
 	UserRole.SUPER_ADMIN,
@@ -38,6 +39,19 @@ interface Status {
 }
 
 export class AppointmentController {
+	private ipdRepository: IPDRepository;
+
+	constructor() {
+		this.ipdRepository = new IPDRepository();
+	}
+
+	// Generate unique IPD number
+	private generateIPDNumber(): string {
+		const timestamp = Date.now().toString().slice(-6);
+		const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+		return `IPD${timestamp}${random}`;
+	}
+
 	async getAppointmentByDateAndDoctor(req: Request, res: Response) {
 		if (req.user && roles.includes(req.user.role)) {
 			try {
@@ -1121,13 +1135,80 @@ export class AppointmentController {
 					);
 				}
 
+				// Get surgery with appointment and patient details before updating
+				const existingSurgery = await prisma.surgery.findUnique({
+					where: { id: surgeryId },
+					include: {
+						appointment: {
+							include: {
+								patient: true,
+								hospital: true
+							}
+						}
+					}
+				});
+
+				if (!existingSurgery) {
+					throw new AppError("Surgery not found", 404);
+				}
+
 				const surgery = await prisma.surgery.update({
 					where: { id: surgeryId },
 					data: {
 						status,
 						scheduledAt: scheduledAt ? new Date(scheduledAt) : null
+					},
+					include: {
+						appointment: {
+							include: {
+								patient: true,
+								hospital: true
+							}
+						}
 					}
 				});
+
+				// If surgery is confirmed with a scheduled date, create IPD queue entry
+				if (status === "CONFIRMED" && scheduledAt) {
+					try {
+						const hospitalId = req.user.hospitalId;
+						const createdById = req.user.id;
+						const patientId = existingSurgery.appointment.patientId;
+
+						if (!hospitalId) {
+							throw new AppError("User isn't linked to any hospital", 403);
+						}
+
+						// Check if IPD queue entry already exists for this patient with QUEUED status
+						const existingQueue = await prisma.iPDQueue.findFirst({
+							where: {
+								patientId: patientId,
+								hospitalId: hospitalId,
+								status: "QUEUED"
+							}
+						});
+
+						// Only create queue entry if one doesn't already exist
+						if (!existingQueue) {
+							const ipdNumber = this.generateIPDNumber();
+							
+							await this.ipdRepository.createIPDQueue({
+								patientId: patientId,
+								hospitalId: hospitalId,
+								createdById: createdById,
+								ipdNumber: ipdNumber
+							});
+
+							console.log(`IPD queue entry created for patient ${patientId} with surgery scheduled on ${scheduledAt}`);
+						} else {
+							console.log(`IPD queue entry already exists for patient ${patientId}, skipping creation`);
+						}
+					} catch (ipdError: any) {
+						// Log error but don't fail the surgery confirmation
+						console.error("Failed to create IPD queue entry for confirmed surgery:", ipdError);
+						// Continue with surgery update even if IPD queue creation fails
+					}
+				}
 
 				res
 					.status(200)

@@ -445,6 +445,29 @@ export class IPDController {
 				const dischargeDateObj = new Date(dischargeDate);
 				const totalStayDuration = Math.ceil((dischargeDateObj.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
+				// Check if discharge bill exists before allowing discharge
+				const existingBills = await this.ipdRepository.getIPDBills(admissionId);
+				
+				if (existingBills.length === 0) {
+					// No bill exists, try to generate one automatically
+					try {
+						await this.ipdRepository.generateIPDDischargeBill(admissionId, {
+							paidAmount: 0,
+							notes: "Auto-generated discharge bill",
+							discountAmount: 0
+						});
+						console.log(`Discharge bill auto-generated for admission ${admissionId}`);
+					} catch (billError: any) {
+						// If bill generation fails, prevent discharge
+						throw new AppError(
+							`Cannot discharge patient without billing. Failed to generate discharge bill: ${billError.message || 'Unknown error'}`,
+							400
+						);
+					}
+				} else {
+					console.log(`Discharge bill already exists for admission ${admissionId}, proceeding with discharge`);
+				}
+
 				const dischargeSummary = await this.ipdRepository.createDischargeSummary({
 					admissionId,
 					admissionDate,
@@ -469,22 +492,6 @@ export class IPDController {
 
 				// Update queue status to DISCHARGED
 				await this.ipdRepository.updateIPDQueueStatus(admission.queueId, IPDStatus.DISCHARGED);
-
-				// Auto-generate discharge bill if not already exists
-				try {
-					const existingBills = await this.ipdRepository.getIPDBills(admissionId);
-					if (existingBills.length === 0) {
-						// Generate discharge bill automatically
-						await this.ipdRepository.generateIPDDischargeBill(admissionId, {
-							paidAmount: 0,
-							notes: "Auto-generated discharge bill",
-							discountAmount: 0
-						});
-					}
-				} catch (billError) {
-					console.error("Failed to auto-generate discharge bill:", billError);
-					// Don't fail the discharge process if billing fails
-				}
 
 				// Send WebSocket notification for discharge
 				// try {
