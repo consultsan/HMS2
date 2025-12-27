@@ -166,7 +166,8 @@ export class IPDController {
 					roomNumber,
 					bedNumber,
 					chiefComplaint,
-					admissionNotes
+					admissionNotes,
+					advanceAmount
 				} = req.body;
 
 				// Handle null/undefined insurance number
@@ -208,7 +209,8 @@ export class IPDController {
 					roomNumber,
 					bedNumber,
 					chiefComplaint,
-					admissionNotes
+					admissionNotes,
+					advanceAmount: advanceAmount ? parseFloat(advanceAmount) : undefined
 				});
 
 				// Assign bed if bedId is provided
@@ -1415,6 +1417,54 @@ export class IPDController {
 
 				res.status(200).json(
 					new ApiResponse("IPD discharge bill calculated successfully", billCalculation)
+				);
+			} catch (error: any) {
+				errorHandler(error, res);
+			}
+		} else {
+			res.status(403).json(
+				new ApiResponse("Access denied", null)
+			);
+		}
+	}
+
+	// Generate Advance Bill during Admission
+	async generateAdvanceBill(req: Request, res: Response) {
+		if (req.user && roles.includes(req.user.role)) {
+			try {
+				const { admissionId } = req.params;
+				const { advanceAmount, notes } = req.body;
+
+				if (!admissionId) {
+					throw new AppError("Admission ID is required", 400);
+				}
+
+				if (!advanceAmount || advanceAmount <= 0) {
+					throw new AppError("Advance amount must be greater than 0", 400);
+				}
+
+				// Validate admission exists
+				const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
+				if (!admission) {
+					throw new AppError("Admission not found", 404);
+				}
+
+				if (admission.status !== 'ADMITTED') {
+					throw new AppError("Patient must be admitted to generate advance bill", 400);
+				}
+
+				// Check if advance bill already exists
+				if (admission.advanceBillId) {
+					throw new AppError("Advance bill already exists for this admission", 400);
+				}
+
+				const result = await this.ipdRepository.generateAdvanceBill(admissionId, {
+					advanceAmount: parseFloat(advanceAmount),
+					notes
+				});
+
+				res.status(201).json(
+					new ApiResponse("Advance bill generated successfully", result)
 				);
 			} catch (error: any) {
 				errorHandler(error, res);

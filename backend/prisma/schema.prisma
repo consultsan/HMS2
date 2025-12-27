@@ -950,6 +950,11 @@ model IPDAdmission {
   admissionNotes String?
   dischargeNotes String?
   
+  // Advance payment details
+  advanceAmount Float? // Advance amount paid during admission
+  advanceBillNumber String? // Bill number for advance payment bill
+  advanceBillId String? // Reference to advance bill if generated
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

@@ -153,6 +153,9 @@ export class IPDRepository {
 		bedNumber?: string;
 		chiefComplaint?: string;
 		admissionNotes?: string;
+		advanceAmount?: number;
+		advanceBillNumber?: string;
+		advanceBillId?: string;
 	}) {
 		try {
 			return await prisma.iPDAdmission.create({
@@ -1525,6 +1528,10 @@ export class IPDRepository {
 
 			// Calculate total bill
 			const totalBillAmount = roomCharges + totalSurgeryCost + totalLabTestCost;
+			
+			// Get advance payment information
+			const advanceAmount = admission.advanceAmount || 0;
+			const amountAfterAdvance = totalBillAmount - advanceAmount;
 
 			return {
 				admission: {
@@ -1535,7 +1542,9 @@ export class IPDRepository {
 					wardType: admission.wardType,
 					wardSubType: admission.wardSubType,
 					roomNumber: admission.roomNumber,
-					bedNumber: admission.bedNumber
+					bedNumber: admission.bedNumber,
+					advanceAmount: admission.advanceAmount,
+					advanceBillNumber: admission.advanceBillNumber
 				},
 				patient: admission.queue.patient,
 				hospital: admission.queue.hospital,
@@ -1563,7 +1572,105 @@ export class IPDRepository {
 					}
 				},
 				totalAmount: totalBillAmount,
+				advanceAmount: advanceAmount,
+				amountAfterAdvance: amountAfterAdvance,
 				currency: 'INR'
+			};
+		} catch (error: any) {
+			throw new AppError(error.message);
+		}
+	}
+
+	// Generate Advance Bill during Admission
+	async generateAdvanceBill(admissionId: string, billData: {
+		advanceAmount: number;
+		notes?: string;
+	}) {
+		try {
+			// Get admission with patient and hospital details
+			const admission = await prisma.iPDAdmission.findUnique({
+				where: { id: admissionId },
+				include: {
+					queue: {
+						include: {
+							patient: {
+								select: {
+									id: true,
+									name: true,
+									uhid: true,
+									phone: true
+								}
+							},
+							hospital: {
+								select: {
+									id: true,
+									name: true
+								}
+							}
+						}
+					}
+				}
+			});
+
+			if (!admission) {
+				throw new AppError("Admission not found", 404);
+			}
+
+			// Generate advance bill number
+			const timestamp = Date.now().toString();
+			const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+			const billNumber = `IPD-ADV-${timestamp}-${random}`;
+
+			// Create advance bill
+			const bill = await prisma.bill.create({
+				data: {
+					billNumber,
+					patientId: admission.queue.patient.id,
+					hospitalId: admission.queue.hospital.id,
+					totalAmount: billData.advanceAmount,
+					paidAmount: billData.advanceAmount,
+					dueAmount: 0,
+					status: 'PAID',
+					billDate: new Date(),
+					notes: billData.notes || `Advance payment for IPD admission ${admissionId}`,
+					billItems: {
+						create: [{
+							itemType: BillType.OTHER,
+							description: 'Advance Payment - IPD Admission',
+							quantity: 1,
+							unitPrice: billData.advanceAmount,
+							totalPrice: billData.advanceAmount,
+							discountAmount: 0,
+							notes: 'Advance payment received during admission'
+						}]
+					}
+				},
+				include: {
+					patient: true,
+					hospital: true,
+					billItems: true,
+					payments: true
+				}
+			});
+
+			// Update admission with advance payment details
+			await prisma.iPDAdmission.update({
+				where: { id: admissionId },
+				data: {
+					advanceAmount: billData.advanceAmount,
+					advanceBillNumber: billNumber,
+					advanceBillId: bill.id
+				}
+			});
+
+			return {
+				bill,
+				admission: {
+					...admission,
+					advanceAmount: billData.advanceAmount,
+					advanceBillNumber: billNumber,
+					advanceBillId: bill.id
+				}
 			};
 		} catch (error: any) {
 			throw new AppError(error.message);
@@ -1633,12 +1740,42 @@ export class IPDRepository {
 				}
 			}
 
+			// Get admission to check for advance payment
+			const admission = await prisma.iPDAdmission.findUnique({
+				where: { id: admissionId },
+				select: {
+					advanceAmount: true,
+					advanceBillNumber: true
+				}
+			});
+
 			// Calculate final amounts
 			const subtotal = billCalculation.totalAmount;
 			const discountAmount = billData.discountAmount || 0;
 			const totalAmount = subtotal - discountAmount;
+			
+			// Adjust for advance payment if exists
+			const advanceAmount = admission?.advanceAmount || 0;
+			const amountAfterAdvance = totalAmount - advanceAmount;
+			
+			// Add advance payment adjustment as a bill item if advance exists
+			if (advanceAmount > 0) {
+				billItems.push({
+					itemType: BillType.OTHER,
+					description: `Advance Payment Adjustment`,
+					quantity: 1,
+					unitPrice: -advanceAmount,
+					totalPrice: -advanceAmount,
+					discountAmount: 0,
+					notes: `Advance payment (Bill: ${admission?.advanceBillNumber || 'N/A'}) adjusted against final bill`
+				});
+			}
+			
 			const paidAmount = billData.paidAmount || 0;
-			const dueAmount = totalAmount - paidAmount;
+			const dueAmount = amountAfterAdvance - paidAmount;
+
+			// Calculate final total including advance adjustment
+			const finalTotalAmount = amountAfterAdvance;
 
 			// Create the bill
 			const bill = await prisma.bill.create({
@@ -1646,13 +1783,13 @@ export class IPDRepository {
 					billNumber,
 					patientId: billCalculation.patient.id,
 					hospitalId: billCalculation.hospital.id,
-					totalAmount,
+					totalAmount: finalTotalAmount,
 					paidAmount,
 					dueAmount,
-					status: paidAmount >= totalAmount ? 'PAID' : 'GENERATED',
+					status: paidAmount >= finalTotalAmount ? 'PAID' : 'GENERATED',
 					billDate: new Date(),
 					dueDate: billData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-					notes: billData.notes,
+					notes: billData.notes || (advanceAmount > 0 ? `Advance payment of ${advanceAmount} adjusted. ` : ''),
 					billItems: {
 						create: billItems
 					}
@@ -1692,28 +1829,37 @@ export class IPDRepository {
 				throw new AppError("Admission not found", 404);
 			}
 
-			// Get all bills for this patient that contain IPD-related items
+			// Get admission to check advance bill
+			const admissionDetails = await prisma.iPDAdmission.findUnique({
+				where: { id: admissionId },
+				select: {
+					advanceBillId: true
+				}
+			});
+
+			// Get all bills for this patient that contain IPD-related items or advance bills
 			const bills = await prisma.bill.findMany({
 				where: {
 					patientId: admission.queue.patientId,
-					billItems: {
-						some: {
-							itemType: {
-								in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST]
+					OR: [
+						{
+							billItems: {
+								some: {
+									itemType: {
+										in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST, BillType.OTHER]
+									}
+								}
 							}
+						},
+						{
+							id: admissionDetails?.advanceBillId || undefined
 						}
-					}
+					]
 				},
 				include: {
 					patient: true,
 					hospital: true,
-					billItems: {
-						where: {
-							itemType: {
-								in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST]
-							}
-						}
-					},
+					billItems: true,
 					payments: true
 				},
 				orderBy: {

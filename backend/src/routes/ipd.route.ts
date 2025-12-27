@@ -84,6 +84,7 @@ router.get("/realtime/nurse", ipdController.getNurseUpdates.bind(ipdController))
 
 // IPD Billing Routes
 router.get("/billing/:admissionId/calculate", ipdController.calculateIPDDischargeBill.bind(ipdController));
+router.post("/billing/:admissionId/advance", ipdController.generateAdvanceBill.bind(ipdController));
 router.post("/billing/:admissionId/generate", ipdController.generateIPDDischargeBill.bind(ipdController));
 router.get("/billing/:admissionId/bills", ipdController.getIPDBills.bind(ipdController));
 router.get("/billing/bill/:billId", ipdController.getIPDBillDetails.bind(ipdController));
