@@ -121,6 +121,7 @@ enum SurgicalStatus {
   NOT_CONFIRMED
   CONFIRMED
   CANCELLED
+  CONVERTED_TO_IPD
 }
 
 enum Gender {
@@ -881,6 +882,9 @@ model Surgery {
   appointment   Appointment @relation(fields: [appointmentId], references: [id])
   appointmentId String      @unique
   billItems     BillItem[]
+  
+  // IPD Queue entries created from this surgery
+  ipdQueues IPDQueue[]
 
   @@index([appointmentId])
 }
@@ -907,6 +911,9 @@ model IPDQueue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
+  // Admission reason and surgery link
+  admissionReason String? // "SURGERY", "EMERGENCY", "OBSERVATION", etc.
+  
   patient   Patient @relation(fields: [patientId], references: [id])
   patientId String
   
@@ -916,12 +923,17 @@ model IPDQueue {
   createdBy   HospitalStaff @relation(fields: [createdById], references: [id])
   createdById String
   
+  // Link to OPD surgery that triggered admission (if applicable)
+  surgery   Surgery? @relation(fields: [surgeryId], references: [id])
+  surgeryId String?
+  
   admission   IPDAdmission?
   
   @@index([patientId])
   @@index([hospitalId])
   @@index([status])
   @@index([createdById])
+  @@index([surgeryId])
 }
 
 /// IPD Admission Details
@@ -1282,6 +1294,9 @@ model IPDSurgery {
   
   primarySurgeonStaff   HospitalStaff? @relation("PrimarySurgeon", fields: [primarySurgeonId], references: [id])
   primarySurgeonId String?
+  
+  // Link to original OPD surgery (if converted from OPD)
+  originalOpdSurgeryId String? // Store the ID for reference
   
   attachments IPDSurgeryAttachment[]
   

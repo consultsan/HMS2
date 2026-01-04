@@ -28,7 +28,8 @@ import {
   Building,
   Bed,
   MapPin,
-  FileText
+  FileText,
+  Scissors
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ import AddQueueModal from '@/components/ipd/AddQueueModal';
 import IPDAdmissionForm from '@/components/ipd/IPDAdmissionForm';
 import ReceptionistDischargeForm from '@/components/ipd/ReceptionistDischargeForm';
 import IPDPatientDocumentUpload from '@/components/ipd/IPDPatientDocumentUpload';
+import IPDSurgeryForm from '@/components/ipd/IPDSurgeryForm';
 
 export default function IPDQueuePage() {
   const { user } = useAuth();
@@ -54,6 +56,11 @@ export default function IPDQueuePage() {
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [selectedAdmissionForDocuments, setSelectedAdmissionForDocuments] = useState<IPDQueueEntry | null>(null);
   const [selectedQueueEntryForDischarge, setSelectedQueueEntryForDischarge] = useState<IPDQueueEntry | null>(null);
+  const [isSurgeryManagementOpen, setIsSurgeryManagementOpen] = useState(false);
+  const [selectedEntryForSurgery, setSelectedEntryForSurgery] = useState<IPDQueueEntry | null>(null);
+  const [ipdSurgeryData, setIpdSurgeryData] = useState<any[]>([]);
+  const [isSurgeryFormOpen, setIsSurgeryFormOpen] = useState(false);
+  const [opdSurgeryForPreFill, setOpdSurgeryForPreFill] = useState<any>(null);
 
   // Fetch queue entries
   const fetchQueueEntries = async () => {
@@ -143,6 +150,45 @@ export default function IPDQueuePage() {
     toast.success('Patient discharged successfully!');
   };
 
+  // Handle surgery management
+  const handleManageSurgery = async (entry: IPDQueueEntry) => {
+    if (!entry.admission?.id) {
+      toast.error('No admission found for this patient');
+      return;
+    }
+    
+    setSelectedEntryForSurgery(entry);
+    
+    // Fetch surgery data for this admission
+    try {
+      const response = await ipdApi.getIPDSurgeries(entry.admission.id);
+      if (response.data?.data) {
+        // Store ALL surgeries, not just the first one
+        setIpdSurgeryData(response.data.data);
+        setIsSurgeryManagementOpen(true);
+      } else {
+        // No surgery yet, show create form with OPD surgery data pre-filled
+        setIpdSurgeryData([]);
+        setOpdSurgeryForPreFill(entry.surgery || null);
+        setIsSurgeryFormOpen(true);
+      }
+    } catch (error) {
+      console.error('Error fetching surgery data:', error);
+      // If error, assume no surgery exists and show form
+      setIpdSurgeryData([]);
+      setOpdSurgeryForPreFill(entry.surgery || null);
+      setIsSurgeryFormOpen(true);
+    }
+  };
+
+  // Handle surgery creation success
+  const handleSurgeryCreated = () => {
+    setIsSurgeryFormOpen(false);
+    setIsSurgeryManagementOpen(false);
+    toast.success('Surgery created successfully!');
+    fetchQueueEntries(); // Refresh to update the button state
+  };
+
   // Get status badge color
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -193,6 +239,7 @@ export default function IPDQueuePage() {
             <TableRow>
               <TableHead>Queue #</TableHead>
               <TableHead>Patient Name</TableHead>
+              <TableHead>Admission Reason</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -205,7 +252,32 @@ export default function IPDQueuePage() {
                 <TableCell>
                   <div>
                     <div className="font-medium">{entry.patient.name}</div>
+                    <div className="text-sm text-gray-500">{entry.patient.uhid}</div>
                   </div>
+                </TableCell>
+                <TableCell>
+                  {entry.admissionReason === "SURGERY" && entry.surgery ? (
+                    <div className="space-y-1">
+                      <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                        Surgery Scheduled
+                      </Badge>
+                      <div className="text-sm font-medium text-gray-900">{entry.surgery.category}</div>
+                      {entry.surgery.scheduledAt && (
+                        <div className="text-xs text-gray-500">
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          {new Date(entry.surgery.scheduledAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : entry.admissionReason ? (
+                    <Badge variant="outline">{entry.admissionReason}</Badge>
+                  ) : (
+                    <Badge variant="outline">General Admission</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   {new Date(entry.createdAt).toLocaleString()}
@@ -339,7 +411,7 @@ export default function IPDQueuePage() {
                   }
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -361,6 +433,15 @@ export default function IPDQueuePage() {
                     >
                       <FileText className="h-4 w-4 mr-1" />
                       Documents
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleManageSurgery(entry)}
+                      className="bg-orange-50 hover:bg-orange-100 border-orange-200"
+                    >
+                      <Scissors className="h-4 w-4 mr-1" />
+                      Surgery
                     </Button>
                     <Button
                       variant="default"
@@ -772,6 +853,18 @@ export default function IPDQueuePage() {
                         </p>
                       </div>
                     )}
+                    {selectedEntry.admission.advanceAmount && selectedEntry.admission.advanceAmount > 0 && (
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                        <div>
+                          <p className="text-sm font-medium text-green-700">Advance Amount</p>
+                          <p className="text-sm font-semibold text-green-600">₹{selectedEntry.admission.advanceAmount.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-700">Advance Bill No.</p>
+                          <p className="text-sm font-semibold text-blue-600">{selectedEntry.admission.advanceBillNumber || 'N/A'}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -805,6 +898,241 @@ export default function IPDQueuePage() {
               patientName={selectedAdmissionForDocuments.patient.name}
               onDocumentUploaded={() => {
                 // Optionally refresh data or show success message
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Surgery Management Dialog */}
+      <Dialog open={isSurgeryManagementOpen} onOpenChange={setIsSurgeryManagementOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Scissors className="h-5 w-5 text-orange-600" />
+                Surgery Information - {selectedEntryForSurgery?.patient.name}
+              </div>
+              <Button
+                onClick={() => {
+                  setIsSurgeryManagementOpen(false);
+                  setOpdSurgeryForPreFill(null);
+                  setIsSurgeryFormOpen(true);
+                }}
+                className="bg-orange-600 hover:bg-orange-700"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add New Surgery
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {ipdSurgeryData && ipdSurgeryData.length > 0 ? (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600 mb-4">
+                Total Surgeries: <span className="font-semibold">{ipdSurgeryData.length}</span>
+              </div>
+              
+              {/* Display all surgeries */}
+              {ipdSurgeryData.map((surgery, index) => (
+                <Card key={surgery.id} className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Surgery #{index + 1}</h3>
+                      <Badge className={`${
+                        surgery.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                        surgery.status === 'NOT_CONFIRMED' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {surgery.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Auto-converted indicator */}
+                    {surgery.originalOpdSurgeryId && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <Stethoscope className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            Auto-Converted from OPD Surgery
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Surgery Details */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Surgery Name</label>
+                        <p className="text-base font-semibold mt-1">{surgery.surgeryName}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Category</label>
+                        <p className="text-base mt-1">{surgery.category || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Priority</label>
+                        <Badge variant="outline" className="mt-1">{surgery.priority}</Badge>
+                      </div>
+                      {surgery.scheduledAt && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Scheduled Date & Time</label>
+                          <p className="text-sm mt-1 flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            {new Date(surgery.scheduledAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Procedure Description */}
+                    {surgery.procedureDescription && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Procedure Description</label>
+                        <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-3 rounded">
+                          {surgery.procedureDescription}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Surgery Team */}
+                    {(surgery.primarySurgeon || surgery.anesthesiologist) && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Surgery Team</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {surgery.primarySurgeon && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Primary Surgeon</p>
+                              <p className="text-sm font-medium">{surgery.primarySurgeon}</p>
+                            </div>
+                          )}
+                          {surgery.assistantSurgeon && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Assistant Surgeon</p>
+                              <p className="text-sm font-medium">{surgery.assistantSurgeon}</p>
+                            </div>
+                          )}
+                          {surgery.anesthesiologist && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Anesthesiologist</p>
+                              <p className="text-sm font-medium">{surgery.anesthesiologist}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Surgery Notes */}
+                    {(surgery.preoperativeDiagnosis || surgery.surgicalNotes || surgery.anesthesiaNotes) && (
+                      <div className="space-y-2">
+                        {surgery.preoperativeDiagnosis && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Preoperative Diagnosis</label>
+                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
+                              {surgery.preoperativeDiagnosis}
+                            </p>
+                          </div>
+                        )}
+                        {surgery.surgicalNotes && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Surgical Notes</label>
+                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
+                              {surgery.surgicalNotes}
+                            </p>
+                          </div>
+                        )}
+                        {surgery.anesthesiaNotes && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Anesthesia Notes</label>
+                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
+                              {surgery.anesthesiaNotes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Action Note */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> To update surgery details, scheduling, or team information, 
+                  please coordinate with the assigned doctor who can modify these details from the 
+                  IPD Patient Management page.
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end gap-2">
+                <Button 
+                  onClick={() => {
+                    setIsSurgeryManagementOpen(false);
+                    setOpdSurgeryForPreFill(null);
+                    setIsSurgeryFormOpen(true);
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Another Surgery
+                </Button>
+                <Button onClick={() => setIsSurgeryManagementOpen(false)} variant="outline">
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Scissors className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Surgeries Found</h3>
+              <p className="text-gray-500 mb-4">
+                No surgeries have been created for this patient yet.
+              </p>
+              <Button 
+                onClick={() => {
+                  setIsSurgeryManagementOpen(false);
+                  setIsSurgeryFormOpen(true);
+                }}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add First Surgery
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Surgery Creation Form Dialog */}
+      <Dialog open={isSurgeryFormOpen} onOpenChange={setIsSurgeryFormOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scissors className="h-5 w-5 text-orange-600" />
+              Create Surgery for {selectedEntryForSurgery?.patient.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedEntryForSurgery?.admission && (
+            <IPDSurgeryForm
+              admissionId={selectedEntryForSurgery.admission.id}
+              patientName={selectedEntryForSurgery.patient.name}
+              opdSurgery={opdSurgeryForPreFill}
+              onSuccess={handleSurgeryCreated}
+              onCancel={() => {
+                setIsSurgeryFormOpen(false);
+                // Reopen the surgery list if there were existing surgeries
+                if (ipdSurgeryData && ipdSurgeryData.length > 0) {
+                  setIsSurgeryManagementOpen(true);
+                }
               }}
             />
           )}

@@ -1196,10 +1196,12 @@ export class AppointmentController {
 								patientId: patientId,
 								hospitalId: hospitalId,
 								createdById: createdById,
-								ipdNumber: ipdNumber
+								ipdNumber: ipdNumber,
+								surgeryId: surgeryId, // Link the surgery
+								admissionReason: "SURGERY" // Set admission reason
 							});
 
-							console.log(`IPD queue entry created for patient ${patientId} with surgery scheduled on ${scheduledAt}`);
+							console.log(`IPD queue entry created for patient ${patientId} with surgery ${surgeryId} scheduled on ${scheduledAt}`);
 						} else {
 							console.log(`IPD queue entry already exists for patient ${patientId}, skipping creation`);
 						}

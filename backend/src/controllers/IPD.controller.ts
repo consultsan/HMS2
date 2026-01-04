@@ -1141,7 +1141,8 @@ export class IPDController {
 					surgeryCost,
 					anesthesiaCost,
 					totalCost,
-					primarySurgeonId
+					primarySurgeonId,
+					originalOpdSurgeryId
 				} = req.body;
 
 				if (!admissionId || !surgeryName || !priority) {
@@ -1175,8 +1176,23 @@ export class IPDController {
 					surgeryCost,
 					anesthesiaCost,
 					totalCost,
-					primarySurgeonId
+					primarySurgeonId,
+					originalOpdSurgeryId
 				});
+
+				// If this surgery is converted from OPD, update the OPD surgery status
+				if (originalOpdSurgeryId) {
+					try {
+						await prisma.surgery.update({
+							where: { id: originalOpdSurgeryId },
+							data: { status: 'CONVERTED_TO_IPD' as any }
+						});
+						console.log(`Updated OPD surgery ${originalOpdSurgeryId} status to CONVERTED_TO_IPD`);
+					} catch (opdUpdateError) {
+						console.error('Failed to update OPD surgery status:', opdUpdateError);
+						// Don't fail the IPD surgery creation if OPD update fails
+					}
+				}
 
 				res.status(201).json(
 					new ApiResponse("Surgery scheduled successfully", surgery)

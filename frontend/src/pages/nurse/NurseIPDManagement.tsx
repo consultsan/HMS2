@@ -31,12 +31,14 @@ import {
   FileText,
   Eye,
   Activity,
-  Clock
+  Clock,
+  Scissors
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
 import { IPDAdmission, Ward } from '@/types/ipd';
 import IPDVisitsList from '@/components/ipd/IPDVisitsList';
+import IPDSurgeryForm from '@/components/ipd/IPDSurgeryForm';
 
 export default function NurseIPDManagement() {
   const [allAdmissions, setAllAdmissions] = useState<IPDAdmission[]>([]); // Store all admissions
@@ -49,6 +51,8 @@ export default function NurseIPDManagement() {
   const [selectedWardType, setSelectedWardType] = useState<string>('ALL');
   const [selectedRoom, setSelectedRoom] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [isSurgeryModalOpen, setIsSurgeryModalOpen] = useState(false);
+  const [selectedAdmissionForSurgery, setSelectedAdmissionForSurgery] = useState<IPDAdmission | null>(null);
 
   // Fetch assigned wards
   const fetchAssignedWards = async () => {
@@ -163,6 +167,18 @@ export default function NurseIPDManagement() {
   const handleViewVisits = (admission: IPDAdmission) => {
     setSelectedAdmission(admission);
     setIsVisitsModalOpen(true);
+  };
+
+  const handleAddSurgery = (admission: IPDAdmission) => {
+    setSelectedAdmissionForSurgery(admission);
+    setIsSurgeryModalOpen(true);
+  };
+
+  const handleSurgerySuccess = () => {
+    setIsSurgeryModalOpen(false);
+    setSelectedAdmissionForSurgery(null);
+    toast.success('Surgery scheduled successfully');
+    fetchAdmissions(); // Refresh the list
   };
 
   const getWardTypeColor = (type: string) => {
@@ -398,6 +414,15 @@ export default function NurseIPDManagement() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => handleAddSurgery(admission)}
+                            className="bg-orange-600 hover:bg-orange-700 text-white"
+                          >
+                            <Scissors className="h-4 w-4 mr-1" />
+                            Surgery
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => window.open(`/ipd/patient/${admission.id}`, '_blank')}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
@@ -428,6 +453,27 @@ export default function NurseIPDManagement() {
             <IPDVisitsList 
               admissionId={selectedAdmission.id}
               patientName={selectedAdmission.queue.patient.name}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Surgery Modal */}
+      <Dialog open={isSurgeryModalOpen} onOpenChange={setIsSurgeryModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scissors className="h-5 w-5 text-orange-600" />
+              Schedule Surgery - {selectedAdmissionForSurgery?.queue.patient.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedAdmissionForSurgery && (
+            <IPDSurgeryForm
+              admissionId={selectedAdmissionForSurgery.id}
+              patientName={selectedAdmissionForSurgery.queue.patient.name}
+              onSuccess={handleSurgerySuccess}
+              onCancel={() => setIsSurgeryModalOpen(false)}
+              opdSurgery={undefined}
             />
           )}
         </DialogContent>

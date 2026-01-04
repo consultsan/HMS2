@@ -64,6 +64,7 @@ export interface IPDQueueEntry {
   id: string;
   ipdNumber: string;
   status: IPDStatus;
+  admissionReason?: string;
   patient: {
     id: string;
     name: string;
@@ -80,6 +81,13 @@ export interface IPDQueueEntry {
   hospital: {
     id: string;
     name: string;
+  };
+  surgery?: {
+    id: string;
+    category: string;
+    description?: string;
+    scheduledAt?: string;
+    status: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -135,6 +143,7 @@ export interface IPDAdmissionData {
   bedNumber?: string;
   chiefComplaint?: string;
   admissionNotes?: string;
+  advanceAmount?: number;
   status?: IPDStatus;
   dischargeDate?: string;
   dischargeNotes?: string;
@@ -157,6 +166,9 @@ export interface IPDAdmission {
   chiefComplaint?: string;
   admissionNotes?: string;
   dischargeNotes?: string;
+  advanceAmount?: number;
+  advanceBillNumber?: string;
+  advanceBillId?: string;
   createdAt: string;
   updatedAt: string;
   queueId: string;

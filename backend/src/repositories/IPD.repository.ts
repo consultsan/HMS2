@@ -9,6 +9,8 @@ export class IPDRepository {
 		hospitalId: string;
 		createdById: string;
 		ipdNumber: string;
+		surgeryId?: string;
+		admissionReason?: string;
 	}) {
 		try {
 			return await prisma.iPDQueue.create({
@@ -35,6 +37,15 @@ export class IPDRepository {
 						select: {
 							id: true,
 							name: true
+						}
+					},
+					surgery: {
+						select: {
+							id: true,
+							category: true,
+							description: true,
+							scheduledAt: true,
+							status: true
 						}
 					}
 				}
@@ -71,6 +82,15 @@ export class IPDRepository {
 							specialisation: true
 						}
 					},
+					surgery: {
+						select: {
+							id: true,
+							category: true,
+							description: true,
+							scheduledAt: true,
+							status: true
+						}
+					},
 					admission: {
 						include: {
 							assignedDoctor: {
@@ -100,6 +120,15 @@ export class IPDRepository {
 					patient: true,
 					createdBy: true,
 					hospital: true,
+					surgery: {
+						select: {
+							id: true,
+							category: true,
+							description: true,
+							scheduledAt: true,
+							status: true
+						}
+					},
 					admission: {
 						include: {
 							assignedDoctor: true,
@@ -158,12 +187,14 @@ export class IPDRepository {
 		advanceBillId?: string;
 	}) {
 		try {
-			return await prisma.iPDAdmission.create({
+			// Create the admission
+			const admission = await prisma.iPDAdmission.create({
 				data,
 				include: {
 					queue: {
 						include: {
-							patient: true
+							patient: true,
+							surgery: true // Include surgery for reference
 						}
 					},
 					assignedDoctor: true,
@@ -171,6 +202,11 @@ export class IPDRepository {
 					dischargeSummary: true
 				}
 			});
+
+			// Note: Surgery is NOT auto-created here anymore
+			// Receptionist will manually create it using the form with OPD surgery data pre-filled
+
+			return admission;
 		} catch (error: any) {
 			throw new AppError(error.message);
 		}
@@ -1067,10 +1103,14 @@ export class IPDRepository {
 		anesthesiaCost?: number;
 		totalCost?: number;
 		primarySurgeonId?: string;
+		originalOpdSurgeryId?: string;
 	}) {
 		try {
 			return await prisma.iPDSurgery.create({
-				data,
+				data: {
+					...data,
+					status: SurgicalStatus.CONFIRMED, // IPD surgeries are confirmed when created
+				},
 				include: {
 					admission: {
 					include: {
@@ -1461,20 +1501,20 @@ export class IPDRepository {
 							ward: true
 						}
 					},
-					labTests: {
-						where: {
-							status: {
-								in: ['COMPLETED', 'SCHEDULED', 'IN_PROGRESS']
-							}
-						}
-					},
-					surgeries: {
-						where: {
-							status: {
-								in: ['CONFIRMED']
-							}
+				labTests: {
+					where: {
+						status: {
+							in: ['COMPLETED', 'SCHEDULED', 'IN_PROGRESS']
 						}
 					}
+				},
+				surgeries: {
+					where: {
+						status: {
+							in: ['CONFIRMED']
+						}
+					}
+				}
 				}
 			});
 
@@ -1488,13 +1528,13 @@ export class IPDRepository {
 				(dischargeDate.getTime() - admission.admissionDate.getTime()) / (1000 * 60 * 60 * 24)
 			);
 
-			// Calculate room charges
-			let roomCharges = 0;
-			if (admission.bed?.pricePerDay) {
-				roomCharges = admission.bed.pricePerDay * stayDuration;
-			} else if (admission.bed?.ward?.pricePerDay) {
-				roomCharges = admission.bed.ward.pricePerDay * stayDuration;
-			}
+		// Calculate room charges
+		let roomCharges = 0;
+		if (admission.bed?.pricePerDay) {
+			roomCharges = admission.bed.pricePerDay * stayDuration;
+		} else if (admission.bed?.ward?.pricePerDay) {
+			roomCharges = admission.bed.ward.pricePerDay * stayDuration;
+		}
 
 			// Calculate surgery costs
 			let totalSurgeryCost = 0;
@@ -1511,23 +1551,23 @@ export class IPDRepository {
 				});
 			}
 
-			// Calculate lab test costs
-			let totalLabTestCost = 0;
-			const labTestItems = [];
-			for (const labTest of admission.labTests) {
-				const testCost = labTest.testCost || 0;
-				totalLabTestCost += testCost;
-				labTestItems.push({
-					id: labTest.id,
-					name: labTest.testName,
-					cost: testCost,
-					status: labTest.status,
-					orderedAt: labTest.orderedAt
-				});
-			}
+		// Calculate lab test costs
+		let totalLabTestCost = 0;
+		const labTestItems = [];
+		for (const labTest of admission.labTests) {
+			const testCost = labTest.testCost || 0;
+			totalLabTestCost += testCost;
+			labTestItems.push({
+				id: labTest.id,
+				name: labTest.testName,
+				cost: testCost,
+				status: labTest.status,
+				orderedAt: labTest.orderedAt
+			});
+		}
 
-			// Calculate total bill
-			const totalBillAmount = roomCharges + totalSurgeryCost + totalLabTestCost;
+		// Calculate total bill
+		const totalBillAmount = roomCharges + totalSurgeryCost + totalLabTestCost;
 			
 			// Get advance payment information
 			const advanceAmount = admission.advanceAmount || 0;
@@ -1551,26 +1591,26 @@ export class IPDRepository {
 				doctor: admission.assignedDoctor,
 				ward: admission.bed?.ward,
 				bed: admission.bed,
-				billBreakdown: {
-					roomCharges: {
-						amount: roomCharges,
-						days: stayDuration,
-						ratePerDay: admission.bed?.pricePerDay || admission.bed?.ward?.pricePerDay || 0,
-						description: `Room charges for ${stayDuration} days`
-					},
-					surgeryCharges: {
-						amount: totalSurgeryCost,
-						count: admission.surgeries.length,
-						items: surgeryItems,
-						description: `Surgery charges (${admission.surgeries.length} procedures)`
-					},
-					labTestCharges: {
-						amount: totalLabTestCost,
-						count: admission.labTests.length,
-						items: labTestItems,
-						description: `Lab test charges (${admission.labTests.length} tests)`
-					}
+			billBreakdown: {
+				roomCharges: {
+					amount: roomCharges,
+					days: stayDuration,
+					ratePerDay: admission.bed?.pricePerDay || admission.bed?.ward?.pricePerDay || 0,
+					description: `Room charges for ${stayDuration} days`
 				},
+				surgeryCharges: {
+					amount: totalSurgeryCost,
+					count: admission.surgeries.length,
+					items: surgeryItems,
+					description: `Surgery charges (${admission.surgeries.length} procedures)`
+				},
+				labTestCharges: {
+					amount: totalLabTestCost,
+					count: admission.labTests.length,
+					items: labTestItems,
+					description: `Lab test charges (${admission.labTests.length} tests)`
+				}
+			},
 				totalAmount: totalBillAmount,
 				advanceAmount: advanceAmount,
 				amountAfterAdvance: amountAfterAdvance,
@@ -1635,7 +1675,7 @@ export class IPDRepository {
 					notes: billData.notes || `Advance payment for IPD admission ${admissionId}`,
 					billItems: {
 						create: [{
-							itemType: BillType.OTHER,
+							itemType: BillType.PROCEDURE,
 							description: 'Advance Payment - IPD Admission',
 							quantity: 1,
 							unitPrice: billData.advanceAmount,
@@ -1695,18 +1735,18 @@ export class IPDRepository {
 			// Create bill items
 			const billItems = [];
 
-			// Add room charges item
-			if (billCalculation.billBreakdown.roomCharges.amount > 0) {
-				billItems.push({
-					itemType: BillType.ROOM_CHARGE,
-					description: billCalculation.billBreakdown.roomCharges.description,
-					quantity: billCalculation.billBreakdown.roomCharges.days,
-					unitPrice: billCalculation.billBreakdown.roomCharges.ratePerDay,
-					totalPrice: billCalculation.billBreakdown.roomCharges.amount,
-					discountAmount: 0,
-					notes: `Ward: ${billCalculation.admission.wardType}${billCalculation.admission.wardSubType ? ` - ${billCalculation.admission.wardSubType}` : ''}`
-				});
-			}
+		// Add room charges item
+		if (billCalculation.billBreakdown.roomCharges.amount > 0) {
+			billItems.push({
+				itemType: BillType.ROOM_CHARGE,
+				description: billCalculation.billBreakdown.roomCharges.description,
+				quantity: billCalculation.billBreakdown.roomCharges.days,
+				unitPrice: billCalculation.billBreakdown.roomCharges.ratePerDay,
+				totalPrice: billCalculation.billBreakdown.roomCharges.amount,
+				discountAmount: 0,
+				notes: `Ward: ${billCalculation.admission.wardType}${billCalculation.admission.wardSubType ? ` - ${billCalculation.admission.wardSubType}` : ''}`
+			});
+		}
 
 			// Add surgery items
 			for (const surgery of billCalculation.billBreakdown.surgeryCharges.items) {
@@ -1724,21 +1764,21 @@ export class IPDRepository {
 				}
 			}
 
-			// Add lab test items
-			for (const labTest of billCalculation.billBreakdown.labTestCharges.items) {
-				if (labTest.cost > 0) {
-					billItems.push({
-						itemType: BillType.LAB_TEST,
-						description: `Lab Test - ${labTest.name}`,
-						quantity: 1,
-						unitPrice: labTest.cost,
-						totalPrice: labTest.cost,
-						discountAmount: 0,
-						notes: `Status: ${labTest.status}`,
-						labTestId: labTest.id
-					});
-				}
+		// Add lab test items
+		for (const labTest of billCalculation.billBreakdown.labTestCharges.items) {
+			if (labTest.cost > 0) {
+				billItems.push({
+					itemType: BillType.LAB_TEST,
+					description: `Lab Test - ${labTest.name}`,
+					quantity: 1,
+					unitPrice: labTest.cost,
+					totalPrice: labTest.cost,
+					discountAmount: 0,
+					notes: `Status: ${labTest.status}`,
+					labTestId: labTest.id
+				});
 			}
+		}
 
 			// Get admission to check for advance payment
 			const admission = await prisma.iPDAdmission.findUnique({
@@ -1761,7 +1801,7 @@ export class IPDRepository {
 			// Add advance payment adjustment as a bill item if advance exists
 			if (advanceAmount > 0) {
 				billItems.push({
-					itemType: BillType.OTHER,
+					itemType: BillType.PROCEDURE,
 					description: `Advance Payment Adjustment`,
 					quantity: 1,
 					unitPrice: -advanceAmount,
@@ -1846,7 +1886,7 @@ export class IPDRepository {
 							billItems: {
 								some: {
 									itemType: {
-										in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST, BillType.OTHER]
+										in: [BillType.ROOM_CHARGE, BillType.SURGERY, BillType.LAB_TEST, BillType.PROCEDURE]
 									}
 								}
 							}

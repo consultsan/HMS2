@@ -26,7 +26,8 @@ import {
   FileText,
   CheckCircle,
   Upload,
-  X
+  X,
+  IndianRupee
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
@@ -78,6 +79,7 @@ export default function IPDAdmissionForm({
         bedNumber: '',
         chiefComplaint: '',
         admissionNotes: '',
+        advanceAmount: undefined,
       });
       setInsuranceCardFile(null);
     }
@@ -132,7 +134,7 @@ export default function IPDAdmissionForm({
     }
   };
 
-  const handleInputChange = (field: keyof IPDAdmissionData, value: string | WardSubType | undefined) => {
+  const handleInputChange = (field: keyof IPDAdmissionData, value: string | WardSubType | number | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -182,10 +184,12 @@ export default function IPDAdmissionForm({
       
       // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && value !== '') {
           formDataToSend.append(key, value.toString());
         }
       });
+      
+      console.log('Advance Amount being sent:', formData.advanceAmount);
       
       // Add insurance card file if provided
       if (insuranceCardFile) {
@@ -195,8 +199,37 @@ export default function IPDAdmissionForm({
       console.log('Sending admission data:', formData);
       console.log('FormData entries:', [...formDataToSend.entries()]);
       
-      await ipdApi.createAdmission(formDataToSend);
-      toast.success('Patient admitted successfully!');
+      const admissionResponse = await ipdApi.createAdmission(formDataToSend);
+      const admissionId = admissionResponse.data.data.id;
+      
+      // Generate advance bill if advance amount is provided
+      if (formData.advanceAmount && formData.advanceAmount > 0) {
+        console.log('Attempting to generate advance bill for admission:', admissionId, 'Amount:', formData.advanceAmount);
+        try {
+          const advanceBillResponse = await ipdApi.generateAdvanceBill(admissionId, {
+            advanceAmount: formData.advanceAmount,
+            notes: `Advance payment received during admission for ${queueEntry?.patient.name}`
+          });
+          
+          console.log('Advance bill response:', advanceBillResponse.data);
+          
+          toast.success(
+            `Patient admitted successfully! Advance bill generated: ${advanceBillResponse.data.data.advanceBillNumber}`,
+            { duration: 5000 }
+          );
+        } catch (billError: any) {
+          console.error('Error generating advance bill:', billError);
+          console.error('Error details:', billError.response?.data);
+          toast.warning(
+            `Patient admitted successfully, but advance bill generation failed: ${billError.response?.data?.message || billError.message}`,
+            { duration: 7000 }
+          );
+        }
+      } else {
+        console.log('No advance amount provided or amount is 0:', formData.advanceAmount);
+        toast.success('Patient admitted successfully!');
+      }
+      
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -672,6 +705,39 @@ export default function IPDAdmissionForm({
             </CardContent>
           </Card>
 
+          {/* Payment Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <IndianRupee className="h-4 w-4" />
+                Payment Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label htmlFor="advanceAmount" className="text-sm font-medium text-gray-700">
+                  Advance Amount (Optional)
+                </Label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="advanceAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.advanceAmount || ''}
+                    onChange={(e) => handleInputChange('advanceAmount', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    placeholder="Enter advance amount"
+                    className="pl-10"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter advance payment amount if received. An advance bill will be generated and adjusted with final discharge bill.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Form Summary */}
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="pt-6">
@@ -692,6 +758,9 @@ export default function IPDAdmissionForm({
                     {formData.wardSubType && <div>• Sub Type: <span className="font-medium">{formData.wardSubType}</span></div>}
                     {selectedWard && <div>• Ward: <span className="font-medium">{selectedWard.name}</span></div>}
                     {formData.bedNumber && <div>• Bed: <span className="font-medium">{formData.bedNumber}</span></div>}
+                    {formData.advanceAmount && formData.advanceAmount > 0 && (
+                      <div>• Advance Amount: <span className="font-medium text-green-600">₹{formData.advanceAmount.toFixed(2)}</span></div>
+                    )}
                   </div>
                 </div>
               </div>
