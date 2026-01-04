@@ -485,15 +485,21 @@ export class IPDController {
 					hospitalStamp
 				});
 
-				// Update admission status to DISCHARGED
-				await this.ipdRepository.updateIPDAdmission(admissionId, {
-					status: IPDStatus.DISCHARGED,
-					dischargeDate: dischargeDateObj,
-					dischargeNotes: treatmentSummary
-				});
+			// Update admission status to DISCHARGED
+			await this.ipdRepository.updateIPDAdmission(admissionId, {
+				status: IPDStatus.DISCHARGED,
+				dischargeDate: dischargeDateObj,
+				dischargeNotes: treatmentSummary
+			});
 
-				// Update queue status to DISCHARGED
-				await this.ipdRepository.updateIPDQueueStatus(admission.queueId, IPDStatus.DISCHARGED);
+			// Update queue status to DISCHARGED
+			await this.ipdRepository.updateIPDQueueStatus(admission.queueId, IPDStatus.DISCHARGED);
+
+			// Release the bed if it was assigned
+			if (admission.bedId) {
+				await this.ipdRepository.releaseBed(admission.bedId);
+				console.log(`Bed ${admission.bedId} released for admission ${admissionId}`);
+			}
 
 				// Send WebSocket notification for discharge
 				// try {
