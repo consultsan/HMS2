@@ -163,7 +163,7 @@ export default function IPDAdmissionForm({
           ...prev,
           roomNumber: ward.name
         }));
-        fetchBeds(value);
+        fetchBeds(String(value));
       }
     }
   };
