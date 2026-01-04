@@ -331,14 +331,17 @@ export default function IPDAdmissionForm({
                       <SelectValue placeholder="Select a doctor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {doctors.map((doctor) => (
-                        <SelectItem key={doctor.id} value={doctor.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{doctor.name}</span>
-                            <span className="text-sm text-gray-500">{doctor.specialisation}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {doctors.map((doctor) => {
+                        const doctorName = doctor.name.startsWith('Dr') ? doctor.name : `Dr ${doctor.name}`;
+                        return (
+                          <SelectItem key={doctor.id} value={doctor.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{doctorName}</span>
+                              <span className="text-sm text-gray-500">{doctor.specialisation}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

@@ -408,7 +408,11 @@ export default function NurseDashboard() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{admission.assignedDoctor.name}</div>
+                          <div className="font-medium">
+                            {admission.assignedDoctor.name.startsWith('Dr') 
+                              ? admission.assignedDoctor.name 
+                              : `Dr ${admission.assignedDoctor.name}`}
+                          </div>
                           <div className="text-sm text-gray-500">{admission.assignedDoctor.specialisation}</div>
                         </div>
                       </TableCell>
@@ -490,7 +494,9 @@ export default function NurseDashboard() {
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Assigned Doctor</h4>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p><span className="font-medium">Name:</span> {selectedPatient.assignedDoctor.name}</p>
+                  <p><span className="font-medium">Name:</span> {selectedPatient.assignedDoctor.name.startsWith('Dr') 
+                      ? selectedPatient.assignedDoctor.name 
+                      : `Dr ${selectedPatient.assignedDoctor.name}`}</p>
                   <p><span className="font-medium">Specialization:</span> {selectedPatient.assignedDoctor.specialisation}</p>
                 </div>
               </div>

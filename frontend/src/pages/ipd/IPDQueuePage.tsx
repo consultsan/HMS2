@@ -378,7 +378,11 @@ export default function IPDQueuePage() {
                 <TableCell>
                   {entry.admission?.assignedDoctor ? (
                     <div>
-                      <div className="font-medium">{entry.admission.assignedDoctor.name}</div>
+                      <div className="font-medium">
+                        {entry.admission.assignedDoctor.name.startsWith('Dr') 
+                          ? entry.admission.assignedDoctor.name 
+                          : `Dr ${entry.admission.assignedDoctor.name}`}
+                      </div>
                       <div className="text-sm text-gray-500">{entry.admission.assignedDoctor.specialisation}</div>
                     </div>
                   ) : (
@@ -521,7 +525,11 @@ export default function IPDQueuePage() {
                 <TableCell>
                   {entry.admission?.assignedDoctor ? (
                     <div>
-                      <div className="font-medium">{entry.admission.assignedDoctor.name}</div>
+                      <div className="font-medium">
+                        {entry.admission.assignedDoctor.name.startsWith('Dr') 
+                          ? entry.admission.assignedDoctor.name 
+                          : `Dr ${entry.admission.assignedDoctor.name}`}
+                      </div>
                       <div className="text-sm text-gray-500">{entry.admission.assignedDoctor.specialisation}</div>
                     </div>
                   ) : (

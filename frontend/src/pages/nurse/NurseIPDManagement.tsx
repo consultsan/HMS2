@@ -412,7 +412,11 @@ export default function NurseIPDManagement() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{admission.assignedDoctor.name}</div>
+                          <div className="font-medium">
+                            {admission.assignedDoctor.name.startsWith('Dr') 
+                              ? admission.assignedDoctor.name 
+                              : `Dr ${admission.assignedDoctor.name}`}
+                          </div>
                           <div className="text-sm text-gray-500">{admission.assignedDoctor.specialisation}</div>
                         </div>
                       </TableCell>

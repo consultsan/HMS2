@@ -267,7 +267,11 @@ export default function IPDPatientDetail() {
             <div>
               <div className="text-sm text-gray-500">Assigned Doctor</div>
               <div className="font-medium">
-                {admission.assignedDoctor?.name || 'N/A'}
+                {admission.assignedDoctor?.name 
+                  ? (admission.assignedDoctor.name.startsWith('Dr') 
+                      ? admission.assignedDoctor.name 
+                      : `Dr ${admission.assignedDoctor.name}`)
+                  : 'N/A'}
               </div>
             </div>
             <div>
