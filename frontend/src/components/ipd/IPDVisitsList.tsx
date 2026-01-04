@@ -159,7 +159,9 @@ export default function IPDVisitsList({
                     </div>
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">{visit.doctor.name}</span>
+                      <span className="text-sm text-gray-600">
+                        {visit.doctor.name.startsWith('Dr') ? visit.doctor.name : `Dr ${visit.doctor.name}`}
+                      </span>
                     </div>
                   </div>
 

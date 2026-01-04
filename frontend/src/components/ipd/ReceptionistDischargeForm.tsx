@@ -16,11 +16,13 @@ import {
   FileText, 
   User, 
   Stethoscope,
-  CheckCircle
+  CheckCircle,
+  IndianRupee,
+  Receipt
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
-import { IPDQueueEntry } from '@/types/ipd';
+import { IPDQueueEntry, IPDBillCalculation } from '@/types/ipd';
 
 interface ReceptionistDischargeFormProps {
   isOpen: boolean;
@@ -45,9 +47,12 @@ export default function ReceptionistDischargeForm({
     doctorSignature: '',
     hospitalStamp: ''
   });
+  const [billData, setBillData] = useState<IPDBillCalculation | null>(null);
+  const [isBillLoading, setIsBillLoading] = useState(false);
+  const [paidAmount, setPaidAmount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Set default discharge date to current date/time
+  // Set default discharge date and fetch bill calculation
   useEffect(() => {
     if (isOpen && queueEntry) {
       const now = new Date();
@@ -59,8 +64,28 @@ export default function ReceptionistDischargeForm({
         ...prev,
         dischargeDate: localDateTime
       }));
+
+      // Fetch bill calculation
+      fetchBillCalculation();
     }
   }, [isOpen, queueEntry]);
+
+  const fetchBillCalculation = async () => {
+    if (!queueEntry?.admission?.id) return;
+
+    try {
+      setIsBillLoading(true);
+      const response = await ipdApi.calculateDischargeBill(queueEntry.admission.id);
+      setBillData(response.data.data);
+      // Set paid amount to amount due by default
+      setPaidAmount(response.data.data.amountAfterAdvance);
+    } catch (error) {
+      console.error('Error fetching bill calculation:', error);
+      toast.error('Failed to calculate bill');
+    } finally {
+      setIsBillLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -101,7 +126,22 @@ export default function ReceptionistDischargeForm({
         hospitalStamp: formData.hospitalStamp
       });
 
-      toast.success('Patient discharged successfully');
+      // Generate discharge bill
+      try {
+        const billResponse = await ipdApi.generateDischargeBill(queueEntry.admission.id, {
+          paidAmount: paidAmount,
+          notes: `Discharge bill for ${queueEntry.patient.name}`
+        });
+        
+        toast.success(
+          `Patient discharged successfully! Bill generated: ${billResponse.data.data.bill.billNumber}`,
+          { duration: 5000 }
+        );
+      } catch (billError) {
+        console.error('Error generating bill:', billError);
+        toast.warning('Patient discharged but bill generation failed. Please generate manually.');
+      }
+
       onSuccess();
       onClose();
     } catch (error) {
@@ -143,6 +183,138 @@ export default function ReceptionistDischargeForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Bill Summary */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-600" />
+                Bill Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isBillLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-gray-600">Calculating bill...</span>
+                </div>
+              ) : billData ? (
+                <div className="space-y-3">
+                  {/* Room Charges */}
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <div>
+                      <div className="font-medium text-gray-900">Room Charges</div>
+                      <div className="text-sm text-gray-500">
+                        {billData.billBreakdown.roomCharges.days} days × ₹{billData.billBreakdown.roomCharges.ratePerDay}/day
+                      </div>
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      ₹{billData.billBreakdown.roomCharges.amount.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Surgery Charges */}
+                  {billData.billBreakdown.surgeryCharges.count > 0 && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <div>
+                        <div className="font-medium text-gray-900">Surgery Charges</div>
+                        <div className="text-sm text-gray-500">
+                          {billData.billBreakdown.surgeryCharges.count} procedure(s)
+                        </div>
+                        {billData.billBreakdown.surgeryCharges.items.map((surgery: any, idx: number) => (
+                          <div key={idx} className="text-xs text-gray-500 ml-2 mt-1">
+                            • {surgery.name} - ₹{surgery.cost.toFixed(2)}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        ₹{billData.billBreakdown.surgeryCharges.amount.toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lab Test Charges (IPD Tests) */}
+                  {billData.billBreakdown.labTestCharges.count > 0 && (
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <div>
+                        <div className="font-medium text-gray-900">Lab Test Charges (IPD Tests)</div>
+                        <div className="text-sm text-gray-500">
+                          {billData.billBreakdown.labTestCharges.count} test(s)
+                        </div>
+                        {billData.billBreakdown.labTestCharges.items.map((test: any, idx: number) => (
+                          <div key={idx} className="text-xs text-gray-500 ml-2 mt-1">
+                            • {test.name} - ₹{test.cost.toFixed(2)}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        ₹{billData.billBreakdown.labTestCharges.amount.toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subtotal */}
+                  <div className="flex justify-between items-center py-2 bg-gray-100 px-3 rounded">
+                    <div className="font-semibold text-gray-900">Subtotal</div>
+                    <div className="font-semibold text-gray-900">
+                      ₹{billData.totalAmount.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Advance Payment */}
+                  {billData.advanceAmount > 0 && (
+                    <div className="flex justify-between items-center py-2 text-green-600">
+                      <div>
+                        <div className="font-medium">Advance Paid</div>
+                        <div className="text-sm">
+                          Bill: {billData.admission.advanceBillNumber || 'N/A'}
+                        </div>
+                      </div>
+                      <div className="font-semibold">
+                        -₹{billData.advanceAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Amount Due */}
+                  <div className="flex justify-between items-center py-3 bg-blue-100 px-3 rounded-lg border-2 border-blue-300">
+                    <div className="font-bold text-blue-900 text-lg">Amount Due</div>
+                    <div className="font-bold text-blue-900 text-xl">
+                      ₹{billData.amountAfterAdvance.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {/* Payment Input */}
+                  <div className="pt-3 border-t">
+                    <Label htmlFor="paidAmount" className="text-gray-700 font-medium">
+                      Amount Paid
+                    </Label>
+                    <div className="relative mt-1">
+                      <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="paidAmount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={paidAmount}
+                        onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {paidAmount < billData.amountAfterAdvance && (
+                      <p className="text-sm text-orange-600 mt-1">
+                        ⚠️ Partial payment: ₹{(billData.amountAfterAdvance - paidAmount).toFixed(2)} remaining
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  No billing data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Patient Information */}
           <Card>
             <CardHeader>
@@ -350,12 +522,12 @@ export default function ReceptionistDischargeForm({
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Discharging...
+                  Processing...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  Discharge Patient
+                  Discharge & Generate Bill
                 </div>
               )}
             </Button>

@@ -204,7 +204,7 @@ export const ipdApi = {
     anesthesiaNotes?: string;
     surgicalNotes?: string;
     complications?: string;
-    bloodLoss?: string;
+    bloodLoss?: number;
     bloodTransfusion?: boolean;
     bloodUnits?: number;
     primarySurgeon?: string;
@@ -216,6 +216,7 @@ export const ipdApi = {
     anesthesiaCost?: number;
     totalCost?: number;
     primarySurgeonId?: string;
+    originalOpdSurgeryId?: string;
   }) =>
     api.post<{ message: string; data: any }>('/api/ipd/surgery', data),
 
@@ -232,7 +233,7 @@ export const ipdApi = {
     anesthesiaNotes?: string;
     surgicalNotes?: string;
     complications?: string;
-    bloodLoss?: string;
+    bloodLoss?: number;
     bloodTransfusion?: boolean;
     bloodUnits?: number;
     primarySurgeon?: string;
@@ -245,4 +246,42 @@ export const ipdApi = {
     totalCost?: number;
   }) =>
     api.patch<{ message: string; data: any }>(`/api/ipd/surgery/${id}`, data),
+
+  // IPD Billing Management
+  generateAdvanceBill: (admissionId: string, data: {
+    advanceAmount: number;
+    notes?: string;
+  }) =>
+    api.post<{
+      message: string;
+      data: {
+        bill: {
+          id: string;
+          billNumber: string;
+          totalAmount: number;
+          paidAmount: number;
+          status: string;
+        };
+        advanceAmount: number;
+        advanceBillNumber: string;
+        advanceBillId: string;
+      };
+    }>(`/api/ipd/billing/${admissionId}/advance`, data),
+
+  calculateDischargeBill: (admissionId: string) =>
+    api.get<{ message: string; data: any }>(`/api/ipd/billing/${admissionId}/calculate`),
+
+  generateDischargeBill: (admissionId: string, data: {
+    paidAmount?: number;
+    dueDate?: Date;
+    notes?: string;
+    discountAmount?: number;
+  }) =>
+    api.post<{ message: string; data: any }>(`/api/ipd/billing/${admissionId}/generate`, data),
+
+  getIPDBills: (admissionId: string) =>
+    api.get<{ message: string; data: any[] }>(`/api/ipd/billing/${admissionId}/bills`),
+
+  getIPDBillDetails: (billId: string) =>
+    api.get<{ message: string; data: any }>(`/api/ipd/billing/bill/${billId}`),
 };

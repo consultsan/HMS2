@@ -64,6 +64,7 @@ export interface IPDQueueEntry {
   id: string;
   ipdNumber: string;
   status: IPDStatus;
+  admissionReason?: string;
   patient: {
     id: string;
     name: string;
@@ -80,6 +81,13 @@ export interface IPDQueueEntry {
   hospital: {
     id: string;
     name: string;
+  };
+  surgery?: {
+    id: string;
+    category: string;
+    description?: string;
+    scheduledAt?: string;
+    status: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -100,6 +108,10 @@ export interface IPDQueueEntry {
     chiefComplaint: string;
     admissionNotes: string;
     dischargeNotes?: string;
+    advanceAmount?: number;
+    advanceBillNumber?: string;
+    advanceBillId?: string;
+    dischargeBillId?: string;
     assignedDoctor: {
       id: string;
       name: string;
@@ -135,6 +147,7 @@ export interface IPDAdmissionData {
   bedNumber?: string;
   chiefComplaint?: string;
   admissionNotes?: string;
+  advanceAmount?: number;
   status?: IPDStatus;
   dischargeDate?: string;
   dischargeNotes?: string;
@@ -157,6 +170,10 @@ export interface IPDAdmission {
   chiefComplaint?: string;
   admissionNotes?: string;
   dischargeNotes?: string;
+  advanceAmount?: number;
+  advanceBillNumber?: string;
+  advanceBillId?: string;
+  dischargeBillId?: string;
   createdAt: string;
   updatedAt: string;
   queueId: string;
@@ -386,6 +403,71 @@ export interface IPDAdmissionResponse {
 export interface IPDDashboardStatsResponse {
   message: string;
   data: IPDDashboardStats;
+}
+
+// IPD Billing Interfaces
+export interface IPDBillCalculation {
+  admission: {
+    id: string;
+    admissionDate: string;
+    dischargeDate: string;
+    stayDuration: number;
+    wardType: string;
+    wardSubType?: string;
+    roomNumber?: string;
+    bedNumber?: string;
+    advanceAmount?: number;
+    advanceBillNumber?: string;
+  };
+  patient: {
+    id: string;
+    name: string;
+    uhid: string;
+    phone: string;
+  };
+  hospital: {
+    id: string;
+    name: string;
+  };
+  doctor: {
+    id: string;
+    name: string;
+    specialisation: string;
+  };
+  billBreakdown: {
+    roomCharges: {
+      amount: number;
+      days: number;
+      ratePerDay: number;
+      description: string;
+    };
+    surgeryCharges: {
+      amount: number;
+      count: number;
+      items: Array<{
+        id: string;
+        name: string;
+        cost: number;
+        status: string;
+      }>;
+      description: string;
+    };
+    labTestCharges: {
+      amount: number;
+      count: number;
+      items: Array<{
+        id: string;
+        name: string;
+        cost: number;
+        status: string;
+      }>;
+      description: string;
+    };
+  };
+  totalAmount: number;
+  advanceAmount: number;
+  amountAfterAdvance: number;
+  currency: string;
 }
 
 export interface WardsResponse {

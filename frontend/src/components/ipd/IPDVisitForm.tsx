@@ -13,11 +13,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Stethoscope, 
   FileText, 
-  Activity
+  Activity,
+  TestTube,
+  Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
+import { labApi } from '@/api/lab';
 import { IPDVisitData, IPDVisitVitalData } from '@/types/ipd';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
+import { LabTestSearch } from '@/components/LabTestSearch';
 
 interface IPDVisitFormProps {
   isOpen: boolean;
@@ -25,6 +37,198 @@ interface IPDVisitFormProps {
   onSuccess: () => void;
   admissionId: string;
   patientName: string;
+}
+
+// IPD Lab Test Form Modal Component
+function IPDLabTestFormModal({
+  isOpen,
+  onClose,
+  patientName,
+  onSuccess
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  patientName: string;
+  onSuccess: (testData: any) => void;
+}) {
+  const [selectedLabTestId, setSelectedLabTestId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    testName: '',
+    testCode: '',
+    category: '',
+    priority: 'ROUTINE' as 'ROUTINE' | 'URGENT' | 'STAT',
+    instructions: '',
+    fastingRequired: false,
+    fastingHours: '',
+    specialInstructions: '',
+    testCost: '',
+  });
+
+  // Fetch available lab tests
+  useQuery<any>({
+    queryKey: ['lab-tests'],
+    queryFn: async () => {
+      const response = await labApi.getLabTests();
+      return response.data?.data;
+    },
+  });
+
+  const handleTestSelect = (test: { id: string; name: string; code?: string; category?: string; charge?: number }) => {
+    setSelectedLabTestId(test.id);
+    setFormData(prev => ({
+      ...prev,
+      testName: test.name,
+      testCode: test.code || '',
+      category: test.category || '',
+      testCost: test.charge?.toString() || '',
+    }));
+  };
+
+  const handleManualTestNameChange = (value: string) => {
+    if (value !== formData.testName) {
+      setSelectedLabTestId(null);
+    }
+    setFormData(prev => ({ ...prev, testName: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.testName.trim()) {
+      toast.error('Test name is required');
+      return;
+    }
+
+    // Don't create the test immediately, just pass it to parent
+    const testData = {
+      testName: formData.testName,
+      testCode: formData.testCode || undefined,
+      category: formData.category || undefined,
+      priority: formData.priority,
+      instructions: formData.instructions || undefined,
+      fastingRequired: formData.fastingRequired,
+      fastingHours: formData.fastingHours ? parseInt(formData.fastingHours) : undefined,
+      specialInstructions: formData.specialInstructions || undefined,
+      testCost: formData.testCost ? parseFloat(formData.testCost) : undefined,
+      labTestId: selectedLabTestId || undefined,
+    };
+
+    onSuccess(testData);
+    
+    // Reset form
+    setFormData({
+      testName: '',
+      testCode: '',
+      category: '',
+      priority: 'ROUTINE',
+      instructions: '',
+      fastingRequired: false,
+      fastingHours: '',
+      specialInstructions: '',
+      testCost: '',
+    });
+    setSelectedLabTestId(null);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TestTube className="h-5 w-5 text-purple-600" />
+            Order Lab Test - {patientName}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="testName">Test Name *</Label>
+            <LabTestSearch
+              onTestSelect={handleTestSelect}
+              placeholder="Search or select a lab test..."
+            />
+            <Input
+              id="testName"
+              value={formData.testName}
+              onChange={(e) => handleManualTestNameChange(e.target.value)}
+              placeholder="Or enter test name manually"
+              className="mt-2"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="testCode">Test Code</Label>
+              <Input
+                id="testCode"
+                value={formData.testCode}
+                onChange={(e) => setFormData(prev => ({ ...prev, testCode: e.target.value }))}
+                placeholder="e.g., CBC001"
+              />
+            </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                placeholder="e.g., Hematology"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="priority">Priority *</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value: any) => setFormData(prev => ({ ...prev, priority: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ROUTINE">Routine</SelectItem>
+                  <SelectItem value="URGENT">Urgent</SelectItem>
+                  <SelectItem value="STAT">STAT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="testCost">Test Cost (₹)</Label>
+              <Input
+                id="testCost"
+                type="number"
+                value={formData.testCost}
+                onChange={(e) => setFormData(prev => ({ ...prev, testCost: e.target.value }))}
+                placeholder="e.g., 500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="instructions">Instructions</Label>
+            <Textarea
+              id="instructions"
+              value={formData.instructions}
+              onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+              placeholder="Enter test instructions..."
+              rows={2}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+              Add Test
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function IPDVisitForm({
@@ -45,6 +249,19 @@ export default function IPDVisitForm({
     vitals: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLabTestFormOpen, setIsLabTestFormOpen] = useState(false);
+  const [pendingLabTests, setPendingLabTests] = useState<Array<{
+    testName: string;
+    testCode?: string;
+    category?: string;
+    priority: 'ROUTINE' | 'URGENT' | 'STAT';
+    instructions?: string;
+    fastingRequired?: boolean;
+    fastingHours?: number;
+    specialInstructions?: string;
+    testCost?: number;
+    labTestId?: string;
+  }>>([]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -59,6 +276,7 @@ export default function IPDVisitForm({
         nextVisitPlan: '',
         vitals: []
       });
+      setPendingLabTests([]);
     }
   }, [isOpen, admissionId]);
 
@@ -112,8 +330,27 @@ export default function IPDVisitForm({
 
     setIsSubmitting(true);
     try {
+      // Create the visit first
       await ipdApi.createVisit(formData);
-      toast.success('Visit recorded successfully!');
+      
+      // Then create all pending lab tests
+      if (pendingLabTests.length > 0) {
+        for (const test of pendingLabTests) {
+          try {
+            await ipdApi.createIPDLabTest({
+              admissionId,
+              ...test
+            });
+          } catch (testError) {
+            console.error('Error creating lab test:', testError);
+            // Continue with other tests even if one fails
+          }
+        }
+        toast.success(`Visit recorded and ${pendingLabTests.length} lab test(s) ordered successfully!`);
+      } else {
+        toast.success('Visit recorded successfully!');
+      }
+      
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -148,14 +385,15 @@ export default function IPDVisitForm({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Stethoscope className="h-5 w-5 text-blue-600" />
-            Record IPD Visit - {patientName}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-blue-600" />
+              Record IPD Visit - {patientName}
+            </DialogTitle>
+          </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Visit Notes */}
@@ -314,6 +552,70 @@ export default function IPDVisitForm({
             </CardContent>
           </Card>
 
+          {/* Order Lab Tests Section */}
+          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5 text-purple-600" />
+                  Order Lab Tests
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    console.log('Order Tests clicked');
+                    setIsLabTestFormOpen(true);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700"
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Test
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pendingLabTests.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600 mb-3">
+                    <strong>{pendingLabTests.length}</strong> test(s) will be ordered when you record this visit:
+                  </p>
+                  {pendingLabTests.map((test, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-3">
+                        <TestTube className="h-4 w-4 text-purple-600" />
+                        <div>
+                          <p className="font-medium text-sm">{test.testName}</p>
+                          <p className="text-xs text-gray-500">
+                            {test.priority} {test.testCost && `• ₹${test.testCost}`}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPendingLabTests(prev => prev.filter((_, i) => i !== index));
+                          toast.info('Test removed from queue');
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <TestTube className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm">No lab tests added yet</p>
+                  <p className="text-xs">Click "Add Test" to order lab tests</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Form Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
@@ -345,5 +647,18 @@ export default function IPDVisitForm({
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Lab Test Form Modal */}
+    <IPDLabTestFormModal
+      isOpen={isLabTestFormOpen}
+      onClose={() => setIsLabTestFormOpen(false)}
+      patientName={patientName}
+      onSuccess={(testData) => {
+        setPendingLabTests(prev => [...prev, testData]);
+        setIsLabTestFormOpen(false);
+        toast.success('Lab test added! Click "Record Visit" to submit.');
+      }}
+    />
+  </>
   );
 }

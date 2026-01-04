@@ -10,7 +10,9 @@ const roles: string[] = [
 	UserRole.SUPER_ADMIN,
 	UserRole.HOSPITAL_ADMIN,
 	UserRole.RECEPTIONIST,
-	UserRole.SALES_PERSON
+	UserRole.SALES_PERSON,
+	UserRole.DOCTOR,
+	UserRole.NURSE,
 ];
 
 export class HospitalStaffController {
