@@ -6,7 +6,6 @@ import {
   Download, 
   Printer, 
   FileText,
-  Building,
   User,
   Calendar,
   IndianRupee

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Loader2, MapPin, Stethoscope } from 'lucide-react';
 import { publicAppointmentApi, Hospital, Doctor, AvailableSlot } from '@/api/publicAppointment';
-import { format } from 'date-fns';
 
 interface AppointmentSelectionFormProps {
   onNext: (
