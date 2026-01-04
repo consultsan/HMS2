@@ -267,4 +267,21 @@ export const ipdApi = {
         advanceBillId: string;
       };
     }>(`/api/ipd/billing/${admissionId}/advance`, data),
+
+  calculateDischargeBill: (admissionId: string) =>
+    api.get<{ message: string; data: any }>(`/api/ipd/billing/${admissionId}/calculate`),
+
+  generateDischargeBill: (admissionId: string, data: {
+    paidAmount?: number;
+    dueDate?: Date;
+    notes?: string;
+    discountAmount?: number;
+  }) =>
+    api.post<{ message: string; data: any }>(`/api/ipd/billing/${admissionId}/generate`, data),
+
+  getIPDBills: (admissionId: string) =>
+    api.get<{ message: string; data: any[] }>(`/api/ipd/billing/${admissionId}/bills`),
+
+  getIPDBillDetails: (billId: string) =>
+    api.get<{ message: string; data: any }>(`/api/ipd/billing/bill/${billId}`),
 };

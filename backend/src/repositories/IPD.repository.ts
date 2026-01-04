@@ -1758,8 +1758,8 @@ export class IPDRepository {
 						unitPrice: surgery.cost,
 						totalPrice: surgery.cost,
 						discountAmount: 0,
-						notes: `Status: ${surgery.status}`,
-						surgeryId: surgery.id
+						notes: `Status: ${surgery.status}, IPD Surgery ID: ${surgery.id}`
+						// Note: Don't include surgeryId as it references OPD Surgery table, not IPD Surgery
 					});
 				}
 			}
@@ -1774,8 +1774,8 @@ export class IPDRepository {
 					unitPrice: labTest.cost,
 					totalPrice: labTest.cost,
 					discountAmount: 0,
-					notes: `Status: ${labTest.status}`,
-					labTestId: labTest.id
+					notes: `Status: ${labTest.status}, IPD Lab Test ID: ${labTest.id}`
+					// Note: Don't include labTestId as it references OPD AppointmentLabTest table, not IPD Lab Test
 				});
 			}
 		}

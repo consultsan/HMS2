@@ -44,6 +44,7 @@ import WardManagement from "./pages/admin/WardManagement";
 import InsuranceManagement from "./pages/admin/InsuranceManagement";
 import NurseDashboard from "./pages/nurse/NurseDashboard";
 import NurseIPDManagement from "./pages/nurse/NurseIPDManagement";
+import IPDBillPage from "./pages/ipd/IPDBillPage";
 
 function PatientDetailsWrapper() {
 	const { patientId } = useParams<{ patientId: string }>();
@@ -72,6 +73,16 @@ export default function App() {
 					<Route
 						path="/login"
 						element={<Login />}
+					/>
+
+					{/* Universal IPD Bill Route - Accessible to all authenticated users */}
+					<Route
+						path="/ipd/bill/:billId"
+						element={
+							<ProtectedRoute allowedRoles={['DOCTOR', 'RECEPTIONIST', 'NURSE', 'HOSPITAL_ADMIN']}>
+								<IPDBillPage />
+							</ProtectedRoute>
+						}
 					/>
 
 					{/* Super Admin Routes */}
@@ -231,11 +242,15 @@ export default function App() {
 							path="pending-lab-bills"
 							element={<PendingLabBills />}
 						/>
-						<Route
-							path="ipd-queue"
-							element={<IPDQueuePage />}
-						/>
-					</Route>
+					<Route
+						path="ipd-queue"
+						element={<IPDQueuePage />}
+					/>
+					<Route
+						path="ipd-bill/:billId"
+						element={<IPDBillPage />}
+					/>
+				</Route>
 
 					{/* Sales Person Routes */}
 					<Route
@@ -307,11 +322,15 @@ export default function App() {
 							path="ipd-management"
 							element={<IPDManagement />}
 						/>
-						<Route
-							path="ipd/:admissionId"
-							element={<IPDPatientDetail />}
-						/>
-						<Route
+					<Route
+						path="ipd/:admissionId"
+						element={<IPDPatientDetail />}
+					/>
+					<Route
+						path="ipd-bill/:billId"
+						element={<IPDBillPage />}
+					/>
+					<Route
 							path="template"
 							element={<DiseaseTemplate />}
 						/>

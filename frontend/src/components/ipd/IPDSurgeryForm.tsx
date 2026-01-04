@@ -86,13 +86,21 @@ export default function IPDSurgeryForm({
   }, []);
 
   // Fetch doctors for surgeon selection
-  const { data: doctors } = useQuery<any[]>({
+  const { data: doctors, isLoading: isDoctorsLoading, error: doctorsError } = useQuery<any[]>({
     queryKey: ['doctors'],
     queryFn: async () => {
       const response = await ipdApi.getDoctors();
+      console.log('Doctors API Response:', response.data);
       return response.data?.data || [];
     },
   });
+
+  // Debug: Log doctors data
+  useEffect(() => {
+    console.log('Doctors loaded:', doctors);
+    console.log('Doctors loading:', isDoctorsLoading);
+    console.log('Doctors error:', doctorsError);
+  }, [doctors, isDoctorsLoading, doctorsError]);
 
   // Get all unique surgeries from all specializations
   const allSurgeries = useMemo(() => {

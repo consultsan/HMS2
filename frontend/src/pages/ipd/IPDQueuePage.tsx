@@ -161,13 +161,18 @@ export default function IPDQueuePage() {
     
     // Fetch surgery data for this admission
     try {
+      console.log('Fetching surgeries for admission:', entry.admission.id);
       const response = await ipdApi.getIPDSurgeries(entry.admission.id);
-      if (response.data?.data) {
+      console.log('Surgery API Response:', response.data);
+      
+      if (response.data?.data && response.data.data.length > 0) {
         // Store ALL surgeries, not just the first one
+        console.log('Found surgeries:', response.data.data);
         setIpdSurgeryData(response.data.data);
         setIsSurgeryManagementOpen(true);
       } else {
         // No surgery yet, show create form with OPD surgery data pre-filled
+        console.log('No surgeries found, opening form');
         setIpdSurgeryData([]);
         setOpdSurgeryForPreFill(entry.surgery || null);
         setIsSurgeryFormOpen(true);
@@ -568,6 +573,21 @@ export default function IPDQueuePage() {
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
+                    {entry.admission?.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Open bill page with admission ID
+                          // The bill page will query bills and find the discharge bill
+                          window.open(`/ipd/bill/${entry.admission?.id}`, '_blank');
+                        }}
+                        className="bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Bill
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -853,15 +873,15 @@ export default function IPDQueuePage() {
                         </p>
                       </div>
                     )}
-                    {selectedEntry.admission.advanceAmount && selectedEntry.admission.advanceAmount > 0 && (
+                    {(selectedEntry.admission as any)?.advanceAmount && (selectedEntry.admission as any).advanceAmount > 0 && (
                       <div className="grid grid-cols-2 gap-4 pt-2 border-t">
                         <div>
                           <p className="text-sm font-medium text-green-700">Advance Amount</p>
-                          <p className="text-sm font-semibold text-green-600">₹{selectedEntry.admission.advanceAmount.toFixed(2)}</p>
+                          <p className="text-sm font-semibold text-green-600">₹{((selectedEntry.admission as any).advanceAmount).toFixed(2)}</p>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-blue-700">Advance Bill No.</p>
-                          <p className="text-sm font-semibold text-blue-600">{selectedEntry.admission.advanceBillNumber || 'N/A'}</p>
+                          <p className="text-sm font-semibold text-blue-600">{(selectedEntry.admission as any)?.advanceBillNumber || 'N/A'}</p>
                         </div>
                       </div>
                     )}

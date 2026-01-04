@@ -443,34 +443,34 @@ export class IPDController {
 					throw new AppError("Admission not found", 404);
 				}
 
-				const admissionDate = admission.admissionDate;
-				const dischargeDateObj = new Date(dischargeDate);
-				const totalStayDuration = Math.ceil((dischargeDateObj.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
+			const admissionDate = admission.admissionDate;
+			const dischargeDateObj = new Date(dischargeDate);
+			const totalStayDuration = Math.ceil((dischargeDateObj.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
-				// Check if discharge bill exists before allowing discharge
-				const existingBills = await this.ipdRepository.getIPDBills(admissionId);
-				
-				if (existingBills.length === 0) {
-					// No bill exists, try to generate one automatically
-					try {
-						await this.ipdRepository.generateIPDDischargeBill(admissionId, {
-							paidAmount: 0,
-							notes: "Auto-generated discharge bill",
-							discountAmount: 0
-						});
-						console.log(`Discharge bill auto-generated for admission ${admissionId}`);
-					} catch (billError: any) {
-						// If bill generation fails, prevent discharge
-						throw new AppError(
-							`Cannot discharge patient without billing. Failed to generate discharge bill: ${billError.message || 'Unknown error'}`,
-							400
-						);
-					}
-				} else {
-					console.log(`Discharge bill already exists for admission ${admissionId}, proceeding with discharge`);
+			// Check if discharge bill exists before allowing discharge
+			const existingBills = await this.ipdRepository.getIPDBills(admissionId);
+			
+			if (existingBills.length === 0) {
+				// No bill exists, try to generate one automatically
+				try {
+					await this.ipdRepository.generateIPDDischargeBill(admissionId, {
+						paidAmount: 0,
+						notes: "Auto-generated discharge bill",
+						discountAmount: 0
+					});
+					console.log(`Discharge bill auto-generated for admission ${admissionId}`);
+				} catch (billError: any) {
+					// If bill generation fails, prevent discharge
+					throw new AppError(
+						`Cannot discharge patient without billing. Failed to generate discharge bill: ${billError.message || 'Unknown error'}`,
+						400
+					);
 				}
+			} else {
+				console.log(`Discharge bill already exists for admission ${admissionId}, proceeding with discharge`);
+			}
 
-				const dischargeSummary = await this.ipdRepository.createDischargeSummary({
+			const dischargeSummary = await this.ipdRepository.createDischargeSummary({
 					admissionId,
 					admissionDate,
 					dischargeDate: dischargeDateObj,
@@ -1502,15 +1502,15 @@ export class IPDController {
 					throw new AppError("Admission ID is required", 400);
 				}
 
-				// Validate admission exists and is ready for discharge
-				const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
-				if (!admission) {
-					throw new AppError("Admission not found", 404);
-				}
+			// Validate admission exists and is ready for discharge
+			const admission = await this.ipdRepository.getIPDAdmissionById(admissionId);
+			if (!admission) {
+				throw new AppError("Admission not found", 404);
+			}
 
-				if (admission.status !== 'ADMITTED') {
-					throw new AppError("Patient must be admitted to generate discharge bill", 400);
-				}
+			if (admission.status !== 'ADMITTED') {
+				throw new AppError("Patient must be admitted to generate discharge bill", 400);
+			}
 
 				// Check if bill already exists for this admission
 				const existingBills = await this.ipdRepository.getIPDBills(admissionId);

@@ -32,7 +32,8 @@ import {
   Eye,
   Activity,
   Clock,
-  Scissors
+  Scissors,
+  Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ipdApi } from '@/api/ipd';
@@ -53,6 +54,8 @@ export default function NurseIPDManagement() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [isSurgeryModalOpen, setIsSurgeryModalOpen] = useState(false);
   const [selectedAdmissionForSurgery, setSelectedAdmissionForSurgery] = useState<IPDAdmission | null>(null);
+  const [isSurgeryListModalOpen, setIsSurgeryListModalOpen] = useState(false);
+  const [surgeryData, setSurgeryData] = useState<any[]>([]);
 
   // Fetch assigned wards
   const fetchAssignedWards = async () => {
@@ -169,13 +172,37 @@ export default function NurseIPDManagement() {
     setIsVisitsModalOpen(true);
   };
 
-  const handleAddSurgery = (admission: IPDAdmission) => {
+  const handleAddSurgery = async (admission: IPDAdmission) => {
     setSelectedAdmissionForSurgery(admission);
-    setIsSurgeryModalOpen(true);
+    
+    // Fetch existing surgeries first
+    try {
+      console.log('Fetching surgeries for admission:', admission.id);
+      const response = await ipdApi.getIPDSurgeries(admission.id);
+      console.log('Surgery API Response:', response.data);
+      
+      if (response.data?.data && response.data.data.length > 0) {
+        // Show surgery list if surgeries exist
+        console.log('Found surgeries:', response.data.data);
+        setSurgeryData(response.data.data);
+        setIsSurgeryListModalOpen(true);
+      } else {
+        // Open add form if no surgeries
+        console.log('No surgeries found, opening form');
+        setSurgeryData([]);
+        setIsSurgeryModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error fetching surgeries:', error);
+      // If error, open add form
+      setSurgeryData([]);
+      setIsSurgeryModalOpen(true);
+    }
   };
 
   const handleSurgerySuccess = () => {
     setIsSurgeryModalOpen(false);
+    setIsSurgeryListModalOpen(false);
     setSelectedAdmissionForSurgery(null);
     toast.success('Surgery scheduled successfully');
     fetchAdmissions(); // Refresh the list
@@ -458,8 +485,169 @@ export default function NurseIPDManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Surgery Modal */}
-      <Dialog open={isSurgeryModalOpen} onOpenChange={setIsSurgeryModalOpen}>
+      {/* Surgery List Modal */}
+      <Dialog open={isSurgeryListModalOpen} onOpenChange={setIsSurgeryListModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Scissors className="h-5 w-5 text-orange-600" />
+                Surgery Information - {selectedAdmissionForSurgery?.queue.patient.name}
+              </div>
+              <Button
+                onClick={() => {
+                  setIsSurgeryListModalOpen(false);
+                  setIsSurgeryModalOpen(true);
+                }}
+                className="bg-orange-600 hover:bg-orange-700"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add New Surgery
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {surgeryData && surgeryData.length > 0 ? (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600 mb-4">
+                Total Surgeries: <span className="font-semibold">{surgeryData.length}</span>
+              </div>
+              
+              {/* Display all surgeries */}
+              {surgeryData.map((surgery, index) => (
+                <Card key={surgery.id} className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Surgery #{index + 1}</h3>
+                      <Badge className={`${
+                        surgery.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                        surgery.status === 'NOT_CONFIRMED' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {surgery.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Surgery Details */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Surgery Name</label>
+                        <p className="text-base font-semibold mt-1">{surgery.surgeryName}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Category</label>
+                        <p className="text-base mt-1">{surgery.category || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Priority</label>
+                        <Badge variant="outline" className="mt-1">{surgery.priority}</Badge>
+                      </div>
+                      {surgery.scheduledAt && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Scheduled Date & Time</label>
+                          <p className="text-sm mt-1 flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            {new Date(surgery.scheduledAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Procedure Description */}
+                    {surgery.procedureDescription && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Procedure Description</label>
+                        <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-3 rounded">
+                          {surgery.procedureDescription}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Surgery Team */}
+                    {(surgery.primarySurgeon || surgery.anesthesiologist) && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-2 block">Surgery Team</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {surgery.primarySurgeon && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Primary Surgeon</p>
+                              <p className="text-sm font-medium">{surgery.primarySurgeon}</p>
+                            </div>
+                          )}
+                          {surgery.assistantSurgeon && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Assistant Surgeon</p>
+                              <p className="text-sm font-medium">{surgery.assistantSurgeon}</p>
+                            </div>
+                          )}
+                          {surgery.anesthesiologist && (
+                            <div className="bg-gray-50 p-2 rounded">
+                              <p className="text-xs text-gray-500">Anesthesiologist</p>
+                              <p className="text-sm font-medium">{surgery.anesthesiologist}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2">
+                <Button 
+                  onClick={() => {
+                    setIsSurgeryListModalOpen(false);
+                    setIsSurgeryModalOpen(true);
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Another Surgery
+                </Button>
+                <Button onClick={() => setIsSurgeryListModalOpen(false)} variant="outline">
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Scissors className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Surgeries Found</h3>
+              <p className="text-gray-500 mb-4">
+                No surgeries have been created for this patient yet.
+              </p>
+              <Button 
+                onClick={() => {
+                  setIsSurgeryListModalOpen(false);
+                  setIsSurgeryModalOpen(true);
+                }}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add First Surgery
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Surgery Form Modal */}
+      <Dialog open={isSurgeryModalOpen} onOpenChange={(open) => {
+        setIsSurgeryModalOpen(open);
+        // If closing and there are existing surgeries, reopen the list
+        if (!open && surgeryData.length > 0) {
+          setIsSurgeryListModalOpen(true);
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -472,7 +660,13 @@ export default function NurseIPDManagement() {
               admissionId={selectedAdmissionForSurgery.id}
               patientName={selectedAdmissionForSurgery.queue.patient.name}
               onSuccess={handleSurgerySuccess}
-              onCancel={() => setIsSurgeryModalOpen(false)}
+              onCancel={() => {
+                setIsSurgeryModalOpen(false);
+                // If there are existing surgeries, reopen the list
+                if (surgeryData.length > 0) {
+                  setIsSurgeryListModalOpen(true);
+                }
+              }}
               opdSurgery={undefined}
             />
           )}

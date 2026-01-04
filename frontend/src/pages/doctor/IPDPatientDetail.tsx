@@ -57,6 +57,7 @@ import { labApi } from '@/api/lab';
 import { useQuery } from '@tanstack/react-query';
 import { LabTestSearch } from '@/components/LabTestSearch';
 import IPDSurgeryForm from '@/components/ipd/IPDSurgeryForm';
+import IPDBillViewer from '@/components/ipd/IPDBillViewer';
 
 export default function IPDPatientDetail() {
   const { admissionId } = useParams<{ admissionId: string }>();
@@ -301,6 +302,9 @@ export default function IPDPatientDetail() {
           <TabsTrigger value="ipd-visits">IPD Visits</TabsTrigger>
           <TabsTrigger value="ipd-tests">IPD Tests</TabsTrigger>
           <TabsTrigger value="ipd-surgeries">IPD Surgeries</TabsTrigger>
+          {admission.status === 'DISCHARGED' && (
+            <TabsTrigger value="bill">Bill</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Overview Tab */}
@@ -717,6 +721,13 @@ export default function IPDPatientDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Bill Tab */}
+        {admission.status === 'DISCHARGED' && (
+          <TabsContent value="bill">
+            <IPDBillViewer admissionId={admissionId!} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Add Visit Form */}
